@@ -1,0 +1,13 @@
+Library/
+My Advisor Results - SurfGenBound/
+Script/
+x64/
+*.u2d
+*.vfproj
+input
+AdvancedInput
+intcfl
+*.all
+*.data
+*.xyz
+*.CheckPoint
