@@ -230,15 +230,7 @@ end subroutine FitHd
                 allocate(b(NExpansionCoefficients))
                 b=c
                 allocate(A(NExpansionCoefficients,NExpansionCoefficients))
-CALL L_RMSD(CMIN,L,RMSDENERGY,RMSDDH,RMSDDEGH,RMSDDEGDH)
-WRITE(*,*)'L_RMSD',L
-CALL LAGRANGIAN(L,CMIN,NExpansionCoefficients)
-WRITE(*,*)'LAGRANGIAN',L*2D0
-CALL LSFMatrices_L_RMSD(A,B,L,RMSDENERGY,RMSDDH,RMSDDEGH,RMSDDEGDH)
-WRITE(*,*)'LSFMatrices_L_RMSD',L
-B=C
                 call LSFMatrices_L(A,b,Lmin)
-WRITE(*,*)'LSFMatrices_L',LMIN
         !Solve
         call showtime()
         write(*,'(1x,A43)')'Explore phase space by pseudolinear hopping'
