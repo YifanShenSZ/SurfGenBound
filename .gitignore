@@ -1,14 +1,16 @@
-Library/
 My Advisor Results - SurfGenBound/
-Script/
 x64/
 *.u2d
 *.vfproj
+.vscode/
+Library/
+Script/
 input
 AdvancedInput
 intcfl
 *.all
 *.data
 *.xyz
+*.out
 *.CheckPoint
 *.py
