@@ -109,6 +109,10 @@ program main
     end select
 !------------- End --------------
 
+!---------- Clean up ------------
+    write(*,*)'Mission complete'
+!------------- End --------------
+
 contains
     !Read main input files: input, MoleculeDetailFile, AdvancedInput (optional)
     subroutine ReadInput()
