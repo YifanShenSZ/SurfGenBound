@@ -1,8 +1,8 @@
-#####################################################
-#                                                   #
-#        Makefile for compiling SurfGenBound        #
-#                                                   #
-#####################################################
+###########################################
+#                                         #
+#        Makefile for SurfGenBound        #
+#                                         #
+###########################################
 
 compiler = ifort
 # This is my library directory on MARCC
