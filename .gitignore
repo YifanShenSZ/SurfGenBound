@@ -12,6 +12,7 @@ AdvancedInput
 *.xyz
 intcfl
 Fmat
+Fmat.successor
 *.out
 *.CheckPoint
 *.py
