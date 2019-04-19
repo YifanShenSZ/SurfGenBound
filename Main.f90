@@ -187,6 +187,7 @@ contains
             do i=1,NAtoms
                 read(99,*)MoleculeDetail.mass(i)
             end do
+                MoleculeDetail.mass=MoleculeDetail.mass*AMUInAU!Convert to atomic unit
         close(99)
         if(advance) then!If requested, read advanced input
             write(*,*)'Advanced input requested, parameters are set to user specification'
