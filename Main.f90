@@ -27,7 +27,7 @@ program main
         logical::Unaligned=.true.
         !If gradual fit enabled, then if the data points are unsorted, sort according to the Cartesian distance to the reference geometry in ascending order
         !    Centre of mass position and orientation should not matter, so the points have to be aligned
-    logical::Unsorted=.true.
+        logical::Unsorted=.true.
     !Gradual fit variables
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
         real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
@@ -192,13 +192,14 @@ contains
             open(unit=99,file='AdvancedInput',status='old')
                 namelist /AdvancedInput/ &
                     !Basic
-                        GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted,&
                         HighEnergy,AlmostDegenerate,&
                     !HdLeastSquareFit
                         LSF_Regularization,LSF_Solver,&
                         LSF_MaxHopperIteration,LSF_MaxLocalMinimizerIteration,LSF_Max2StepIteration,&
                         LSF_pseudolinearTol,LSF_pseudolinearFollowFreq,&
-                        LSF_LBFGSSolver,LSF_LBFGSMemory,LSF_CGSolver
+                        LSF_LBFGSSolver,LSF_LBFGSMemory,LSF_CGSolver,&
+                    !Main
+                        GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)
             close(99)
         end if

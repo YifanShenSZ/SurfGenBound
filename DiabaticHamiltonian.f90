@@ -39,18 +39,19 @@ subroutine InitializeDiabaticHamiltonian()
     logical::degenerate
     integer::istate,jstate,iorder,i,n
     !Initialize Hd expansion coefficient (HdEC)
-        allocate(HdEC(NStates,NStates))
-        do istate=1,NStates
-            do jstate=istate,NStates
-                allocate(HdEC(jstate,istate).Order(0:NOrder))
-                do iorder=0,NOrder
-                    allocate(HdEC(jstate,istate).Order(iorder).Array(int(iCombination(InternalDimension+iorder-1,iorder))))
-                    HdEC(jstate,istate).Order(iorder).Array=0d0
-                end do
-            end do
-        end do
         select case(JobType)
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, provide an initial guess
+                !Allocate storage space
+                    allocate(HdEC(NStates,NStates))
+                    do istate=1,NStates
+                        do jstate=istate,NStates
+                            allocate(HdEC(jstate,istate).Order(0:NOrder))
+                            do iorder=0,NOrder
+                                allocate(HdEC(jstate,istate).Order(iorder).Array(int(iCombination(InternalDimension+iorder-1,iorder))))
+                                HdEC(jstate,istate).Order(iorder).Array=0d0
+                            end do
+                        end do
+                    end do
                 call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NStates)
                 if(Degenerate) then
                     forall(istate=1:Nstates,jstate=1:NStates,istate>=jstate)
@@ -65,6 +66,17 @@ subroutine InitializeDiabaticHamiltonian()
                     HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
                 end forall
             case('ContinueFitting')!Read old Hd expansion coefficients
+                !Allocate storage space
+                    allocate(HdEC(NStates,NStates))
+                    do istate=1,NStates
+                        do jstate=istate,NStates
+                            allocate(HdEC(jstate,istate).Order(0:NOrder))
+                            do iorder=0,NOrder
+                                allocate(HdEC(jstate,istate).Order(iorder).Array(int(iCombination(InternalDimension+iorder-1,iorder))))
+                                HdEC(jstate,istate).Order(iorder).Array=0d0
+                            end do
+                        end do
+                    end do
                 call ReadHdExpansionCoefficients()
                 if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
             case('NadVibS')!Use same NStates & NOrder of the fitted Hd, read old Hd expansion coefficients
@@ -74,6 +86,17 @@ subroutine InitializeDiabaticHamiltonian()
                     read(99,*)
                     read(99,*)NOrder
                 close(99)
+                !Allocate storage space
+                    allocate(HdEC(NStates,NStates))
+                    do istate=1,NStates
+                        do jstate=istate,NStates
+                            allocate(HdEC(jstate,istate).Order(0:NOrder))
+                            do iorder=0,NOrder
+                                allocate(HdEC(jstate,istate).Order(iorder).Array(int(iCombination(InternalDimension+iorder-1,iorder))))
+                                HdEC(jstate,istate).Order(iorder).Array=0d0
+                            end do
+                        end do
+                    end do
                 call ReadHdExpansionCoefficients()
             case default
         end select
@@ -401,7 +424,7 @@ end function ExpansionBasisHessian
         M=deigvec_ByKnowneigval_dA(energy,dH,InternalDimension,NStates)
         AdiabaticddH=asy3matdirectmulsy3(M,dH,InternalDimension,InternalDimension,NStates)
         AdiabaticddH=sy4UnitaryTransformation(ddHd(q),phi,InternalDimension,InternalDimension,NStates)&
-            -AdiabaticddH-transpose4(AdiabaticddH,InternalDimension,InternalDimension,NStates)
+            -AdiabaticddH-transpose4(AdiabaticddH,InternalDimension,InternalDimension,NStates,NStates)
     end function AdiabaticddH
 
     !energy harvests adiabatic energy, dH harvests ▽H_a
