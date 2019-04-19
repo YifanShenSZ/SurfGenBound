@@ -139,6 +139,9 @@ subroutine Columbusintcfl(intdim)
                         case('torsion')
                             allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
                             read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
+                        case default!Throw a warning
+                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
+                            stop
                     end select
                     k=k+1
                 else
@@ -158,6 +161,9 @@ subroutine Columbusintcfl(intdim)
                                 allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
                                 read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')CharTemp24,&
                                     GeometryTransformation_IntCDef(i).motion(j).coeff,GeometryTransformation_IntCDef(i).motion(j).atom
+                            case default!Throw a warning
+                                write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
+                                stop
                         end select
                         k=k+1
                         DbTemp=DbTemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff

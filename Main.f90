@@ -8,9 +8,11 @@ program main
     use ESSInput
     use DiabaticHamiltonian
     use HdLeastSquareFit
+    use NadVibS
     implicit none
-    integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
-    real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
+    !Gradual fit variables
+        integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
+        real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
     call ReadInput()
     call Initialize()
@@ -103,6 +105,8 @@ program main
                 write(*,*)'Fitting Hd...'
                 call FitHd()
             end if
+        case('NadVibS')
+            call GenerateNadVibsInput()
         case default!Throw a warning
             write(*,'(1x,A35,1x,A32)')'Program abort: unsupported job type',JobType
             stop
@@ -185,10 +189,9 @@ contains
     !The initializer for the program
     subroutine Initialize()
         character*128::CharTemp128
-        integer::ip,istate,jstate
+        integer::ip
         real*8::absdev
-        real*8,allocatable,dimension(:)::OldRefGeom,OldRefEnergy
-        type(Data),allocatable,dimension(:)::pointtemp
+        real*8,allocatable,dimension(:)::OldRefGeom
         CartesianDimension=3*NAtoms
         call DefineInternalCoordinate()
         !A data point provides NStates adiabatic energies, InternalDimension x NStates x NStates ▽H
@@ -241,10 +244,8 @@ contains
                     call Initialize_NewTrainingSet()
                     !Check whether the reference point has been changed
                         allocate(OldRefGeom(InternalDimension))
-                        allocate(OldRefEnergy(NStates))
                         open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                             read(99,*)OldRefGeom
-                            read(99,*)OldRefEnergy
                         close(99)
                         do ip=1,InternalDimension
                             absdev=Abs(ReferencePoint.geom(ip)-OldRefGeom(ip))
@@ -254,6 +255,7 @@ contains
                             end if
                         end do
                 end if
+            case default
         end select
         call InitializeBasic()
         call InitializeDiabaticHamiltonian()

@@ -49,26 +49,34 @@ subroutine InitializeDiabaticHamiltonian()
                 end do
             end do
         end do
-        if(JobType=='FitNewDiabaticHamiltonian') then !To fit Hd from scratch, provide an initial guess
-            call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NStates)
-            if(Degenerate) then
+        select case(JobType)
+            case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, provide an initial guess
+                call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NStates)
+                if(Degenerate) then
+                    forall(istate=1:Nstates,jstate=1:NStates,istate>=jstate)
+                        HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
+                    end forall
+                else
+                    forall(istate=2:NStates)
+                        HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
+                    end forall
+                end if
                 forall(istate=1:Nstates,jstate=1:NStates,istate>=jstate)
-                    HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
+                    HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
                 end forall
-            else
-                forall(istate=2:NStates)
-                    HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
-                end forall
-            end if
-            forall(istate=1:Nstates,jstate=1:NStates,istate>=jstate)
-                HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
-            end forall
-        else!Otherwise read Hd expansion coefficients
-            call ReadHdExpansionCoefficients()
-            if(ReferenceChange) then
-                stop 'Reference point changed, not supported yet'
-            end if
-        end if
+            case('ContinueFitting')!Read old Hd expansion coefficients
+                call ReadHdExpansionCoefficients()
+                if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
+            case('NadVibS')!Use same NStates & NOrder of the fitted Hd, read old Hd expansion coefficients
+                open(unit=99,file='HdExpansionCoefficient.out',status='old')
+                    read(99,*)
+                    read(99,*)NStates
+                    read(99,*)
+                    read(99,*)NOrder
+                close(99)
+                call ReadHdExpansionCoefficients()
+            case default
+        end select
     !Initialize NExpansionBasis, NExpansionCoefficients
         NExpansionBasis=0!Set counter to 0
         !Count how many basis functions for an Hd element
