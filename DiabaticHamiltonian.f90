@@ -203,6 +203,44 @@ function ExpansionBasisGradient(q,n)
     end do
 end function ExpansionBasisGradient
 
+!The value of ▽▽(n-th expansion basis function) at some coordinate q
+function ExpansionBasisHessian(q,n)
+    real*8,dimension(InternalDimension,InternalDimension)::ExpansionBasisHessian
+    real*8,dimension(InternalDimension),intent(in)::q
+    integer,intent(in)::n
+    integer::m1,m2,i,OrderCount1,OrderCount2
+    do m1=1,InternalDimension
+        OrderCount1=0!Diagonal
+        do i=1,EBNR(n).order
+            if (EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
+        end do
+        if(OrderCount1>0) then
+            ExpansionBasisHessian(m1,m1)=dble(OrderCount1*(OrderCount1-1))*q(m1)**(OrderCount1-2)
+            do i=1,EBNR(n).order
+                if(EBNR(n).indice(i)/=m1) ExpansionBasisHessian(m1,m1)=ExpansionBasisHessian(m1,m1)*q(EBNR(n).indice(i))
+            end do
+        else
+            ExpansionBasisHessian(m1,m1)=0d0
+        end if
+        do m2=m1+1,InternalDimension!Off-diagonal
+            OrderCount1=0
+            OrderCount2=0
+            do i=1,EBNR(n).order
+                if (EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
+                if (EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
+            end do
+            if(OrderCount1>0.and.OrderCount2>0) then
+                ExpansionBasisHessian(m2,m1)=dble(OrderCount1*OrderCount2)*q(m1)**(OrderCount1-1)*q(m2)**(OrderCount2-1)
+                do i=1,EBNR(n).order
+                    if(EBNR(n).indice(i)/=m1.and.EBNR(n).indice(i)/=m2) ExpansionBasisHessian(m2,m1)=ExpansionBasisHessian(m2,m1)*q(EBNR(n).indice(i))
+                end do
+            else
+                ExpansionBasisHessian(m2,m1)=0d0
+            end if
+        end do
+    end do
+end function ExpansionBasisHessian
+
 !------------ Diabatic quantity -------------
     !The value of Hd in diabatic representation at some coordinate q
     function Hd(q)
@@ -299,6 +337,30 @@ end function ExpansionBasisGradient
             end do
         end do
     end subroutine dHd_fd
+
+    !The value of ▽▽Hd in diabatic representation at some coordinate q
+    function ddHd(q)
+        real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::ddHd
+        real*8,dimension(InternalDimension),intent(in)::q
+        integer::istate,jstate,iorder,i,n
+        real*8,dimension(InternalDimension,InternalDimension,NExpansionBasis)::fdd
+        do i=1,NExpansionBasis
+            fdd(:,:,i)=ExpansionBasisHessian(q,i)
+        end do
+        do istate=1,NStates
+            do jstate=istate,NStates
+                ddHd(:,:,jstate,istate)=0d0
+                n=1!The serial number of the expansion basis function
+                do iorder=0,NOrder
+                    do i=1,size(HdEC(jstate,istate).Order(iorder).Array)
+                        ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)&
+                            +HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
+                        n=n+1
+                    end do
+                end do
+            end do
+        end do
+    end function ddHd
 !------------------- End --------------------
 
 !------------ Adiabatic quantity ------------
@@ -306,12 +368,41 @@ end function ExpansionBasisGradient
 
     !Return adiabatic energy
     function AdiabaticEnergy(q)
-        real*8,dimension(InternalDimension),intent(in)::q
         real*8,dimension(NStates)::AdiabaticEnergy
+        real*8,dimension(InternalDimension),intent(in)::q
         real*8,dimension(NStates,NStates)::phi
         phi=Hd(q)
         call My_dsyev('N',phi,AdiabaticEnergy,NStates)
     end function AdiabaticEnergy
+
+    !Return adiabatic gradient
+    function AdiabaticdH(q)
+        real*8,dimension(InternalDimension,NStates,NStates)::AdiabaticdH
+        real*8,dimension(InternalDimension),intent(in)::q
+        real*8,dimension(NStates)::energy
+        real*8,dimension(NStates,NStates)::phi
+        phi=Hd(q)
+        call My_dsyev('V',phi,energy,NStates)
+        AdiabaticdH=dHd(q)
+        AdiabaticdH=sy3UnitaryTransformation(AdiabaticdH,phi,InternalDimension,NStates)
+    end function AdiabaticdH
+
+    !Return adiabatic Hessian
+    function AdiabaticddH(q)
+        real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::AdiabaticddH
+        real*8,dimension(InternalDimension),intent(in)::q
+        real*8,dimension(InternalDimension,NStates,NStates)::dH,M
+        real*8,dimension(NStates)::energy
+        real*8,dimension(NStates,NStates)::phi
+        phi=Hd(q)
+        call My_dsyev('V',phi,energy,NStates)
+        dH=dHd(q)
+        dH=sy3UnitaryTransformation(dH,phi,InternalDimension,NStates)
+        M=deigvec_ByKnowneigval_dA(energy,dH,InternalDimension,NStates)
+        AdiabaticddH=asy3matdirectmulsy3(M,dH,InternalDimension,InternalDimension,NStates)
+        AdiabaticddH=sy4UnitaryTransformation(ddHd(q),phi,InternalDimension,InternalDimension,NStates)&
+            -AdiabaticddH-transpose4(AdiabaticddH,InternalDimension,InternalDimension,NStates)
+    end function AdiabaticddH
 
     !energy harvests adiabatic energy, dH harvests ▽H_a
     subroutine AdiabaticEnergy_dH(q,energy,dH)

@@ -9,7 +9,8 @@ contains
 subroutine GenerateNadVibsInput()
     integer::ip,istate,jstate,iorder
     real*8,dimension(InternalDimension)::qPrecursor,qSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccesor
+    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor
+    real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::HSuccesor
     type(Data),allocatable,dimension(:)::pointtemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     real*8,dimension(InternalDimension)::dshift
@@ -21,8 +22,9 @@ subroutine GenerateNadVibsInput()
         read(99,*)qSuccesor
     close(99)
     call ReadESSHessian(HPrecursor,InternalDimension)
+    HSuccesor=AdiabaticddH(qSuccesor)
     open(unit=99,file='nadvibs.in',status='replace')
-        write(99,'(A48)')'hbar * omega in Hatree of each vibrational basis'
+        write(99,'(A48)')'Angular frequency in atomic unit of each vibrational basis'
         
         do istate=1,NStates
             do jstate=istate,NStates
