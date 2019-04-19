@@ -8,6 +8,7 @@ program main
     use ESSInput
     use DiabaticHamiltonian
     use HdLeastSquareFit
+    use Analyze
     use NadVibS
     implicit none
     !Job control
