@@ -249,8 +249,8 @@ function ExpansionBasisHessian(q,n)
             OrderCount1=0
             OrderCount2=0
             do i=1,EBNR(n).order
-                if (EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
-                if (EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
+                if(EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
+                if(EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
             end do
             if(OrderCount1>0.and.OrderCount2>0) then
                 ExpansionBasisHessian(m2,m1)=dble(OrderCount1*OrderCount2)*q(m1)**(OrderCount1-1)*q(m2)**(OrderCount2-1)
