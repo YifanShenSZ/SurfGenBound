@@ -3,31 +3,39 @@ module NadVibS
     use Basic
     use ESSInput
     use DiabaticHamiltonian
+    use Analyze
     implicit none
 
 contains
 subroutine GenerateNadVibsInput()
     integer::ip,istate,jstate,iorder
-    real*8,dimension(InternalDimension)::qPrecursor,qSuccesor,freqPrecursor,freqSuccesor
+    real*8,dimension(InternalDimension)::qPrecursor,qSuccesor,freqrPrecursor,freqrSuccesor,freqiPrecursor,freqiSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccesor
+    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccesor
     real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::Htemp
     type(Data),allocatable,dimension(:)::pointtemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
-    !We already have precursor Cartesian geometry in MoleculeDetail.RefConfig, transform to internal
-    qPrecursor=InternalCoordinateq(reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
+    !Precursor
+    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadESSHessian(HPrecursor,InternalDimension)
-    call My_dsyev('V',HPrecursor,freqPrecursor,InternalDimension)
-    !Read successor reference internal geometry 
-    open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-        read(99,*)qSuccesor
-    close(99)
+    call VibrationAnalysis(freqrPrecursor,freqiPrecursor,HPrecursor,InternalDimension,BPrecursor,CartesianDimension,MoleculeDetail.mass,NAtoms)
+    !Successor
+        !Allocate storage space
+            allocate(pointtemp(NPoints))
+            do ip=1,NPoints
+                allocate(pointtemp(ip).geom(CartesianDimension))
+                allocate(pointtemp(ip).energy(NStates))
+                allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
+            end do
+    call ReadESSData(pointtemp,NPoints)
+    call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
 !This version directly use Hessian at reference geometry
     Htemp=AdiabaticddH(qSuccesor)
     HSuccesor=Htemp(:,:,1,1)
-    call My_dsyev('V',HSuccesor,freqSuccesor,InternalDimension)
 !I will write a version shift the reference to ground state minimum of Hd someday
+    call VibrationAnalysis(freqrSuccessor,freqiSuccessor,HSuccessor,InternalDimension,BSuccessor,CartesianDimension,MoleculeDetail.mass,NAtoms)
     dshift=matmul(transpose(HPrecursor),qSuccesor-qPrecursor)
     Tshift=matmul(transpose(HPrecursor),HSuccesor)
     open(unit=99,file='nadvibs.in',status='replace')
