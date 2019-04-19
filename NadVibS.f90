@@ -9,9 +9,9 @@ module NadVibS
 contains
 subroutine GenerateNadVibsInput()
     integer::ip,istate,jstate,iorder
-    real*8,dimension(InternalDimension)::qPrecursor,qSuccesor,freqrPrecursor,freqrSuccesor,freqiPrecursor,freqiSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccesor
-    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccesor
+    real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqrPrecursor,freqrSuccessor,freqiPrecursor,freqiSuccessor
+    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
+    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
     real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::Htemp
     type(Data),allocatable,dimension(:)::pointtemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
@@ -21,6 +21,7 @@ subroutine GenerateNadVibsInput()
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadESSHessian(HPrecursor,InternalDimension)
     call VibrationAnalysis(freqrPrecursor,freqiPrecursor,HPrecursor,InternalDimension,BPrecursor,CartesianDimension,MoleculeDetail.mass,NAtoms)
+    if(maxval(abs(freqiPrecursor))>1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
     !Successor
         !Allocate storage space
             allocate(pointtemp(NPoints))
@@ -32,15 +33,16 @@ subroutine GenerateNadVibsInput()
     call ReadESSData(pointtemp,NPoints)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
 !This version directly use Hessian at reference geometry
-    Htemp=AdiabaticddH(qSuccesor)
-    HSuccesor=Htemp(:,:,1,1)
+    Htemp=AdiabaticddH(qSuccessor)
+    HSuccessor=Htemp(:,:,1,1)
 !I will write a version shift the reference to ground state minimum of Hd someday
     call VibrationAnalysis(freqrSuccessor,freqiSuccessor,HSuccessor,InternalDimension,BSuccessor,CartesianDimension,MoleculeDetail.mass,NAtoms)
-    dshift=matmul(transpose(HPrecursor),qSuccesor-qPrecursor)
-    Tshift=matmul(transpose(HPrecursor),HSuccesor)
+    if(maxval(abs(freqiSuccessor))>1d-14) write(*,*)'Warning: imaginary frequency found for successor'
+    dshift=matmul(transpose(HPrecursor),qSuccessor-qPrecursor)
+    Tshift=matmul(transpose(HPrecursor),HSuccessor)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A59)')'Angular frequency in atomic unit of each vibrational basis:'
-        write(99,*)freqSuccesor
+        write(99,*)freqrSuccessor
         do istate=1,NStates
             do jstate=istate,NStates
                 do iorder=0,NOrder
@@ -50,7 +52,7 @@ subroutine GenerateNadVibsInput()
             end do
         end do
         write(99,'(A63)')'Angular frequency in atomic unit of each precursor normal mode:'
-        write(99,*)freqPrecursor
+        write(99,*)freqrPrecursor
         write(99,'(A13)')'Shift Vector:'
         write(99,*)dshift
         write(99,'(A22)')'Transformation Matrix:'
