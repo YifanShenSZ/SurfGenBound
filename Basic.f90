@@ -11,23 +11,6 @@ module Basic
     implicit none
 
 !Parameter
-    !Whether perform the fitting procedure gradually:
-    !    1. Start from a several data points nearest to the reference point.
-    !       The number points is either automatically determined or manually entred,
-    !       and the program will guaranteen there are more equations than variables.
-    !    2. Then the nearest of the remaining points will be added in. Repeat until all points are fitted.
-    logical::GradualFit=.false.,AutoGradualFit=.true.
-    integer::ManualNPoints
-    !If gradual fit enabled, then if the data points are unaligned, align all geometries such that:
-    !    the centre of mass is at origin
-    !    the rotational principle axes are along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
-    !        Since the positive direction cannot be determined yet, the final geometry will be the legal one
-    !        with smallest difference to the reference geometry (difference = 2 norm square of Cartesian coordinate difference)
-    !    the difference value is also the square of the Cartesian distance to the reference geometry
-    logical::Unaligned=.true.
-    !If gradual fit enabled, then if the data points are unsorted, sort according to the Cartesian distance to the reference geometry in ascending order
-    !    Centre of mass position and orientation should not matter, so the points have to be aligned
-    logical::Unsorted=.true.
     !Points with ground state energy difference to the reference geometry higher than this threshold will have lower weight:
     !    weight = HighEnergy / ground state energy difference to the reference geometry
     real*8::HighEnergy=1d2

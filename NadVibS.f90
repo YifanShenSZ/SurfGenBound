@@ -9,26 +9,19 @@ contains
 subroutine GenerateNadVibsInput()
     integer::ip,istate,jstate,iorder
     real*8,dimension(InternalDimension)::qPrecursor,qSuccesor
-    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccesor
+    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccesor
     type(Data),allocatable,dimension(:)::pointtemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
-    !Read successor reference Cartesian geometry. We already have precursor Cartesian geometry in MoleculeDetail.RefConfig
-        !Allocate storage space
-            allocate(pointtemp(NPoints))
-            do ip=1,NPoints
-                allocate(pointtemp(ip).geom(CartesianDimension))
-                allocate(pointtemp(ip).energy(NStates))
-                allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
-            end do
-            allocate(ReferencePoint.geom(CartesianDimension))
-        call ReadESSOutput(pointtemp,NPoints)
-        ReferencePoint.geom=pointtemp(IndexReference).geom
-        deallocate(pointtemp)!Clean up
-    !Allocate storage space
-    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
-    call WilsonBMatrixAndInternalCoordinateq(BSuccesor,qSuccesor,ReferencePoint.geom,InternalDimension,CartesianDimension)
+    !We already have precursor Cartesian geometry in MoleculeDetail.RefConfig, transform to internal
+    qPrecursor=InternalCoordinateq(reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
+    !Read successor reference internal geometry 
+    open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+        read(99,*)qSuccesor
+    close(99)
+    write(*,*)
+    call ReadESSHessian(HPrecursor,InternalDimension)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A48)')'hbar * omega in Hatree of each vibrational basis'
         

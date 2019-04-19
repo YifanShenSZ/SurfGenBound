@@ -7,10 +7,11 @@ Library/
 Script/
 input
 AdvancedInput
-intcfl
 *.all
 *.data
 *.xyz
+intcfl
+Fmat
 *.out
 *.CheckPoint
 *.py

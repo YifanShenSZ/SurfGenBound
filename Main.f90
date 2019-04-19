@@ -10,6 +10,24 @@ program main
     use HdLeastSquareFit
     use NadVibS
     implicit none
+    !Job control
+        !Whether perform the fitting procedure gradually:
+        !    1. Start from a several data points nearest to the reference point.
+        !       The number points is either automatically determined or manually entred,
+        !       and the program will guaranteen there are more equations than variables.
+        !    2. Then the nearest of the remaining points will be added in. Repeat until all points are fitted.
+        logical::GradualFit=.false.,AutoGradualFit=.true.
+        integer::ManualNPoints
+        !If gradual fit enabled, then if the data points are unaligned, align all geometries such that:
+        !    the centre of mass is at origin
+        !    the rotational principle axes are along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
+        !        Since the positive direction cannot be determined yet, the final geometry will be the legal one
+        !        with smallest difference to the reference geometry (difference = 2 norm square of Cartesian coordinate difference)
+        !    the difference value is also the square of the Cartesian distance to the reference geometry
+        logical::Unaligned=.true.
+        !If gradual fit enabled, then if the data points are unsorted, sort according to the Cartesian distance to the reference geometry in ascending order
+        !    Centre of mass position and orientation should not matter, so the points have to be aligned
+    logical::Unsorted=.true.
     !Gradual fit variables
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
         real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
@@ -129,7 +147,7 @@ contains
             read(99,*)
             read(99,*)
             read(99,*)JobType
-                write(*,*)'Job type: '//jobtype
+                write(*,*)'Job type: '//JobType
             read(99,*)
             read(99,*)MoleculeDetailFile
             read(99,*)
@@ -201,6 +219,9 @@ contains
         select case(JobType)
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
                 call Initialize_NewTrainingSet()
+                call InitializeBasic()
+                call InitializeDiabaticHamiltonian()
+                call InitializeHdLeastSquareFit()
             case('ContinueFitting')
                 if(SameTrainingSet) then!Read the rearranged training set
                     open(unit=99,file='ReferencePoint.CheckPoint',status='old')
@@ -243,23 +264,25 @@ contains
                 else!Read training set then rearrange it, and check whether reference point has changed
                     call Initialize_NewTrainingSet()
                     !Check whether the reference point has been changed
-                        allocate(OldRefGeom(InternalDimension))
-                        open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-                            read(99,*)OldRefGeom
-                        close(99)
-                        do ip=1,InternalDimension
-                            absdev=Abs(ReferencePoint.geom(ip)-OldRefGeom(ip))
-                            if(absdev>1d-14.and.absdev/Abs(OldRefGeom(ip))>1d-14) then
-                                ReferenceChange=.true.
-                                exit
-                            end if
-                        end do
+                    allocate(OldRefGeom(InternalDimension))
+                    open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+                        read(99,*)OldRefGeom
+                    close(99)
+                    do ip=1,InternalDimension
+                        absdev=Abs(ReferencePoint.geom(ip)-OldRefGeom(ip))
+                        if(absdev>1d-14.and.absdev/Abs(OldRefGeom(ip))>1d-14) then
+                            ReferenceChange=.true.
+                            exit
+                        end if
+                    end do
                 end if
+                call InitializeBasic()
+                call InitializeDiabaticHamiltonian()
+                call InitializeHdLeastSquareFit()
             case default
+                call InitializeBasic()
+                call InitializeDiabaticHamiltonian()
         end select
-        call InitializeBasic()
-        call InitializeDiabaticHamiltonian()
-        call InitializeHdLeastSquareFit()
     end subroutine Initialize
     !Support Initialize
     subroutine Initialize_NewTrainingSet()
@@ -280,7 +303,7 @@ contains
                     allocate(pointtemp(ip).energy(NStates))
                     allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
                 end do
-            call ReadESSOutput(pointtemp,NPoints)
+            call ReadESSData(pointtemp,NPoints)
             allocate(ArtifactPointtemp(NArtifactPoints))
             open(unit=99,file=ArtifactGeometryDataFile,status='old')
             open(unit=100,file=ArtifactEnergyDataFile,status='old')
