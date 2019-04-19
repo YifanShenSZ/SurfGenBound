@@ -169,6 +169,40 @@ subroutine WriteHdExpansionCoefficients(HdEC,NStates,NOrders)
     close(99)
 end subroutine WriteHdExpansionCoefficients
 
+!The value of n-th expansion basis function at some coordinate q
+function ExpansionBasis(q,n)
+    real*8::ExpansionBasis
+    real*8,dimension(InternalDimension),intent(in)::q
+    integer,intent(in)::n
+    integer::i
+    ExpansionBasis=1d0
+    do i=1,EBNR(n).order
+        ExpansionBasis=ExpansionBasis*q(EBNR(n).indice(i))
+    end do
+end function ExpansionBasis
+
+!The value of ▽(n-th expansion basis function) at some coordinate q
+function ExpansionBasisGradient(q,n)
+    real*8,dimension(InternalDimension)::ExpansionBasisGradient
+    real*8,dimension(InternalDimension),intent(in)::q
+    integer,intent(in)::n
+    integer::m,i,OrderCount
+    do m=1,InternalDimension
+        OrderCount=0
+        do i=1,EBNR(n).order
+            if (EBNR(n).indice(i)==m) OrderCount=OrderCount+1
+        end do
+        if(OrderCount>0) then
+            ExpansionBasisGradient(m)=dble(OrderCount)*q(m)**(OrderCount-1)
+            do i=1,EBNR(n).order
+                if(EBNR(n).indice(i)/=m) ExpansionBasisGradient(m)=ExpansionBasisGradient(m)*q(EBNR(n).indice(i))
+            end do
+        else
+            ExpansionBasisGradient(m)=0d0
+        end if
+    end do
+end function ExpansionBasisGradient
+
 !------------ Diabatic quantity -------------
     !The value of Hd in diabatic representation at some coordinate q
     function Hd(q)
@@ -265,40 +299,6 @@ end subroutine WriteHdExpansionCoefficients
             end do
         end do
     end subroutine dHd_fd
-
-    !The value of n-th expansion basis function at some coordinate q
-    function ExpansionBasis(q,n)
-        real*8::ExpansionBasis
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer,intent(in)::n
-        integer::i
-        ExpansionBasis=1d0
-        do i=1,EBNR(n).order
-            ExpansionBasis=ExpansionBasis*q(EBNR(n).indice(i))
-        end do
-    end function ExpansionBasis
-
-    !The value of ▽(n-th expansion basis function) at some coordinate q
-    function ExpansionBasisGradient(q,n)
-        real*8,dimension(InternalDimension)::ExpansionBasisGradient
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer,intent(in)::n
-        integer::m,i,OrderCount
-        do m=1,InternalDimension
-            OrderCount=0
-            do i=1,EBNR(n).order
-                if (EBNR(n).indice(i)==m) OrderCount=OrderCount+1
-            end do
-            if(OrderCount>0) then
-                ExpansionBasisGradient(m)=dble(OrderCount)*q(m)**(OrderCount-1)
-                do i=1,EBNR(n).order
-                    if(EBNR(n).indice(i)/=m) ExpansionBasisGradient(m)=ExpansionBasisGradient(m)*q(EBNR(n).indice(i))
-                end do
-            else
-                ExpansionBasisGradient(m)=0d0
-            end if
-        end do
-    end function ExpansionBasisGradient
 !------------------- End --------------------
 
 !------------ Adiabatic quantity ------------

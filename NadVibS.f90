@@ -20,7 +20,6 @@ subroutine GenerateNadVibsInput()
     open(unit=99,file='ReferencePoint.CheckPoint',status='old')
         read(99,*)qSuccesor
     close(99)
-    write(*,*)
     call ReadESSHessian(HPrecursor,InternalDimension)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A48)')'hbar * omega in Hatree of each vibrational basis'
