@@ -8,46 +8,43 @@ module ESSInput
     character*32,parameter::ElectronicStructureSoftware='Columbus7'
 
 contains
-!----------- Top level ------------
-    !Top level provides standard interface for other modules to call
+!Top level routines, providing standard interface for other modules to call
 
-    subroutine ReadESSData(point,NPoints)
-        integer,intent(in)::NPoints
-        type(Data),dimension(NPoints),intent(inout)::point
-        character*1::CharTemp1,CharTemp2
-        character*128::source
-        integer::ip,istate,jstate
-        source='geom.all'
-        call ColumbusGeometry(source,point,NPoints)
-        source='energy.all'
-        call ColumbusEnergy(source,point,NPoints)
-        do istate=1,NStates
-            write(CharTemp1,'(I1)')istate
-            source='cartgrd.drt1.state'//CharTemp1//'.all'
-            call ColumbusGradient(source,istate,istate,point,NPoints)
-            do jstate=istate+1,NStates
-                write(CharTemp2,'(I1)')jstate
-                source='cartgrd.nad.drt1.state'//CharTemp1//'.drt1.state'//CharTemp2//'.all'
-                call ColumbusGradient(source,jstate,istate,point,NPoints)
-            end do
+subroutine ReadESSData(point,NPoints)
+    integer,intent(in)::NPoints
+    type(Data),dimension(NPoints),intent(inout)::point
+    character*1::CharTemp1,CharTemp2
+    character*128::source
+    integer::ip,istate,jstate
+    source='geom.all'
+    call ColumbusGeometry(source,point,NPoints)
+    source='energy.all'
+    call ColumbusEnergy(source,point,NPoints)
+    do istate=1,NStates
+        write(CharTemp1,'(I1)')istate
+        source='cartgrd.drt1.state'//CharTemp1//'.all'
+        call ColumbusGradient(source,istate,istate,point,NPoints)
+        do jstate=istate+1,NStates
+            write(CharTemp2,'(I1)')jstate
+            source='cartgrd.nad.drt1.state'//CharTemp1//'.drt1.state'//CharTemp2//'.all'
+            call ColumbusGradient(source,jstate,istate,point,NPoints)
         end do
-    end subroutine ReadESSData
+    end do
+end subroutine ReadESSData
 
-    subroutine DefineInternalCoordinate()
-        write(*,*)'Define internal coordinate according to '//ElectronicStructureSoftware
-        call Columbusintcfl(InternalDimension)
-    end subroutine DefineInternalCoordinate
+subroutine DefineInternalCoordinate()
+    write(*,*)'Define internal coordinate according to '//ElectronicStructureSoftware
+    call Columbusintcfl(InternalDimension)
+end subroutine DefineInternalCoordinate
 
-    subroutine ReadESSHessian(H,intdim)
-        integer,intent(in)::intdim
-        real*8,dimension(intdim,intdim),intent(out)::H
-        write(*,*)'Read Hessian output of '//ElectronicStructureSoftware
-        call ColumbusHessian(H,intdim)
-    end subroutine ReadESSHessian
-!-------------- End ---------------
+subroutine ReadESSHessian(H,intdim)
+    integer,intent(in)::intdim
+    real*8,dimension(intdim,intdim),intent(out)::H
+    call ColumbusHessian(H,intdim)
+end subroutine ReadESSHessian
 
 !---------- Bottom level ----------
-    !Bottom level actually deals with certain electronic structure software
+    !Actually dealing with certain electronic structure software
 
     subroutine ColumbusGeometry(source,point,NPoints)
         character*128,intent(in)::source
