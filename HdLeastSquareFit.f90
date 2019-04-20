@@ -41,7 +41,8 @@ module HdLeastSquareFit
         integer::LSF_MaxHopperIteration=100,LSF_MaxLocalMinimizerIteration=1000,LSF_Max2StepIteration=10
     !pseudolinear:
         real*8::LSF_pseudolinearTol=1d-30!Convergence standard: || c_new - c_old ||^2 < absolute tolerance
-        integer::LSF_pseudolinearFollowFreq=1!Every how many steps print fitting progress
+        integer::LSF_pseudolinearFollowFreq=1,&!Every how many steps print fitting progress
+            LSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
     !LBFGS:
         !Choose a specific solver: LBFGS, LBFGS_Strong
         character*32::LSF_LBFGSSolver='LBFGS_Strong'
@@ -182,7 +183,7 @@ end subroutine FitHd
     subroutine pseudolinear(cmin)
         real*8,dimension(NExpansionCoefficients),intent(inout)::cmin
         integer::indice,ip,i
-        real*8::cchange,L,Lmin,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
+        real*8::cchange,L,Lold,Lmin,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
         real*8,allocatable,dimension(:)::b,c
         real*8,allocatable,dimension(:,:)::A
         !Initialize
@@ -231,10 +232,13 @@ end subroutine FitHd
                 b=c
                 allocate(A(NExpansionCoefficients,NExpansionCoefficients))
                 call LSFMatrices_L(A,b,Lmin)
+                L=Lmin
+                indice=0
         !Solve
         call showtime()
         write(*,'(1x,A43)')'Explore phase space by pseudolinear hopping'
         do i=1,LSF_MaxHopperIteration
+            Lold=L
             call My_dposv(A,b,NExpansionCoefficients)
             cchange=dot_product(b-c,b-c)
             if(cchange<LSF_pseudolinearTol) then
@@ -263,6 +267,16 @@ end subroutine FitHd
                     Lmin=L
                     cmin=c
                 end if
+                if(L>Lold) then
+                    if(indice>LSF_pseudolinearMaxMonotonicalIncrease) then
+                        write(*,'(1x,A117)')'Pseudolinear hopper warning: hopping is not making progress, but Hd expansion coefficients have not met accuracy goal'
+                        exit
+                    else
+                        indice=indice+1
+                    end if
+                else
+                    indice=0
+                end if
                 call ShowTime()
                 write(*,*)'Iteration',i
                 write(*,*)'Change of Hd expansion coefficients =',cchange
@@ -282,6 +296,16 @@ end subroutine FitHd
                 if(L<Lmin) then
                     Lmin=L
                     cmin=c
+                end if
+                if(L>Lold) then
+                    if(indice>LSF_pseudolinearMaxMonotonicalIncrease) then
+                        write(*,'(1x,A117)')'Pseudolinear hopper warning: hopping is not making progress, but Hd expansion coefficients have not met accuracy goal'
+                        exit
+                    else
+                        indice=indice+1
+                    end if
+                else
+                    indice=0
                 end if
             end if
         end do
