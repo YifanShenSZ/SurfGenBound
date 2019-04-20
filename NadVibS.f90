@@ -24,13 +24,13 @@ subroutine GenerateNadVibsInput()
     if(minval(freqPrecursor)<-1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
     !Successor
         !Allocate storage space
-            allocate(pointtemp(NPoints))
-            do ip=1,NPoints
-                allocate(pointtemp(ip).geom(CartesianDimension))
-                allocate(pointtemp(ip).energy(NStates))
-                allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
-            end do
-        call ReadESSData(pointtemp,NPoints)!Read reference geometry
+        allocate(pointtemp(NPoints))
+        do ip=1,NPoints
+            allocate(pointtemp(ip).geom(CartesianDimension))
+            allocate(pointtemp(ip).energy(NStates))
+            allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
+        end do
+    call ReadESSData(pointtemp,NPoints)!Read reference geometry
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
 !This version directly use ground state Hessian at reference geometry
     Htemp=AdiabaticddH(qSuccessor)

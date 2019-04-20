@@ -17,7 +17,6 @@ contains
         character*1::CharTemp1,CharTemp2
         character*128::source
         integer::ip,istate,jstate
-        write(*,*)'Electronic structure software = '//ElectronicStructureSoftware
         source='geom.all'
         call ColumbusGeometry(source,point,NPoints)
         source='energy.all'
@@ -91,7 +90,7 @@ contains
             end do
         close(99)
     end subroutine ColumbusGradient
-    
+
     subroutine Columbusintcfl(intdim)
         integer,intent(out)::intdim!Return the dimension of internal space
         character*10,allocatable,dimension(:)::MotionType
@@ -132,7 +131,7 @@ contains
                     end if
                 end do
                 rewind 99
-            !Finally read Columbus internal coordinate definition
+            !Finally read Columbus internal coordinate definition. Linear combinations are normalized
                 allocate(GeometryTransformation_IntCDef(intdim))
                 k=1!Counter for line
                 read(99,*)!First line is always 'TEXAS'
@@ -203,6 +202,15 @@ contains
                 read(99,*)H(i,1:i)
             end do
         close(99)
+        !The internal coordinate and vibration routines of Columbus use weird unit:
+        !    energy in 10^-18 J, length in A (to be continued)
+        H=H/4.35974417d0! 1 Hatree = 4.35974417 * 10^-18 J
+        do i=1,intdim
+            if(GeometryTransformation_IntCDef(i).motion(1).type=='stretching') then
+                H(:,i)=H(:,i)/AInAU
+                H(i,:)=H(i,:)/AInAU
+            end if
+        end do
     end subroutine ColumbusHessian
 !-------------- End ---------------
 

@@ -4,15 +4,15 @@ x64/
 *.vfproj
 .vscode/
 Library/
-Script/
+Back up/
 input
 AdvancedInput
 *.all
 *.data
 *.xyz
 intcfl
-Fmat
-Fmat.successor
+Fmat*
 *.out
 *.CheckPoint
+*.in
 *.py

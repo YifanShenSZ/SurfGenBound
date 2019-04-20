@@ -33,6 +33,7 @@ program main
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
         real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
+    write(*,*)'Electronic structure software = '//ElectronicStructureSoftware
     call ReadInput()
     call Initialize()
 !------------- End --------------
