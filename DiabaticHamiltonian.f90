@@ -1,5 +1,5 @@
-!This version generates Hd in NadVibs format: cast the elements of Hd into
-!simple polynomials of the internal coordinate difference from the reference geometry
+!This version generates Hd in NadVibS format: cast the elements of Hd into
+!simple polynomials of the internal coordinate difference from reference geometry
 !
 !Comment:
 !This treatment is good only for bounded system, where the molecule is semi-rigid

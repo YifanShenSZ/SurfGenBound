@@ -1,8 +1,8 @@
 !SurfGenBound: surface generation package for bounded system
 !Construct diabatic hamiltonian (Hd) by least square fitting H & ▽H
-!IO unit: atomic unit
+!IO & computation unit: atomic unit
 !
-!Level: Main <- HdLeastSquareFit <- DiabaticHamiltonian <- ESSInput <- Basic
+!Level: Main <- (HdLeastSquareFit, Analyze, NadVibS) <- DiabaticHamiltonian <- ESSInput <- Basic
 program main
     use Basic
     use ESSInput
@@ -33,7 +33,7 @@ program main
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
         real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
-    write(*,*)'Electronic structure software = '//ElectronicStructureSoftware
+    write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput()
     call Initialize()
 !------------- End --------------
