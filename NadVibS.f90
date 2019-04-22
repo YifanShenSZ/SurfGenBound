@@ -3,7 +3,7 @@ module NadVibS
     use Basic
     use ESSInput
     use DiabaticHamiltonian
-    use Analyze
+    use Analyzation
     implicit none
 
 contains

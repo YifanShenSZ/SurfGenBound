@@ -109,6 +109,7 @@ end subroutine Evaluate
         real*8,dimension(intdim,intdim,NStates,NStates)::ddH
         ddH=AdiabaticddH(q)
         Hessian=ddH(:,:,InterestingState,InterestingState)
+        AdiabaticHessianInterface=0!return 0
     end function AdiabaticHessianInterface
 !----------------- End -----------------
 

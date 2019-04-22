@@ -44,7 +44,7 @@ module HdLeastSquareFit
             HdLSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
     !LineSearch:
         character*32::HdLSF_LineSearcher='ConjugateGradient'!Available: LBFGS, ConjugateGradient
-        logical::UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
+        logical::HdLSF_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
         !LBFGS:
             integer::HdLSF_LBFGSMemory=10!Memory usage control, [3,30] is recommended (must > 0)
         !ConjugateGradient:
@@ -135,25 +135,18 @@ subroutine FitHd()!Fit Hd with the designated solver
             call pseudolinear(c)
         case('TrustRegion')
             call TrustRegionInterface(c)
-        case('LBFGS')
-            call LBFGSInterface(c)
-        case('ConjugateGradient')
-            call ConjugateGradientInterface(c)
+        case('LineSearch')
+            call LineSearchInterface(c)
         !2-step solvers
         case('pseudolinear_TrustRegion')
             do istate=1,HdLSF_Max2StepIteration
                 call pseudolinear(c)
                 call TrustRegionInterface(c)
             end do
-        case('pseudolinear_LBFGS')
+        case('pseudolinear_LineSearch')
             do istate=1,HdLSF_Max2StepIteration
                 call pseudolinear(c)
-                call LBFGSInterface(c)
-            end do
-        case('pseudolinear_ConjugateGradient')
-            do istate=1,HdLSF_Max2StepIteration
-                call pseudolinear(c)
-                call ConjugateGradientInterface(c)
+                call LineSearchInterface(c)
             end do
         case default!Throw a warning
             write(*,'(1x,A50,1x,A32)')'Program abort: unsupported least square fit solver',HdLSF_Solver
@@ -754,11 +747,11 @@ end subroutine FitHd
             case('LBFGS')
                 write(*,'(1x,A67)')'Search for local minimum by limited memory BFGS quasi-Newton method'
                 call LBFGS(Lagrangian,LagrangianGradient,c,NExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
-                    Memory=HdLSF_LBFGSMemory,Strong=UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
+                    Memory=HdLSF_LBFGSMemory,Strong=HdLSF_UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
             case('ConjugateGradient')
                 write(*,'(1x,A53)')'Search for local minimum by conjugate gradient method'
                 call ConjugateGradient(Lagrangian,LagrangianGradient,c,NExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
-                    Method=HdLSF_ConjugateGradientSolver,Strong=UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
+                    Method=HdLSF_ConjugateGradientSolver,Strong=HdLSF_UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
             case default!Throw a warning
                 write(*,'(1x,A40,1x,A32)')'Program abort: unsupported line searcher',HdLSF_LineSearcher
                 stop
