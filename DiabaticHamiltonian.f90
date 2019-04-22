@@ -264,8 +264,7 @@ function ExpansionBasisHessian(q,n)
 end function ExpansionBasisHessian
 
 !------------ Diabatic quantity -------------
-    !The value of Hd in diabatic representation at some coordinate q
-    function Hd(q)
+    function Hd(q)!Return the value of Hd in diabatic representation at some coordinate q
         real*8,dimension(NStates,NStates)::Hd
         real*8,dimension(InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
@@ -287,8 +286,7 @@ end function ExpansionBasisHessian
         end do
     end function Hd
 
-    !The value of ▽Hd in diabatic representation at some coordinate q
-    function dHd(q)
+    function dHd(q)!Return the value of ▽Hd in diabatic representation at some coordinate q
         real*8,dimension(InternalDimension,NStates,NStates)::dHd
         real*8,dimension(InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
@@ -311,8 +309,7 @@ end function ExpansionBasisHessian
         end do
     end function dHd
 
-    !The value of ▽▽Hd in diabatic representation at some coordinate q
-    function ddHd(q)
+    function ddHd(q)!Return the value of ▽▽Hd in diabatic representation at some coordinate q
         real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::ddHd
         real*8,dimension(InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
@@ -388,8 +385,7 @@ end function ExpansionBasisHessian
 !------------ Adiabatic quantity ------------
     !Compute adiabatic quantity from Hd at some coordinate q
 
-    !Return adiabatic energy
-    function AdiabaticEnergy(q)
+    function AdiabaticEnergy(q)!Return adiabatic energy
         real*8,dimension(NStates)::AdiabaticEnergy
         real*8,dimension(InternalDimension),intent(in)::q
         real*8,dimension(NStates,NStates)::phi
@@ -397,8 +393,7 @@ end function ExpansionBasisHessian
         call My_dsyev('N',phi,AdiabaticEnergy,NStates)
     end function AdiabaticEnergy
 
-    !Return adiabatic gradient
-    function AdiabaticdH(q)
+    function AdiabaticdH(q)!Return adiabatic gradient
         real*8,dimension(InternalDimension,NStates,NStates)::AdiabaticdH
         real*8,dimension(InternalDimension),intent(in)::q
         real*8,dimension(NStates)::energy
@@ -409,8 +404,7 @@ end function ExpansionBasisHessian
         AdiabaticdH=sy3UnitaryTransformation(AdiabaticdH,phi,InternalDimension,NStates)
     end function AdiabaticdH
 
-    !Return adiabatic Hessian
-    function AdiabaticddH(q)
+    function AdiabaticddH(q)!Return adiabatic Hessian
         real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::AdiabaticddH
         real*8,dimension(InternalDimension),intent(in)::q
         real*8,dimension(InternalDimension,NStates,NStates)::dH,M
