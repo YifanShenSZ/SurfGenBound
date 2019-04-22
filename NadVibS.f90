@@ -7,7 +7,7 @@ module NadVibS
     implicit none
 
 contains
-subroutine GenerateNadVibsInput()
+subroutine GenerateNadVibSInput()
     integer::ip,istate,jstate,iorder
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
@@ -33,8 +33,8 @@ subroutine GenerateNadVibsInput()
     call ReadESSData(pointtemp,NPoints)!Read reference geometry
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
 !This version directly use ground state Hessian at reference geometry
-    Htemp=AdiabaticddH(qSuccessor)
-    HSuccessor=Htemp(:,:,1,1)
+Htemp=AdiabaticddH(qSuccessor)
+HSuccessor=Htemp(:,:,1,1)
 !I will write a version shift the reference to ground state minimum of Hd someday
     call VibrationAnalysis(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,CartesianDimension,MoleculeDetail.mass,NAtoms)
     if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
@@ -58,6 +58,6 @@ subroutine GenerateNadVibsInput()
         write(99,'(A22)')'Transformation Matrix:'
         write(99,*)Tshift
     close(99)
-end subroutine GenerateNadVibsInput
+end subroutine GenerateNadVibSInput
 
 end module NadVibs

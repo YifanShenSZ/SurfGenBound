@@ -8,7 +8,7 @@ program main
     use ESSInput
     use DiabaticHamiltonian
     use HdLeastSquareFit
-    use Analyze
+    use Analyzation
     use NadVibS
     implicit none
     !Job control
@@ -31,7 +31,7 @@ program main
         logical::Unsorted=.true.
     !Gradual fit variables
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
-        real*8::LSF_RegularizationOld!Store the original parameter value (before change it)
+        real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput()
@@ -50,8 +50,8 @@ program main
                         NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
                     NArtifactPointsInput=NArtifactPoints
                         NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
-                    LSF_RegularizationOld=LSF_Regularization
-                        LSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
+                    HdLSF_RegularizationOld=HdLSF_Regularization
+                        HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
                 !At least this number of data points are required to have more equations than variables
                 NPoints=ceiling(dble(NExpansionCoefficients)/dble(DataPerPoint))
                 if(AutoGradualFit) then
@@ -80,7 +80,7 @@ program main
                 write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
                     NDegeneratePoints=NDegeneratePointsInput
                     NArtifactPoints=NArtifactPointsInput
-                    LSF_Regularization=LSF_RegularizationOld
+                    HdLSF_Regularization=HdLSF_RegularizationOld
                 call InitializeHdLeastSquareFit()
                 call FitHd()
             else
@@ -95,8 +95,8 @@ program main
                         NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
                     NArtifactPointsInput=NArtifactPoints
                         NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
-                    LSF_RegularizationOld=LSF_Regularization
-                        LSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
+                    HdLSF_RegularizationOld=HdLSF_Regularization
+                        HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
                 write(*,'(1x,A33)')'Continue guadual fit procedure...'
                 open(unit=99,file='GradualFit.CheckPoint',status='old')
                     read(99,*)
@@ -118,15 +118,17 @@ program main
                 write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
                     NDegeneratePoints=NDegeneratePointsInput
                     NArtifactPoints=NArtifactPointsInput
-                    LSF_Regularization=LSF_RegularizationOld
+                    HdLSF_Regularization=HdLSF_RegularizationOld
                 call InitializeHdLeastSquareFit()
                 call FitHd()
             else
                 write(*,*)'Fitting Hd...'
                 call FitHd()
             end if
+        case('Analyze')
+            call Analyze()
         case('NadVibS')
-            call GenerateNadVibsInput()
+            call GenerateNadVibSInput()
         case default!Throw a warning
             write(*,'(1x,A35,1x,A32)')'Program abort: unsupported job type',JobType
             stop
@@ -192,15 +194,15 @@ contains
         close(99)
         if(advance) then!If requested, read advanced input
             write(*,*)'Advanced input requested, parameters are set to user specification'
-            open(unit=99,file='AdvancedInput',status='old')
+            open(unit=99,file='advance.in',status='old')
                 namelist /AdvancedInput/ &
                     !Basic
                         HighEnergy,AlmostDegenerate,&
                     !HdLeastSquareFit
-                        LSF_Regularization,LSF_Solver,&
-                        LSF_MaxHopperIteration,LSF_MaxLocalMinimizerIteration,LSF_Max2StepIteration,&
-                        LSF_pseudolinearFollowFreq,LSF_pseudolinearMaxMonotonicalIncrease,&
-                        UseStrongWolfe,LSF_LBFGSMemory,LSF_CGSolver,&
+                        HdLSF_Regularization,HdLSF_Solver,&
+                        HdLSF_MaxHopperIteration,HdLSF_MaxLocalMinimizerIteration,HdLSF_Max2StepIteration,&
+                        HdLSF_pseudolinearFollowFreq,HdLSF_pseudolinearMaxMonotonicalIncrease,&
+                        UseStrongWolfe,HdLSF_LBFGSMemory,HdLSF_ConjugateGradientSolver,&
                     !Main
                         GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)
@@ -214,17 +216,14 @@ contains
         integer::ip
         real*8::absdev
         real*8,allocatable,dimension(:)::OldRefGeom
-        CartesianDimension=3*NAtoms
-        call DefineInternalCoordinate()
-        !A data point provides NStates adiabatic energies, InternalDimension x NStates x NStates ▽H
-        DataPerPoint=NStates+NStates*(NStates+1)/2*InternalDimension!Upper triangle is redundant
-        !A degenerate data point provides NStates order H, InternalDimension x NStates x NStates ▽H
-        DataPerDegeneratePoint=NStates*(NStates+1)/2*(InternalDimension+1)!Upper triangle is redundant
-        select case(JobType)
+        !General initialize
+            call InitializeBasic()
+            CartesianDimension=3*NAtoms
+            call DefineInternalCoordinate()
+        select case(JobType)!Job specific initialize
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
                 call NewTrainingSet()
-                call InitializeBasic()
-                call InitializeDiabaticHamiltonian()
+                call InitializeDiabaticHamiltonian()!Must call after reference point is known
                 call InitializeHdLeastSquareFit()
             case('ContinueFitting')
                 if(SameTrainingSet) then!Read the rearranged training set
@@ -280,11 +279,9 @@ contains
                         end if
                     end do
                 end if
-                call InitializeBasic()
                 call InitializeDiabaticHamiltonian()
                 call InitializeHdLeastSquareFit()
             case default
-                call InitializeBasic()
                 call InitializeDiabaticHamiltonian()
         end select
         contains

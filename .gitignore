@@ -5,8 +5,10 @@ x64/
 .vscode/
 Library/
 Back up/
+example/
 input
 AdvancedInput
+AnalyzeInput
 *.all
 *.data
 *.xyz
