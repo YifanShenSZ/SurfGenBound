@@ -287,30 +287,6 @@ end function ExpansionBasisHessian
         end do
     end function Hd
 
-    !The value of Hd in diabatic representation and expansion basis functions at some coordinate q
-    subroutine Hd_f(Hd,f,q)
-        real*8,dimension(NStates,NStates),intent(out)::Hd
-        real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer::istate,jstate,iorder,i,n
-        do i=1,NExpansionBasis
-            f(i)=ExpansionBasis(q,i)
-        end do
-        do istate=1,NStates
-            do jstate=istate,NStates
-                Hd(jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,NOrder
-                    do i=1,size(HdEC(jstate,istate).Order(iorder).Array)
-                        Hd(jstate,istate)=Hd(jstate,istate)&
-                            +HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
-                        n=n+1
-                    end do
-                end do
-            end do
-        end do
-    end subroutine Hd_f
-
     !The value of ▽Hd in diabatic representation at some coordinate q
     function dHd(q)
         real*8,dimension(InternalDimension,NStates,NStates)::dHd
@@ -334,6 +310,54 @@ end function ExpansionBasisHessian
             end do
         end do
     end function dHd
+
+    !The value of ▽▽Hd in diabatic representation at some coordinate q
+    function ddHd(q)
+        real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::ddHd
+        real*8,dimension(InternalDimension),intent(in)::q
+        integer::istate,jstate,iorder,i,n
+        real*8,dimension(InternalDimension,InternalDimension,NExpansionBasis)::fdd
+        do i=1,NExpansionBasis
+            fdd(:,:,i)=ExpansionBasisHessian(q,i)
+        end do
+        do istate=1,NStates
+            do jstate=istate,NStates
+                ddHd(:,:,jstate,istate)=0d0
+                n=1!The serial number of the expansion basis function
+                do iorder=0,NOrder
+                    do i=1,size(HdEC(jstate,istate).Order(iorder).Array)
+                        ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)&
+                            +HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
+                        n=n+1
+                    end do
+                end do
+            end do
+        end do
+    end function ddHd
+
+    !The value of Hd in diabatic representation and expansion basis functions at some coordinate q
+    subroutine Hd_f(Hd,f,q)
+        real*8,dimension(NStates,NStates),intent(out)::Hd
+        real*8,dimension(NExpansionBasis),intent(out)::f
+        real*8,dimension(InternalDimension),intent(in)::q
+        integer::istate,jstate,iorder,i,n
+        do i=1,NExpansionBasis
+            f(i)=ExpansionBasis(q,i)
+        end do
+        do istate=1,NStates
+            do jstate=istate,NStates
+                Hd(jstate,istate)=0d0
+                n=1!The serial number of the expansion basis function
+                do iorder=0,NOrder
+                    do i=1,size(HdEC(jstate,istate).Order(iorder).Array)
+                        Hd(jstate,istate)=Hd(jstate,istate)&
+                            +HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
+                        n=n+1
+                    end do
+                end do
+            end do
+        end do
+    end subroutine Hd_f
 
     !The value of ▽Hd in diabatic representation and expansion basis function gradient at some coordinate q
     !fd(:,i) stores the gradient of i-th expansion basis function
@@ -359,30 +383,6 @@ end function ExpansionBasisHessian
             end do
         end do
     end subroutine dHd_fd
-
-    !The value of ▽▽Hd in diabatic representation at some coordinate q
-    function ddHd(q)
-        real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::ddHd
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer::istate,jstate,iorder,i,n
-        real*8,dimension(InternalDimension,InternalDimension,NExpansionBasis)::fdd
-        do i=1,NExpansionBasis
-            fdd(:,:,i)=ExpansionBasisHessian(q,i)
-        end do
-        do istate=1,NStates
-            do jstate=istate,NStates
-                ddHd(:,:,jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,NOrder
-                    do i=1,size(HdEC(jstate,istate).Order(iorder).Array)
-                        ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)&
-                            +HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
-                        n=n+1
-                    end do
-                end do
-            end do
-        end do
-    end function ddHd
 !------------------- End --------------------
 
 !------------ Adiabatic quantity ------------
