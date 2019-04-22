@@ -1,6 +1,4 @@
-!Library interface
-!Global parameters, derived types, data storage
-!Basic routines
+!Library interface, global parameter & derived type & data storage, basic routines
 module Basic
     use General
     use Mathematics
