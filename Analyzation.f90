@@ -8,24 +8,16 @@ module Analyzation
     implicit none
 
 !Analyzation module only variable
-    character*32::AnalyzationJobType
-    integer::InterestingState
-    real*8,allocatable,dimension(:)::InterestingGeom
+	!Analyzation input
+        character*32::AnalyzationJobType
+		integer::InterestingState
+	!Geometry input
+		integer::NGeoms
+        real*8,allocatable,dimension(:,:)::InterestingGeom
     
 contains
-!Read the input file for Analyzation: AnalyzeInput 
-subroutine ReadAnalyzeInput()
-    open(unit=99,file='analyzation.in',status='old')
-        read(99,*)
-        read(99,*)
-        read(99,*)
-        read(99,*)AnalyzationJobType
-        read(99,*)
-        read(99,*)InterestingState
-    close(99)
-end subroutine ReadAnalyzeInput
-
-subroutine Analyze()
+subroutine Analyze()!Top level standard interface for other modules to call
+	call ReadAnalyzeInput()
     select case(AnalyzationJobType)
         case('min')
             call MinimumSearch()
@@ -37,16 +29,46 @@ subroutine Analyze()
     end select
 end subroutine Analyze
 
+subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
+	character*128::InterestingGeomFile
+	integer::i
+	real*8,dimension(3)::buffer
+    open(unit=99,file='analyzation.in',status='old')
+        read(99,*)
+        read(99,*)
+        read(99,*)
+        read(99,*)AnalyzationJobType
+        read(99,*)
+		read(99,*)InterestingState
+		read(99,*)
+        read(99,*)InterestingGeomFile
+	close(99)
+	open(unit=99,file=InterestingGeomFile,status='old')
+	    NGeoms=0!Count number of geometries
+		do
+			read(99,*,iostat=i)buffer
+			if(i/=0) exit
+			NGeoms=NGeoms+1
+		end do
+		NGeoms=NGeoms/NAtoms
+		rewind 99
+		allocate(InterestingGeom(CartesianDimension,NGeoms))!Read geometries
+		do i=1,NGeoms
+			read(99,*)InterestingGeom(:,i)
+		end do
+	close(99)
+end subroutine ReadAnalyzeInput
+
 subroutine MinimumSearch()
     integer::i
     real*8,dimension(InternalDimension)::q,freq
     real*8,dimension(CartesianDimension)::r
     real*8,dimension(InternalDimension,CartesianDimension)::B
     real*8,dimension(InternalDimension,InternalDimension)::Hessian
-    q=InternalCoordinateq(InterestingGeom,InternalDImension,CartesianDimension)
+    q=InternalCoordinateq(InterestingGeom(:,1),InternalDImension,CartesianDimension)
     call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
         fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=.true.)
-    r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom)
+    r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom(:,1))
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
     call VibrationAnalysis(freq,Hessian,InternalDimension,B,CartesianDimension,MoleculeDetail.mass,NAtoms)
