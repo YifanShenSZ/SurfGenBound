@@ -15,7 +15,14 @@ module Analyzation
 contains
 !Read the input file for Analyzation: AnalyzeInput 
 subroutine ReadAnalyzeInput()
-    open(unit=99)
+    open(unit=99,file='analyzation.in',status='old')
+        read(99,*)
+        read(99,*)
+        read(99,*)
+        read(99,*)AnalyzationJobType
+        read(99,*)
+        read(99,*)InterestingState
+    close(99)
 end subroutine ReadAnalyzeInput
 
 subroutine Analyze()
@@ -39,7 +46,7 @@ subroutine MinimumSearch()
     q=InternalCoordinateq(InterestingGeom,InternalDImension,CartesianDimension)
     call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
         fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=.true.)
-    r=CartesianCoordinater(q,CartesianDimension,InternalDImension,InterestingGeom)
+    r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
     call VibrationAnalysis(freq,Hessian,InternalDimension,B,CartesianDimension,MoleculeDetail.mass,NAtoms)
