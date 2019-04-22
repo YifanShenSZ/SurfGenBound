@@ -7,5 +7,7 @@ module Analyze
     implicit none
     
 contains
+subroutine ReadAnalyzeInput()
+end subroutine ReadAnalyzeInput
 
 end module Analyze
