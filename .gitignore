@@ -6,9 +6,9 @@ x64/
 Library/
 Back up/
 example/
+*.py
 input
-AdvancedInput
-AnalyzeInput
+*.in
 *.all
 *.data
 *.xyz
@@ -16,5 +16,3 @@ intcfl
 Fmat*
 *.out
 *.CheckPoint
-*.in
-*.py
