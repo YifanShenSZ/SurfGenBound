@@ -183,8 +183,7 @@ contains
                 allocate(MoleculeDetail.mass(NAtoms))
             read(99,*)
             do i=1,NAtoms
-                read(99,'(A2,F20.15,F20.15,F20.15)')MoleculeDetail.ElementSymbol(i),&
-                    MoleculeDetail.RefConfig(1,i),MoleculeDetail.RefConfig(2,i),MoleculeDetail.RefConfig(3,i)
+                read(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
             end do
             read(99,*)
             do i=1,NAtoms
@@ -217,6 +216,7 @@ contains
         real*8::absdev
         real*8,allocatable,dimension(:)::OldRefGeom
         !General initialize
+            call BetterRandomSeed()
             call InitializeBasic()
             CartesianDimension=3*NAtoms
             call DefineInternalCoordinate()

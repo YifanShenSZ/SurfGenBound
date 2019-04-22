@@ -79,7 +79,7 @@ subroutine InitializeDiabaticHamiltonian()
                     end do
                 call ReadHdExpansionCoefficients()
                 if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
-            case('NadVibS')!Use same NStates & NOrder of the fitted Hd, read old Hd expansion coefficients
+            case default!Use same NStates & NOrder of the fitted Hd, read old Hd expansion coefficients
                 open(unit=99,file='HdExpansionCoefficient.out',status='old')
                     read(99,*)
                     read(99,*)NStates
@@ -98,7 +98,6 @@ subroutine InitializeDiabaticHamiltonian()
                         end do
                     end do
                 call ReadHdExpansionCoefficients()
-            case default
         end select
     !Initialize NExpansionBasis, NExpansionCoefficients
         NExpansionBasis=0!Set counter to 0
