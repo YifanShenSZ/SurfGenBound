@@ -199,8 +199,8 @@ contains
                     !HdLeastSquareFit
                         LSF_Regularization,LSF_Solver,&
                         LSF_MaxHopperIteration,LSF_MaxLocalMinimizerIteration,LSF_Max2StepIteration,&
-                        LSF_pseudolinearTol,LSF_pseudolinearFollowFreq,&
-                        LSF_LBFGSSolver,LSF_LBFGSMemory,LSF_CGSolver,&
+                        LSF_pseudolinearFollowFreq,LSF_pseudolinearMaxMonotonicalIncrease,&
+                        UseStrongWolfe,LSF_LBFGSMemory,LSF_CGSolver,&
                     !Main
                         GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)

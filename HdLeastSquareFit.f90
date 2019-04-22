@@ -40,16 +40,14 @@ module HdLeastSquareFit
         !Max ineration control. Hopper = pseudolinear. LocalMinimizer = TrustRegion, LBFGS, ConjugateGradient
         integer::LSF_MaxHopperIteration=100,LSF_MaxLocalMinimizerIteration=1000,LSF_Max2StepIteration=10
     !pseudolinear:
-        real*8::LSF_pseudolinearTol=1d-30!Convergence standard: || c_new - c_old ||^2 < absolute tolerance
         integer::LSF_pseudolinearFollowFreq=1,&!Every how many steps print fitting progress
             LSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
-    !LBFGS:
-        !Choose a specific solver: LBFGS, LBFGS_Strong
-        character*32::LSF_LBFGSSolver='LBFGS_Strong'
-        integer::LSF_LBFGSMemory=10!Memory usage control. [ 3, 30 ] is recommended
-    !ConjugateGradient:
-        !Choose a specific solver: DY, DY_Strong, PR
-        character*32::LSF_CGSolver='PR'
+    !LBFGS & ConjugateGradient:
+        logical::UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
+        !LBFGS:
+            integer::LSF_LBFGSMemory=10!Memory usage control, [3,30] is recommended (must > 0)
+        !ConjugateGradient:
+            character*2::LSF_CGSolver='DY'!Choose a specific solver: DY (Dai-Yun), PR (Polak-Ribiere+)
 
 !HdLeastSquareFit module only variable
     integer::LSF_NData!Number of fitting data
@@ -97,7 +95,7 @@ subroutine InitializeHdLeastSquareFit()
     end do
     LSF_EnergyScale=MaxGrad/MaxEnergy
     LSF_EnergyScaleSquare=LSF_EnergyScale*LSF_EnergyScale
-    LSF_SqrtRegularization=Sqrt(LSF_Regularization)
+    LSF_SqrtRegularization=dSqrt(LSF_Regularization)
 end subroutine InitializeHdLeastSquareFit
 
 !Fit Hd with the designated solver
@@ -132,26 +130,26 @@ subroutine FitHd()
         case('pseudolinear')
             call pseudolinear(c)
         case('TrustRegion')
-            call TrustRegion(c)
+            call TrustRegionInterface(c)
         case('LBFGS')
-            call LimitedMemoryBFGS(c)
+            call LBFGSInterface(c)
         case('ConjugateGradient')
-            call ConjugateGradient(c)
+            call ConjugateGradientInterface(c)
         !2-step solvers
         case('pseudolinear_TrustRegion')
             do istate=1,LSF_Max2StepIteration
                 call pseudolinear(c)
-                call TrustRegion(c)
+                call TrustRegionInterface(c)
             end do
         case('pseudolinear_LBFGS')
             do istate=1,LSF_Max2StepIteration
                 call pseudolinear(c)
-                call LimitedMemoryBFGS(c)
+                call LBFGSInterface(c)
             end do
         case('pseudolinear_ConjugateGradient')
             do istate=1,LSF_Max2StepIteration
                 call pseudolinear(c)
-                call ConjugateGradient(c)
+                call ConjugateGradientInterface(c)
             end do
         case default!Throw a warning
             write(*,'(1x,A50,1x,A32)')'Program abort: unsupported least square fit solver',LSF_Solver
@@ -237,11 +235,11 @@ end subroutine FitHd
         !Solve
         call showtime()
         write(*,'(1x,A43)')'Explore phase space by pseudolinear hopping'
-        do i=1,LSF_MaxHopperIteration
-            Lold=L
+        do i=1,LSF_MaxHopperIteration!Main loop
+            Lold=L!Prepare
             call My_dposv(A,b,NExpansionCoefficients)
             cchange=dot_product(b-c,b-c)
-            if(cchange<LSF_pseudolinearTol) then
+            if(cchange<1d-30) then!Convergence standard: || c_new - c_old ||^2 < 1d-30
                 call L_RMSD(b,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
                 if(L<Lmin) then
                     Lmin=L
@@ -466,8 +464,8 @@ end subroutine FitHd
                 end do
             end do
         end do
-        RMSDenergy=Sqrt(RMSDenergy/NStates/NPoints)
-        RMSDdH=Sqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
+        RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
+        RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
         RMSDDegH=0d0
         RMSDDegdH=0d0
         do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
@@ -497,8 +495,8 @@ end subroutine FitHd
                 end do
             end do
         end do
-        RMSDDegH=Sqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
-        RMSDDegdH=Sqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
+        RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
+        RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
         Ltemp=0d0
         do ip=1,NArtifactPoints!Unreliable data points, energy only
             call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,LSF_energy,LSF_phi,LSF_f)
@@ -530,21 +528,20 @@ end subroutine FitHd
     !                 to save CPU time, weight -> Sqrt(weight)
 
     !Fit Hd by trust region method
-    subroutine TrustRegion(c)
+    subroutine TrustRegionInterface(c)
         real*8,dimension(NExpansionCoefficients),intent(inout)::c
         integer::i
         real*8::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
         !Initialize
-            MaxMKLTrustRegionIteration=LSF_MaxLocalMinimizerIteration
             !weight -> Sqrt(weight)
                 forall(i=1:NPoints)
-                    point(i).weight=Sqrt(point(i).weight)
+                    point(i).weight=dSqrt(point(i).weight)
                 end forall
                 forall(i=1:NDegeneratePoints)
-                    DegeneratePoint(i).weight=Sqrt(DegeneratePoint(i).weight)
+                    DegeneratePoint(i).weight=dSqrt(DegeneratePoint(i).weight)
                 end forall
                 forall(i=1:NArtifactPoints)
-                    ArtifactPoint(i).weight=Sqrt(ArtifactPoint(i).weight)
+                    ArtifactPoint(i).weight=dSqrt(ArtifactPoint(i).weight)
                 end forall
             !Allocate global local minimizer work space
                 if(allocated(LSF_dHd)) deallocate(LSF_dHd)
@@ -567,7 +564,8 @@ end subroutine FitHd
         !Solve
         call showtime()
         write(*,'(1x,A40)')'Search for local minimum by trust region'
-        call My_dtrnlsp(Residue,Jacobian,c,LSF_NData+NExpansionCoefficients,NExpansionCoefficients)
+        call TrustRegion(Residue,c,LSF_NData+NExpansionCoefficients,NExpansionCoefficients,Jacobian=Jacobian,&
+            MaxIteration=LSF_MaxLocalMinimizerIteration)
         !Clean up
             !weight <- Sqrt(weight)
                 forall(i=1:NPoints)
@@ -604,7 +602,7 @@ end subroutine FitHd
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
         call c2HdEC(c,HdEC,NExpansionCoefficients)
         call WriteHdExpansionCoefficients(HdEC,NStates,NOrder)
-    end subroutine TrustRegion
+    end subroutine TrustRegionInterface
 
     subroutine Residue(r,c,M,N)
         integer,intent(in)::M,N
@@ -659,7 +657,7 @@ end subroutine FitHd
         end do
     end subroutine Residue
 
-    subroutine Jacobian(Jacob,c,M,N)
+    integer function Jacobian(Jacob,c,M,N)
         integer,intent(in)::M,N
         real*8,dimension(M,N),intent(out)::Jacob
         real*8,dimension(N),intent(in)::c
@@ -741,40 +739,32 @@ end subroutine FitHd
             end forall
             indicerow=indicerow+NStates
         end do
-    end subroutine Jacobian
+        Jacobian=0!return 0
+    end function Jacobian
 !---------------------------- End ----------------------------
 
 !---------- LBFGS/conjugate gradient and dependency ----------
     !To save CPU time, in this section Lagrangian -> Lagrangian / 2
 
     !Fit Hd by LBFGS method
-    subroutine LimitedMemoryBFGS(c)
+    subroutine LBFGSInterface(c)
         real*8,dimension(NExpansionCoefficients),intent(inout)::c
         real*8::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
         !Initialize
-            MaxQuasiNewtonIteration=LSF_MaxLocalMinimizerIteration
             !Allocate global local minimizer work space
-                if(allocated(LSF_dHd)) deallocate(LSF_dHd)
-                allocate(LSF_dHd(InternalDimension,NStates,NStates))
-                if(allocated(LSF_dcphi)) deallocate(LSF_dcphi)
-                allocate(LSF_dcphi(NExpansionCoefficients,NStates,NStates))
-                if(allocated(LSF_dcHrep)) deallocate(LSF_dcHrep)
-                allocate(LSF_dcHrep(NExpansionCoefficients,NStates,NStates))
-                if(allocated(LSF_dcdHrep)) deallocate(LSF_dcdHrep)
-                allocate(LSF_dcdHrep(NExpansionCoefficients,InternalDimension,NStates,NStates))
+            if(allocated(LSF_dHd)) deallocate(LSF_dHd)
+            allocate(LSF_dHd(InternalDimension,NStates,NStates))
+            if(allocated(LSF_dcphi)) deallocate(LSF_dcphi)
+            allocate(LSF_dcphi(NExpansionCoefficients,NStates,NStates))
+            if(allocated(LSF_dcHrep)) deallocate(LSF_dcHrep)
+            allocate(LSF_dcHrep(NExpansionCoefficients,NStates,NStates))
+            if(allocated(LSF_dcdHrep)) deallocate(LSF_dcdHrep)
+            allocate(LSF_dcdHrep(NExpansionCoefficients,InternalDimension,NStates,NStates))
         !Solve
         call showtime()
-        select case(LSF_LBFGSSolver)
-            case('LBFGS')
-                write(*,'(1x,A33)')'Search for local minimum by LBFGS'
-                call LBFGS(Lagrangian,LagrangianGradient,c,NExpansionCoefficients,LSF_LBFGSMemory)
-            case('LBFGS_Strong')
-                write(*,'(1x,A62)')'Search for local minimum by LBFGS under strong Wolfe condition'
-                call LBFGS_Strong_fdwithf(Lagrangian,LagrangianGradient,Lagrangian_LagrangianGradient,c,NExpansionCoefficients,LSF_LBFGSMemory)
-            case default!Throw a warning
-                write(*,'(1x,A39,1x,A32)')'Program abort: unsupported LBFGS solver',LSF_LBFGSSolver
-                stop
-        end select
+        write(*,'(1x,A67)')'Search for local minimum by limited memory BFGS quasi-Newton method'
+        call LBFGS(Lagrangian,LagrangianGradient,c,NExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
+            Memory=LSF_LBFGSMemory,Strong=UseStrongWolfe,MaxIteration=LSF_MaxLocalMinimizerIteration)
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
         write(*,'(1x,A15)')'Result of LBFGS:'
@@ -795,14 +785,13 @@ end subroutine FitHd
             deallocate(LSF_dcphi)
             deallocate(LSF_dcHrep)
             deallocate(LSF_dcdHrep)
-    end subroutine LimitedMemoryBFGS
+    end subroutine LBFGSInterface
 
     !Fit Hd by conjugate gradient method
-    subroutine ConjugateGradient(c)
+    subroutine ConjugateGradientInterface(c)
         real*8,dimension(NExpansionCoefficients),intent(inout)::c
         real*8::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
         !Initialize
-            MaxConjugateGradientIteration=LSF_MaxLocalMinimizerIteration
             !Allocate global local minimizer work space
                 if(allocated(LSF_dHd)) deallocate(LSF_dHd)
                 allocate(LSF_dHd(InternalDimension,NStates,NStates))
@@ -814,20 +803,9 @@ end subroutine FitHd
                 allocate(LSF_dcdHrep(NExpansionCoefficients,InternalDimension,NStates,NStates))
         !Solve
         call showtime()
-        select case(LSF_CGSolver)
-            case('DY')
-                write(*,'(1x,A54)')'Search for local minimum by Dai-Yun conjugate gradient'
-                call DYConjugateGradient(Lagrangian,LagrangianGradient,c,NExpansionCoefficients)
-            case('DY_Strong')
-                write(*,'(1x,A83)')'Search for local minimum by Dai-Yun conjugate gradient under strong Wolfe condition'
-                call DYConjugateGradient_Strong_fdwithf(Lagrangian,LagrangianGradient,Lagrangian_LagrangianGradient,c,NExpansionCoefficients)
-            case('PR')
-                write(*,'(1x,A61)')'Search for local minimum by Polak-Ribiere+ conjugate gradient'
-                call PRConjugateGradient_fdwithf(Lagrangian,LagrangianGradient,Lagrangian_LagrangianGradient,c,NExpansionCoefficients)
-            case default!Throw a warning
-                write(*,'(1x,A52,1x,A32)')'Program abort: unsupported conjugate gradient solver',LSF_CGSolver
-                stop
-        end select
+        write(*,'(1x,A53)')'Search for local minimum by conjugate gradient method'
+        call ConjugateGradient(Lagrangian,LagrangianGradient,c,NExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
+            Method=LSF_CGSolver,Strong=UseStrongWolfe,MaxIteration=LSF_MaxLocalMinimizerIteration)
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
         write(*,'(1x,A29)')'Result of conjugate gradient:'
@@ -848,7 +826,7 @@ end subroutine FitHd
             deallocate(LSF_dcphi)
             deallocate(LSF_dcHrep)
             deallocate(LSF_dcdHrep)
-    end subroutine ConjugateGradient
+    end subroutine ConjugateGradientInterface
     
     !dim dimensional vector c
     !L harvests Lagrangian
@@ -963,7 +941,7 @@ end subroutine FitHd
     !dim dimensional vector Ld, c
     !L harvests Lagrangian
     !Ld harvests the gradient of Lagrangian over c
-    subroutine Lagrangian_LagrangianGradient(L,Ld,c,dim)
+    integer function Lagrangian_LagrangianGradient(L,Ld,c,dim)
         integer,intent(in)::dim
         real*8,intent(out)::L
         real*8,dimension(dim),intent(out)::Ld
@@ -1043,7 +1021,8 @@ end subroutine FitHd
         end do
         L =(L+LSF_EnergyScaleSquare* Ltemp)/2d0
         Ld=Ld+LSF_EnergyScaleSquare*Ldtemp
-    end subroutine Lagrangian_LagrangianGradient
+        Lagrangian_LagrangianGradient=0!return 0
+    end function Lagrangian_LagrangianGradient
 !---------------------------- End ----------------------------
 
 !--------------------- Auxiliary routine ---------------------
@@ -1106,8 +1085,8 @@ end subroutine FitHd
             RMSDenergy=RMSDenergy+temp
             L=L+point(ip).weight*(Ltemp+LSF_EnergyScaleSquare*temp)
         end do
-        RMSDenergy=Sqrt(RMSDenergy/NStates/NPoints)
-        RMSDdH=Sqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
+        RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
+        RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
         RMSDDegH=0d0
         RMSDDegdH=0d0
         do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
@@ -1121,8 +1100,8 @@ end subroutine FitHd
             RMSDDegH=RMSDDegH+temp
             L=L+DegeneratePoint(ip).weight*(Ltemp+LSF_EnergyScaleSquare*temp)
         end do
-        RMSDDegH=Sqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
-        RMSDDegdH=Sqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
+        RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
+        RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
         Ltemp=0d0
         do ip=1,NArtifactPoints!Unreliable data points, energy only
             LSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
