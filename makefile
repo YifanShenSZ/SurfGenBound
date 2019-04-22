@@ -13,8 +13,8 @@ exe = SurfGenBound.exe
 flag = -u -mkl -fast -march=core-avx2
 
 $(exe): $(MyLib) $(src)
-        $(compiler) $(flag) $^ -o $(exe)
+	$(compiler) $(flag) $^ -o $(exe)
 
 clean:
-        rm $(exe)
-        rm *.mod
+	rm $(exe)
+	rm *.mod
