@@ -72,7 +72,9 @@ subroutine MinimumSearch()
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
     call VibrationAnalysis(freq,Hessian,InternalDimension,B,CartesianDimension,MoleculeDetail.mass,NAtoms)
-    open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
+	open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
+		write(99,*)NAtoms
+		write(99,*)
         do i=1,NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
