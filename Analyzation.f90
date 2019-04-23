@@ -13,7 +13,8 @@ module Analyzation
 		integer::InterestingState
 	!Geometry input
 		integer::NGeoms
-        real*8,allocatable,dimension(:,:)::InterestingGeom
+		real*8,allocatable,dimension(:,:)::InterestingGeom
+		real*8,allocatable,dimension(:)::g_AbInitio,h_AbInitio
     
 contains
 subroutine Analyze()!Top level standard interface for other modules to call
@@ -37,7 +38,8 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
         read(99,*)
         read(99,*)
         read(99,*)
-        read(99,*)AnalyzationJobType
+		read(99,*)AnalyzationJobType
+		    write(*,*)'Analyzation job type: '//AnalyzationJobType
         read(99,*)
 		read(99,*)InterestingState
 		read(99,*)
@@ -64,10 +66,11 @@ subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q,freq
     real*8,dimension(CartesianDimension)::r
     real*8,dimension(InternalDimension,CartesianDimension)::B
-    real*8,dimension(InternalDimension,InternalDimension)::Hessian
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian
+	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',InterestingState
     q=InternalCoordinateq(InterestingGeom(:,1),InternalDImension,CartesianDimension)
     call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-        fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=.true.)
+        fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
     r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom(:,1))
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
@@ -88,13 +91,45 @@ subroutine MinimumSearch()
             write(99,'(A4,1x,F14.8)')i,freq(i)/cm_1InAu
         end do
     close(99)
-    open(unit=99,file='MinimumNormalCoordinate.out',status='replace')
+    open(unit=99,file='MinimumNormalMode.out',status='replace')
         write(99,*)Hessian
     close(99)
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-
+    integer::i
+    real*8,dimension(InternalDimension)::q
+	real*8,dimension(CartesianDimension)::r
+	real*8,dimension(InternalDimension,NStates,NStates)::dH
+	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',InterestingState,'and',InterestingState+1
+    q=InternalCoordinateq(InterestingGeom(:,1),InternalDImension,CartesianDimension)
+	call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
+	    q,InternalDImension,1,&
+		fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
+	r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom(:,1))
+	dH=AdiabaticdH(q)
+	if(allocated(g_AbInitio).and.allocated(h_AbInitio)) then
+		call ghOrthogonalization(dH(:,InterestingState,InterestingState),dH(:,InterestingState+1,InterestingState+1),dH(:,InterestingState+1,InterestingState),InternalDimension,&
+		    gref=g_AbInitio,href=h_AbInitio)
+	else
+	    call ghOrthogonalization(dH(:,InterestingState,InterestingState),dH(:,InterestingState+1,InterestingState+1),dH(:,InterestingState+1,InterestingState),InternalDimension)
+	end if
+	open(unit=99,file='MexCartesianGeometry.xyz',status='replace')
+		write(99,*)NAtoms
+		write(99,*)
+        do i=1,NAtoms
+            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
+        end do
+    close(99)
+    open(unit=99,file='MexInternalGeometry.out',status='replace')
+        write(99,*)q
+    close(99)
+	open(unit=99,file='Mexg.out',status='replace')
+	    write(99,*)(dH(:,InterestingState+1,InterestingState+1)-dH(:,InterestingState,InterestingState))/2d0
+    close(99)
+	open(unit=99,file='Mexh.out',status='replace')
+	    write(99,*)dH(:,InterestingState+1,InterestingState)
+    close(99)
 end subroutine MexSearch
 
 subroutine Evaluate()
@@ -142,7 +177,35 @@ end subroutine Evaluate
         ddH=AdiabaticddH(q)
         Hessian=ddH(:,:,InterestingState,InterestingState)
         AdiabaticHessianInterface=0!return 0
-    end function AdiabaticHessianInterface
+	end function AdiabaticHessianInterface
+	
+	subroutine AdiabaticGapInterface(gap,q,M,intdim)
+		integer,intent(in)::M,intdim
+		real*8,dimension(intdim),intent(in)::q
+		real*8,dimension(M),intent(out)::gap
+		real*8,dimension(NStates)::energy
+		energy=AdiabaticEnergy(q)
+		gap(1)=energy(InterestingState+1)-energy(InterestingState)
+	end subroutine AdiabaticGapInterface
+
+	subroutine AdiabaticGapGradientInterface(dgap,q,M,intdim)
+		integer,intent(in)::M,intdim
+		real*8,dimension(intdim),intent(in)::q
+		real*8,dimension(intdim,M),intent(out)::dgap
+		real*8,dimension(intdim,NStates,NStates)::dH
+		dH=AdiabaticdH(q)
+		dgap(:,1)=dH(:,InterestingState+1,InterestingState+1)-dH(:,InterestingState,InterestingState)
+	end subroutine AdiabaticGapGradientInterface
+
+	integer function AdiabaticGapHessianInterface(ddgap,q,M,intdim)
+	    integer,intent(in)::M,intdim
+		real*8,dimension(intdim),intent(in)::q
+		real*8,dimension(intdim,intdim,M),intent(out)::ddgap
+		real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+		ddH=AdiabaticddH(q)
+		ddgap(:,:,1)=ddH(:,:,InterestingState+1,InterestingState+1)-ddH(:,:,InterestingState,InterestingState)
+	    AdiabaticGapHessianInterface=0!return 0
+    end function AdiabaticGapHessianInterface
 !----------------- End -----------------
 
 end module Analyzation
