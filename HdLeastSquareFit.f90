@@ -48,7 +48,7 @@ module HdLeastSquareFit
         !LBFGS:
             integer::HdLSF_LBFGSMemory=10!Memory usage control, [3,30] is recommended (must > 0)
         !ConjugateGradient:
-            character*2::HdLSF_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
+            character*32::HdLSF_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
 
 !HdLeastSquareFit module only variable
     integer::HdLSF_NData!Number of fitting data
