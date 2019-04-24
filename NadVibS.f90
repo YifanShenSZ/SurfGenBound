@@ -1,8 +1,7 @@
 !Generate NadVibS input files
 module NadVibS
-    use DiabaticHamiltonian
     use Basic
-    use ElectronicStructureInput
+    use ElectronicStructure
     use Analyzation
     implicit none
 

@@ -4,7 +4,6 @@
 !    Mex search and gh orthogonalization along conical intersection seam between specified adiabatic states
 module Analyzation
     use Basic
-    use DiabaticHamiltonian
     implicit none
 
 !Analyzation module only variable

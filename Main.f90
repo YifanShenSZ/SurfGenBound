@@ -6,7 +6,6 @@
 program main
     use Basic
     use ElectronicStructure
-    use DiabaticHamiltonian
     use HdLeastSquareFit
     use Analyzation
     use NadVibS
