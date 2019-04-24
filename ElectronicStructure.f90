@@ -50,7 +50,7 @@ end subroutine ReadElectronicStructureHessian
         real*8::DbTemp1,DbTemp2
         open(unit=99,file=source,status='old')
             do ip=1,NPoints
-                do iatm=1,NAtoms
+                do iatm=1,MoleculeDetail.NAtoms
                     read(99,'(1x,a2,2x,f5.1,4f14.8)')CharTemp,DbTemp1,point(ip).geom(3*iatm-2:3*iatm),DbTemp2
                 end do
             end do
@@ -76,7 +76,7 @@ end subroutine ReadElectronicStructureHessian
         integer::ip,iatm
         open(unit=99,file=source,status='old')
             do ip=1,NPoints
-                do iatm=1,NAtoms
+                do iatm=1,MoleculeDetail.NAtoms
                     read(99,'(3f15.8)')point(ip).dH(3*iatm-2:3*iatm,state1,state2)
                 end do
             end do

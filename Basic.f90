@@ -25,12 +25,11 @@ module Basic
         real*8,allocatable,dimension(:,:,:)::dH!dH(m,i,j) = ▽_m H_i,j
     end type Data
 
-    !See examples of my special .xyz for the meaning of each variable
-    !Store the details of an input molecule
-    type MoleculeDetails
-        character*2,allocatable,dimension(:)::ElementSymbol!Element symbol of each atom
+	type MoleculeDetails!Store the details of a sample molecule
+	    integer::NAtoms
+        character*2,allocatable,dimension(:)::ElementSymbol
         real*8,allocatable,dimension(:,:)::RefConfig!Short for REFerence CONFIGuration
-        real*8,allocatable,dimension(:)::mass!Mass of each atom
+        real*8,allocatable,dimension(:)::mass
     end type MoleculeDetails
     
 !Input variable
@@ -42,9 +41,7 @@ module Basic
         integer::NPoints,IndexReference
         character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile
         integer::NArtifactPoints
-    !Molecule detail input
-        integer::NAtoms
-        type(MoleculeDetails)::MoleculeDetail
+    type(MoleculeDetails)::MoleculeDetail!Molecule detail input
 
 !Global variable
     integer::NDegeneratePoints!Number of almost degenerate points

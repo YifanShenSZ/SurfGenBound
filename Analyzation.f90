@@ -8,53 +8,53 @@ module Analyzation
 
 !Analyzation module only variable
 	!Analyzation input
-        character*32::AnalyzationJobType
-		integer::InterestingState
+        character*32::Analyzation_JobType
+		integer::Analyzation_state
 	!Geometry input
-		integer::NGeoms
-		real*8,allocatable,dimension(:,:)::InterestingGeom
-		real*8,allocatable,dimension(:)::g_AbInitio,h_AbInitio
+		integer::Analyzation_NGeoms
+		real*8,allocatable,dimension(:,:)::Analyzation_cartgeom,Analyzation_intgeom
+		real*8,allocatable,dimension(:)::Analyzation_g,Analyzation_h
     
 contains
 subroutine Analyze()!Top level standard interface for other modules to call
 	call ReadAnalyzeInput()
-    select case(AnalyzationJobType)
+    select case(Analyzation_JobType)
         case('min')
             call MinimumSearch()
         case('mex')
             call MexSearch()
         case default!Throw a warning
-            write(*,'(1x,A47,1x,A32)')'Program abort: unsupported analyzation job type',AnalyzationJobType
+            write(*,'(1x,A47,1x,A32)')'Program abort: unsupported analyzation job type',Analyzation_JobType
             stop
     end select
 end subroutine Analyze
 !BUG TO FIX: Where q is the internal coordinate (for this program it's internal coordinate difference)
 subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
-	character*128::InterestingGeomFile
+	character*128::GeomFile
 	integer::i
     open(unit=99,file='analyzation.in',status='old')
         read(99,*)
         read(99,*)
         read(99,*)
-		read(99,*)AnalyzationJobType
-		    write(*,*)'Analyzation job type: '//AnalyzationJobType
+		read(99,*)Analyzation_JobType
+		    write(*,*)'Analyzation job type: '//Analyzation_JobType
         read(99,*)
-		read(99,*)InterestingState
+		read(99,*)Analyzation_state
 		read(99,*)
-        read(99,*)InterestingGeomFile
+        read(99,*)GeomFile
 	close(99)
-	open(unit=99,file=InterestingGeomFile,status='old')
-	    NGeoms=0!Count number of geometries
+	open(unit=99,file=GeomFile,status='old')
+	    Analyzation_NGeoms=0!Count number of geometries
 		do
 			read(99,*,iostat=i)
 			if(i/=0) exit
-			NGeoms=NGeoms+1
+			Analyzation_NGeoms=Analyzation_NGeoms+1
 		end do
-		NGeoms=NGeoms/NAtoms
+		Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
 		rewind 99
-		allocate(InterestingGeom(CartesianDimension,NGeoms))!Read geometries
-		do i=1,NGeoms
-			read(99,*)InterestingGeom(:,i)
+		allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
+		do i=1,Analyzation_NGeoms
+			read(99,*)Analyzation_cartgeom(:,i)
 		end do
 	close(99)
 end subroutine ReadAnalyzeInput
@@ -72,11 +72,11 @@ subroutine MinimumSearch()
     r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom(:,1))
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
-    call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,NAtoms)
+    call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
 	open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
-		write(99,*)NAtoms
+		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
-        do i=1,NAtoms
+        do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
     close(99)
@@ -118,9 +118,9 @@ subroutine MexSearch()
 	    call ghOrthogonalization(dH(:,InterestingState,InterestingState),dH(:,InterestingState+1,InterestingState+1),dH(:,InterestingState+1,InterestingState),InternalDimension)
 	end if
 	open(unit=99,file='MexCartesianGeometry.xyz',status='replace')
-		write(99,*)NAtoms
+		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
-        do i=1,NAtoms
+        do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
     close(99)

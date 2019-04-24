@@ -176,16 +176,16 @@ contains
             read(99,*)
             read(99,*)
             read(99,*)
-            read(99,*)NAtoms
-                allocate(MoleculeDetail.ElementSymbol(NAtoms))
-                allocate(MoleculeDetail.RefConfig(3,NAtoms))
-                allocate(MoleculeDetail.mass(NAtoms))
+            read(99,*)MoleculeDetail.NAtoms
+                allocate(MoleculeDetail.ElementSymbol(MoleculeDetail.NAtoms))
+                allocate(MoleculeDetail.RefConfig(3,MoleculeDetail.NAtoms))
+                allocate(MoleculeDetail.mass(MoleculeDetail.NAtoms))
             read(99,*)
-            do i=1,NAtoms
+            do i=1,MoleculeDetail.NAtoms
                 read(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
             end do
             read(99,*)
-            do i=1,NAtoms
+            do i=1,MoleculeDetail.NAtoms
                 read(99,*)MoleculeDetail.mass(i)
             end do
                 MoleculeDetail.mass=MoleculeDetail.mass*AMUInAU!Convert to atomic unit
@@ -218,7 +218,7 @@ contains
         !General initialize
             call BetterRandomSeed()
             call InitializeBasic()
-            CartesianDimension=3*NAtoms
+            CartesianDimension=3*MoleculeDetail.NAtoms
             call DefineInternalCoordinate(ElectronicStructureSoftware,InternalDimension)
         select case(JobType)!Job specific initialize
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
@@ -354,10 +354,10 @@ contains
         if(GradualFit) then
             allocate(GeomDifference(NPoints))
             if(Unaligned) then
-                call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,NAtoms,NState,&
+                call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
                     nadgrad=ReferencePointtemp.dH)
                 do ip=1,NPoints
-                    call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,NAtoms,NState,&
+                    call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
                         nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
                 end do
             else

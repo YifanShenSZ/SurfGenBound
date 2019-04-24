@@ -19,7 +19,7 @@ subroutine GenerateNadVibSInput()
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
-    call WilsonGFMethod(freqPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,NAtoms)
+    call WilsonGFMethod(freqPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<-1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
     !Successor
         !Allocate storage space
@@ -35,7 +35,7 @@ subroutine GenerateNadVibSInput()
 Htemp=AdiabaticddH(qSuccessor)
 HSuccessor=Htemp(:,:,1,1)
 !I will write a version shift the reference to ground state minimum of Hd someday
-    call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,NAtoms)
+    call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
     dshift=matmul(transpose(HPrecursor),qSuccessor-qPrecursor)
     Tshift=matmul(transpose(HPrecursor),HSuccessor)
