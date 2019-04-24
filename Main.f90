@@ -354,7 +354,46 @@ contains
         do ip=1,NPoints!Modify points
             pointtemp(ip).energy=pointtemp(ip).energy-ReferencePointtemp.energy(1)
             if(pointtemp(ip).energy(1)>HighEnergy) pointtemp(ip).weight=HighEnergy/pointtemp(ip).energy(1)
-        end do
+		end do
+		!Provide a human readable version of training set
+			open(unit=99,file='TrainingEnergy.txt',status='replace')
+			    write(99,'(A10)',advance='no')'Geometry#'//char(9)
+			    do istate=1,NState
+			    	write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',istate,'/cm-1',char(9)
+			    end do
+			    write(99,*)
+			    do ip=1,NPoints
+			    	write(99,'(I9,A1)',advance='no')ip,char(9)
+			    	do jstate=1,NState
+			    		write(99,'(F18.8,A1)',advance='no')pointtemp(ip).energy(jstate)/cm_1InAU,char(9)
+			    	end do
+			    	write(99,*)
+			    end do
+			close(99)
+			open(unit=99,file='TrainingGradient.txt',status='replace')
+                write(99,'(A10)',advance='no')'Geometry#'//char(9)
+                do istate=1,NState
+                    write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',istate,'/a.u.',char(9)
+	        	end do
+	        	do istate=1,NState
+	        		do jstate=istate+1,NState
+	        			write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',jstate,'&',istate,'/a.u.',char(9)
+	        		end do
+                end do
+                write(99,*)
+                do ip=1,NPoints
+                    write(99,'(I9,A1)',advance='no')ip,char(9)
+                    do jstate=1,NState
+                        write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,jstate)),char(9)
+	        		end do
+	        		do istate=1,NState
+	        			do jstate=istate+1,NState
+	        				write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,istate))/dABS(pointtemp(ip).energy(istate)-pointtemp(ip).energy(jstate)),char(9)
+	        			end do
+	        		end do
+                    write(99,*)
+                end do
+	        close(99)
         do ip=1,NArtifactPoints!Modify artifact points
             ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePointtemp.energy(1)
             if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=HighEnergy/ArtifactPointtemp(ip).energy(1)

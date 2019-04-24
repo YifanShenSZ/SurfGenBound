@@ -211,12 +211,16 @@ end subroutine IdentifyDegeneracy
         integer,intent(in)::NPoints
         type(Data),dimension(NPoints),intent(inout)::point
         integer::ip
-        open(unit=99,file=DataFile,status='old')
-            do ip=1,NPoints
-                read(99,*)point(ip).weight
-                read(99,*)point(ip).geom
-                read(99,*)point(ip).energy
-            end do
+		open(unit=99,file=DataFile,status='old',iostat=ip)
+		    if(ip==0) then
+                do ip=1,NPoints
+                    read(99,*)point(ip).weight
+                    read(99,*)point(ip).geom
+                    read(99,*)point(ip).energy
+				end do
+			else
+				if(NArtifactPoints/=0) stop 'Program abort: artifact data check point not found'
+			end if
         close(99)
     end subroutine ReadArtifactData
 

@@ -32,6 +32,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 end subroutine Analyze
 
 subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
+	logical::intgeom
 	character*128::GeomFile,RefghFile,DispFile
 	integer::i
     open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
