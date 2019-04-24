@@ -374,7 +374,12 @@ contains
                 write(99,'(A10)',advance='no')'Geometry#'//char(9)
                 do istate=1,NState
                     write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',istate,'/a.u.',char(9)
-	        	end do
+				end do
+				do istate=1,NState
+	        		do jstate=istate+1,NState
+	        			write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',jstate,'&',istate,'/a.u.',char(9)
+	        		end do
+                end do
 	        	do istate=1,NState
 	        		do jstate=istate+1,NState
 	        			write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',jstate,'&',istate,'/a.u.',char(9)
@@ -385,6 +390,11 @@ contains
                     write(99,'(I9,A1)',advance='no')ip,char(9)
                     do jstate=1,NState
                         write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,jstate)),char(9)
+					end do
+					do istate=1,NState
+	        			do jstate=istate+1,NState
+	        				write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,istate)),char(9)
+	        			end do
 	        		end do
 	        		do istate=1,NState
 	        			do jstate=istate+1,NState

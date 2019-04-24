@@ -320,14 +320,24 @@ subroutine Evaluate()
 		end do
 		do i=1,NState
 			do j=i+1,NState
-				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
+				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',j,'&',i,'/a.u.',char(9)
 			end do
         end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
+			end do
+		end do
         write(99,*)
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState
                 write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,j,i),char(9)
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i),char(9)
+				end do
 			end do
 			do k=1,NState
 				do j=k+1,NState
