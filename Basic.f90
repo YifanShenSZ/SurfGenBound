@@ -100,7 +100,7 @@ subroutine IdentifyDegeneracy(degpoint,NDegpoints,IndicesDeg,point,NPoints)
             degpoint(index).energy=point(ip).energy
             allocate(degpoint(index).dH(dim,NState,NState))
             degpoint(index).dH=point(ip).dH
-            call NondegenerateRepresentation(degpoint(index).dH,eigval,eigvec,dim,NState)
+            call NondegenerateRepresentation(degpoint(index).dH,eigval,eigvec,dim,NState,DegenerateThreshold=AlmostDegenerate)
             allocate(degpoint(index).H(NState,NState))
             degpoint(index).H=transpose(eigvec)
             forall(istate=1:NState)

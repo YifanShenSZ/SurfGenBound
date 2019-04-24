@@ -415,7 +415,7 @@ contains
                 cartnadgrad=ReferencePointtemp.dH,intnadgrad=ReferencePoint.dH)
             call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
             if(Degenerate) then
-                call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState)
+                call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
                 ReferencePoint.H=transpose(eigvec)
                 forall(istate=1:NState)
                     ReferencePoint.H(:,istate)=ReferencePoint.energy(istate)*ReferencePoint.H(:,istate)

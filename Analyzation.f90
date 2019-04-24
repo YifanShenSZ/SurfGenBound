@@ -23,6 +23,8 @@ subroutine Analyze()!Top level standard interface for other modules to call
             call MinimumSearch()
         case('mex')
             call MexSearch()
+        case('evaluate')
+            call evaluate()
         case default!Throw a warning
             write(*,'(1x,A47,1x,A32)')'Program abort: unsupported analyzation job type',Analyzation_JobType
             stop
@@ -44,8 +46,6 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 		read(99,*)GeomFile
 		read(99,*)
 		read(99,*)RefghFile
-		read(99,*)
-		read(99,*)DispFile
 	close(99)
 	open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
 	    Analyzation_NGeoms=0!Count number of geometries
@@ -68,18 +68,12 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	close(99)
 	if(Analyzation_JobType=='mex') then!Look for reference g & h
 		open(unit=99,file=RefghFile,status='old',iostat=i)
-			if(iostat==0) then
+			if(i==0) then
 				allocate(Analyzation_g(InternalDimension))
 				allocate(Analyzation_h(InternalDimension))
 				read(99,*)Analyzation_g
 				read(99,*)Analyzation_h
 			end if
-	    close(99)
-	end if
-	if(Analyzation_JobType=='displace') then!Read displacement vector
-		open(unit=99,file=DispFile,status='old')
-			allocate(Analyzation_g(InternalDimension))
-			read(99,*)Analyzation_g
 	    close(99)
 	end if
 end subroutine ReadAnalyzeInput
@@ -219,13 +213,65 @@ subroutine MexSearch()
 end subroutine MexSearch
 
 subroutine Evaluate()
-	integer::i
-	real*8,dimension(NStates,Analyzation_NGeoms)::PES
-	real*8,dimension(NStates,NStates,Analyzation_NGeoms)::gradNormSurface,HdSurface,dHdNormSurface,HndSurface,dHndNormSurface
-	real*8,dimension(InternalDimension,NState,NState)::dH
-	do i=1,Analyzation_NGeoms
-
-	end do
+	integer::i,j
+	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
+	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,gradNormSurface,dHndNormSurface
+    real*8,dimension(NState,NState)::eigvec
+    real*8,dimension(InternalDimension,NState,NState)::dH,dHa
+	do i=1,Analyzation_NGeoms!Compute
+        HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
+        dH=dHd(Analyzation_intgeom(:,i))
+        dHdNormSurface(:,:,i)=dSqrt(sy3matdotmul(dH,dH,InternalDimension,NState))
+        eigvec=HdSurface(:,:,i)
+        call My_dsyev('V',eigvec,PES(:,i),NState)
+        dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+        gradNormSurface(:,:,i)=dSqrt(sy3matdotmul(dHa,dHa,InternalDimension,NState))
+        call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+        dHndNormSurface(:,:,i)=dSqrt(sy3matdotmul(dH,dH,InternalDimension,NState))
+    end do
+    !Output
+    open(unit=99,file='PotentialEnergySurface.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(A7,I3,A6,A1)',advance='no')'Energy ',i,' /cm-1',char(9)
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F16.8,A1)',advance='no')PES(j,i),char(9)
+            end do
+            write(99,*)
+        end do
+    close(99)
+    open(unit=99,file='NondegenerateSurface.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(A7,I3,A4,A1)',advance='no')'Eigval ',i,' /au',char(9)
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F14.8,A1)',advance='no')ndSurface(j,i),char(9)
+            end do
+            write(99,*)
+        end do
+    close(99)
+    open(unit=99,file='Hd.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(A7,I3,A6,A1)',advance='no')'Energy ',i,' /cm-1',char(9)
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F16.8,A1)',advance='no')PES(j,i),char(9)
+            end do
+            write(99,*)
+        end do
+    close(99)
 end subroutine Evaluate
 
 !---------- Auxiliary routine ----------

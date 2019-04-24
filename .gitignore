@@ -14,5 +14,6 @@ input
 *.xyz
 intcfl
 Fmat*
-*.out
 *.CheckPoint
+*.out
+*.txt
