@@ -25,7 +25,7 @@ module Basic
         real*8,allocatable,dimension(:,:,:)::dH!dH(m,i,j) = ▽_m H_i,j
     end type Data
 
-	type MoleculeDetails!Store the details of a sample molecule
+	type MoleculeDetails!Store the details of an example molecule
 	    integer::NAtoms
         character*2,allocatable,dimension(:)::ElementSymbol
         real*8,allocatable,dimension(:,:)::RefConfig!Short for REFerence CONFIGuration

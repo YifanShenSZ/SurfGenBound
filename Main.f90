@@ -139,13 +139,11 @@ program main
 !------------- End --------------
 
 contains
-    !Read main input files: input, MoleculeDetailFile, AdvancedInput (optional)
-    subroutine ReadInput()
+    subroutine ReadInput()!Read main input files: input, example.xyz, AdvancedInput (optional)
         character*128::MoleculeDetailFile
         logical::advance
         integer::i
-        !Read main input, write some job comment
-        open(unit=99,file='input',status='old')
+        open(unit=99,file='input',status='old')!Read main input, write some job comment
             read(99,*)
             read(99,*)
             read(99,*)
@@ -172,7 +170,7 @@ contains
             read(99,*)
             read(99,*)advance
         close(99)
-        open(unit=99,file=MoleculeDetailFile,status='old')
+        open(unit=99,file=MoleculeDetailFile,status='old')!Read molecule detail
             read(99,*)
             read(99,*)
             read(99,*)
@@ -296,7 +294,17 @@ contains
                 end if
                 call InitializeDiabaticHamiltonian(NState=NState,intdim=InternalDimension,NOrder=NOrder)
                 call InitializeHdLeastSquareFit()
-            case default
+			case default
+				open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+                    allocate(ReferencePoint.geom(InternalDimension))
+                    allocate(ReferencePoint.energy(NState))
+                    allocate(ReferencePoint.H(NState,NState))
+                    allocate(ReferencePoint.dH(InternalDimension,NState,NState))
+                    read(99,*)ReferencePoint.geom
+                    read(99,*)ReferencePoint.energy
+                    read(99,*)ReferencePoint.H
+                    read(99,*)ReferencePoint.dH
+                close(99)
                 call InitializeDiabaticHamiltonian()
         end select
     end subroutine Initialize
@@ -321,14 +329,18 @@ contains
                 end do
             call ReadElectronicStructureData(pointtemp,NPoints)
             allocate(ArtifactPointtemp(NArtifactPoints))
-            open(unit=99,file=ArtifactGeometryDataFile,status='old')
-            open(unit=100,file=ArtifactEnergyDataFile,status='old')
-                do ip=1,NArtifactPoints
-                    allocate(ArtifactPointtemp(ip).geom(CartesianDimension))
-                    read(99,*)ArtifactPointtemp(ip).geom
-                    allocate(ArtifactPointtemp(ip).energy(NState))
-                    read(100,*)ArtifactPointtemp(ip).energy
-                end do
+            open(unit=99,file=ArtifactGeometryDataFile,status='old',iostat=istate)
+			open(unit=100,file=ArtifactEnergyDataFile,status='old',iostat=jstate)
+			    if(istate==0.and.jstate==0) then
+                    do ip=1,NArtifactPoints
+                        allocate(ArtifactPointtemp(ip).geom(CartesianDimension))
+                        read(99,*)ArtifactPointtemp(ip).geom
+                        allocate(ArtifactPointtemp(ip).energy(NState))
+                        read(100,*)ArtifactPointtemp(ip).energy
+					end do
+				else
+					if(NArtifactPoints/=0) stop 'Program abort: artifact data not found'
+				end if
             close(100)
             close(99)
         !Rearrange training set: shift energy zero point to the ground state energy of the reference point
@@ -393,7 +405,6 @@ contains
                 end do
             close(99)
         end if
-        !This program requires only internal coordinate difference
         !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
             allocate(ReferencePoint.geom(InternalDimension))
             allocate(ReferencePoint.energy(NState))
@@ -421,7 +432,7 @@ contains
                 allocate(pointswap(ip).dH(InternalDimension,NState,NState))
                 call Cartesian2Internal(pointtemp(ip).geom,CartesianDimension,pointswap(ip).geom,InternalDimension,NState,&
                     cartnadgrad=pointtemp(ip).dH,intnadgrad=pointswap(ip).dH)
-                pointswap(ip).geom=pointswap(ip).geom-ReferencePoint.geom
+                pointswap(ip).geom=pointswap(ip).geom-ReferencePoint.geom!This program requires only internal coordinate difference
             end do
             call IdentifyDegeneracy(DegeneratePoint,NDegeneratePoints,indices,pointswap,NPoints)
             NPoints=NPoints-NDegeneratePoints
@@ -469,7 +480,8 @@ contains
                 allocate(ArtifactPoint(ip).energy(NState))
                     ArtifactPoint(ip).energy=ArtifactPointtemp(ip).energy
                 !Artifact points do not have energy gradient and interstate coupling
-                ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPoint(ip).geom,InternalDimension,CartesianDimension)-ReferencePoint.geom
+				ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPoint(ip).geom,InternalDimension,CartesianDimension)&
+				    -ReferencePoint.geom!This program requires only internal coordinate difference
             end do
         !Clean up
             deallocate(indices)
