@@ -6,6 +6,7 @@ module Basic
     use GeometryTransformation
     use NonlinearOptimization
     use Nonadiabatic
+    use DiabaticHamiltonian
     implicit none
 
 !Parameter
@@ -59,8 +60,7 @@ module Basic
     real*8,allocatable,dimension(:)::GeomDifference!Difference between data points geometries and reference point geometry
 
 contains
-!The initializer for Basic module
-subroutine InitializeBasic()
+subroutine InitializeBasic()!Initialize Basic module and lower level libraries
     call InitializePhaseFixing(NStates)
 end subroutine InitializeBasic
 
@@ -237,35 +237,6 @@ end subroutine IdentifyDegeneracy
             end do
         close(99)
     end subroutine WriteArtifactData
-!------------------------- End --------------------------
-
-!---------- Other nondegenerate representation ----------
-    !When Hamiltonian is almost degenerate, adiabatic basis experiences numerical difficulty
-    !    This causes no trouble to H, but operators other than H suffer a lot (e.g. ▽H)
-    !Diabatz is always good, but it cannot be determined without knowledge of neighbourhood
-    !So we want some other nondegenerate representation based only on single point information
-    !Choose (▽H)^2 representation: it is good enough for fitting a C1 molecule though does not incorporate symmetry
-    !    (▽H)^2 is Hermitian so there exists exactly one (▽H)^2 representation
-    !    It reduces to s orthogonal to h for 2-fold degeneracy case, where s is the average force of 2 PESs
-    !Note it is only appropriate around conical intersection, because || ▽H || -> 0 at asymptote
-
-    !dim x NStates x NStates 3-order tensor ▽H
-    !Transform ▽H to (▽H)^2 representation
-    !eigval harvests eigen values of (▽H)^2
-    !eigvec harvests eigen vectors of (▽H)^2 in representation same to input ▽H
-    subroutine NondegenerateRepresentation(dH,eigval,eigvec,dim,NStates)
-        integer,intent(in)::dim,NStates
-        real*8,dimension(dim,NStates,NStates),intent(inout)::dH
-        real*8,dimension(NStates),intent(out)::eigval
-        real*8,dimension(NStates,NStates),intent(out)::eigvec
-        logical::degenerate
-        integer::i,j,k,l
-        eigvec=sy3matdotmul(dH,dH,dim,NStates)
-        call My_dsyev('V',eigvec,eigval,NStates)
-        dH=sy3UnitaryTransformation(dH,eigvec,dim,NStates)
-        call CheckDegeneracy(degenerate,AlmostDegenerate,eigval,NStates)
-        if(degenerate) write(*,*)'Warning: nondegenerate representation is also almost degenerate'
-    end subroutine NondegenerateRepresentation
 !------------------------- End --------------------------
 
 end module Basic

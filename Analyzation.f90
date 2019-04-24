@@ -29,7 +29,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
             stop
     end select
 end subroutine Analyze
-
+!BUG TO FIX: Where q is the internal coordinate (for this program it's internal coordinate difference)
 subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	character*128::InterestingGeomFile
 	integer::i
