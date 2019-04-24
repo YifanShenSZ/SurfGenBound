@@ -40,7 +40,7 @@ module DiabaticHamiltonian
     type(ExpansionBasisNumberingRule),allocatable,dimension(:)::Hd_EBNR!short for Expansion Basis Numbering Rule
 
 contains
-!The initializer for DiabaticHamiltonian module
+!Initialize DiabaticHamiltonian module
 !Optional argument:
 !    NewHd: (default = false) if true, will return a blank Hd expansion coefficient
 !    NState & intdim & NOrder: if absent, will seek for old values from fitted Hd and abort if not found

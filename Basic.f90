@@ -135,7 +135,7 @@ end subroutine IdentifyDegeneracy
             end do
         close(99)
     end subroutine ReadData
-    
+
     !Write data in point to DataFile
     subroutine WriteData(DataFile,point,NPoints)
         character*128,intent(in)::DataFile
@@ -207,7 +207,7 @@ end subroutine IdentifyDegeneracy
             end do
         close(99)
     end subroutine WriteDegenerateData
-    
+
     !Load artifact data in DataFile to point
     subroutine ReadArtifactData(DataFile,point,NPoints)
         character*128,intent(in)::DataFile
@@ -222,7 +222,7 @@ end subroutine IdentifyDegeneracy
             end do
         close(99)
     end subroutine ReadArtifactData
-    
+
     !Write artifact data in point to DataFile
     subroutine WriteArtifactData(DataFile,point,NPoints)
         character*128,intent(in)::DataFile

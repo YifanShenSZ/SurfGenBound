@@ -77,8 +77,7 @@ module HdLeastSquareFit
                 real*8,allocatable,dimension(:,:)::HdLSF_spJacobian,HdLSF_sdegpJacobian!Jacobian of a single (degenerate) data point
 
 contains
-!The initializer for HdLeastSquareFit module
-subroutine InitializeHdLeastSquareFit()
+subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
     integer::ip,istate,jstate
     real*8::MaxEnergy,MaxGrad,temp
     !A data point provides NState adiabatic energies, InternalDimension x NState x NState ▽H

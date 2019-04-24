@@ -32,7 +32,6 @@ end subroutine Analyze
 subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	character*128::InterestingGeomFile
 	integer::i
-	real*8,dimension(3)::buffer
     open(unit=99,file='analyzation.in',status='old')
         read(99,*)
         read(99,*)
@@ -47,7 +46,7 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	open(unit=99,file=InterestingGeomFile,status='old')
 	    NGeoms=0!Count number of geometries
 		do
-			read(99,*,iostat=i)buffer
+			read(99,*,iostat=i)
 			if(i/=0) exit
 			NGeoms=NGeoms+1
 		end do
