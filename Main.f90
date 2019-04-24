@@ -30,7 +30,7 @@ program main
         logical::Unsorted=.true.
     !Gradual fit variables
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
-        real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
+		real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput()
@@ -40,7 +40,7 @@ program main
 !----------- Run job ------------
     call showtime()
     select case(JobType)
-        case('FitNewDiabaticHamiltonian')
+		case('FitNewDiabaticHamiltonian')
             if(GradualFit) then
                 write(*,'(1x,A39)')'Perform the fitting procedure gradually'
                 !Store the original values then change them
@@ -154,7 +154,7 @@ contains
             read(99,*)
             read(99,*)MoleculeDetailFile
             read(99,*)
-            read(99,*)NStates
+            read(99,*)NState
             read(99,*)
             read(99,*)NOrder
             read(99,*)
@@ -210,8 +210,9 @@ contains
 
     !The initializer for the program
     subroutine Initialize()
-        character*128::CharTemp128
-        integer::ip
+		character*128::CharTemp128
+		logical::degenerate
+        integer::ip,istate,jstate
         real*8::absdev
         real*8,allocatable,dimension(:)::OldRefGeom
         !General initialize
@@ -222,15 +223,29 @@ contains
         select case(JobType)!Job specific initialize
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
                 call Initialize_NewTrainingSet()
-                call InitializeDiabaticHamiltonian()!Must call after reference point is known
+				call InitializeDiabaticHamiltonian(NewHd=.true.,NState=NState,intdim=InternalDimension,NOrder=NOrder)
+				!Provide an initial guess of Hd
+			       call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
+                   if(Degenerate) then
+                       forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
+                           Hd_HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
+                       end forall
+                   else
+                       forall(istate=2:Hd_NState)
+                           Hd_HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
+                       end forall
+                   end if
+                   forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
+                       Hd_HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
+                   end forall
                 call InitializeHdLeastSquareFit()
             case('ContinueFitting')
                 if(SameTrainingSet) then!Read the rearranged training set
                     open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                         allocate(ReferencePoint.geom(InternalDimension))
-                        allocate(ReferencePoint.energy(NStates))
-                        allocate(ReferencePoint.H(NStates,NStates))
-                        allocate(ReferencePoint.dH(InternalDimension,NStates,NStates))
+                        allocate(ReferencePoint.energy(NState))
+                        allocate(ReferencePoint.H(NState,NState))
+                        allocate(ReferencePoint.dH(InternalDimension,NState,NState))
                         read(99,*)ReferencePoint.geom
                         read(99,*)ReferencePoint.energy
                         read(99,*)ReferencePoint.H
@@ -243,15 +258,15 @@ contains
                         allocate(point(NPoints))
                         do ip=1,NPoints
                             allocate(point(ip).geom(InternalDimension))
-                            allocate(point(ip).energy(NStates))
-                            allocate(point(ip).dH(InternalDimension,NStates,NStates))
+                            allocate(point(ip).energy(NState))
+                            allocate(point(ip).dH(InternalDimension,NState,NState))
                         end do
                     call ReadData(CharTemp128,point,NPoints)
                     CharTemp128='ArtifactPoint.CheckPoint'
                         allocate(ArtifactPoint(NArtifactPoints))
                         do ip=1,NArtifactPoints
                             allocate(ArtifactPoint(ip).geom(InternalDimension))
-                            allocate(ArtifactPoint(ip).energy(NStates))
+                            allocate(ArtifactPoint(ip).energy(NState))
                         end do
                     call ReadArtifactData(CharTemp128,ArtifactPoint,NArtifactPoints)
                     if(GradualFit) then
@@ -276,9 +291,10 @@ contains
                             ReferenceChange=.true.
                             exit
                         end if
-                    end do
+					end do
+					if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
                 end if
-                call InitializeDiabaticHamiltonian()
+                call InitializeDiabaticHamiltonian(NState=NState,intdim=InternalDimension,NOrder=NOrder)
                 call InitializeHdLeastSquareFit()
             case default
                 call InitializeDiabaticHamiltonian()
@@ -291,8 +307,8 @@ contains
         integer::index,index2,i,istate,jstate,ip
         integer,allocatable,dimension(:)::indices
         real*8,allocatable,dimension(:)::differencetemp
-        real*8,dimension(NStates)::eigval
-        real*8,dimension(NStates,NStates)::eigvec
+        real*8,dimension(NState)::eigval
+        real*8,dimension(NState,NState)::eigvec
         type(Data)::ReferencePointtemp
         type(Data),allocatable,dimension(:)::pointtemp,pointswap,ArtifactPointtemp
         !Read training set
@@ -300,8 +316,8 @@ contains
                 allocate(pointtemp(NPoints))
                 do ip=1,NPoints
                     allocate(pointtemp(ip).geom(CartesianDimension))
-                    allocate(pointtemp(ip).energy(NStates))
-                    allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
+                    allocate(pointtemp(ip).energy(NState))
+                    allocate(pointtemp(ip).dH(CartesianDimension,NState,NState))
                 end do
             call ReadElectronicStructureData(pointtemp,NPoints)
             allocate(ArtifactPointtemp(NArtifactPoints))
@@ -310,7 +326,7 @@ contains
                 do ip=1,NArtifactPoints
                     allocate(ArtifactPointtemp(ip).geom(CartesianDimension))
                     read(99,*)ArtifactPointtemp(ip).geom
-                    allocate(ArtifactPointtemp(ip).energy(NStates))
+                    allocate(ArtifactPointtemp(ip).energy(NState))
                     read(100,*)ArtifactPointtemp(ip).energy
                 end do
             close(100)
@@ -320,8 +336,8 @@ contains
         !The reference point
             !Allocate storage space
                 allocate(ReferencePointtemp.geom(CartesianDimension))
-                allocate(ReferencePointtemp.energy(NStates))
-                allocate(ReferencePointtemp.dH(CartesianDimension,NStates,NStates))
+                allocate(ReferencePointtemp.energy(NState))
+                allocate(ReferencePointtemp.dH(CartesianDimension,NState,NState))
             ReferencePointtemp=pointtemp(IndexReference)
         do ip=1,NPoints!Modify points
             pointtemp(ip).energy=pointtemp(ip).energy-ReferencePointtemp.energy(1)
@@ -338,10 +354,10 @@ contains
         if(GradualFit) then
             allocate(GeomDifference(NPoints))
             if(Unaligned) then
-                call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,NAtoms,NStates,&
+                call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,NAtoms,NState,&
                     nadgrad=ReferencePointtemp.dH)
                 do ip=1,NPoints
-                    call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,NAtoms,NStates,&
+                    call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,NAtoms,NState,&
                         nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
                 end do
             else
@@ -358,8 +374,8 @@ contains
                     allocate(pointswap(NPoints))
                     do ip=1,NPoints
                         allocate(pointswap(ip).geom(CartesianDimension))
-                        allocate(pointswap(ip).energy(NStates))
-                        allocate(pointswap(ip).dH(CartesianDimension,NStates,NStates))
+                        allocate(pointswap(ip).energy(NState))
+                        allocate(pointswap(ip).dH(CartesianDimension,NState,NState))
                     end do
                 call dQuickSort(GeomDifference,1,NPoints,indices,NPoints)
                 do ip=1,NPoints
@@ -380,30 +396,30 @@ contains
         !This program requires only internal coordinate difference
         !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
             allocate(ReferencePoint.geom(InternalDimension))
-            allocate(ReferencePoint.energy(NStates))
+            allocate(ReferencePoint.energy(NState))
                 ReferencePoint.energy=ReferencePointtemp.energy
-            allocate(ReferencePoint.H(NStates,NStates))
-            allocate(ReferencePoint.dH(InternalDimension,NStates,NStates))
-            call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NStates,&
+            allocate(ReferencePoint.H(NState,NState))
+            allocate(ReferencePoint.dH(InternalDimension,NState,NState))
+            call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NState,&
                 cartnadgrad=ReferencePointtemp.dH,intnadgrad=ReferencePoint.dH)
-            call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NStates)
+            call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
             if(Degenerate) then
-                call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NStates)
+                call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState)
                 ReferencePoint.H=transpose(eigvec)
-                forall(istate=1:NStates)
+                forall(istate=1:NState)
                     ReferencePoint.H(:,istate)=ReferencePoint.energy(istate)*ReferencePoint.H(:,istate)
                 end forall
-                ReferencePoint.H=matmul(ReferencePoint.H,eigvec)-ReferencePoint.energy(1)*UnitMatrix(NStates)
+                ReferencePoint.H=matmul(ReferencePoint.H,eigvec)-ReferencePoint.energy(1)*UnitMatrix(NState)
             end if
         !Convert points from Cartesian coordinate to internal coordinate, and identify almost degenerate points
             allocate(pointswap(NPoints))
             do ip=1,NPoints
                 pointswap(ip).weight=pointtemp(ip).weight
                 allocate(pointswap(ip).geom(InternalDimension))
-                allocate(pointswap(ip).energy(NStates))
+                allocate(pointswap(ip).energy(NState))
                     pointswap(ip).energy=pointtemp(ip).energy
-                allocate(pointswap(ip).dH(InternalDimension,NStates,NStates))
-                call Cartesian2Internal(pointtemp(ip).geom,CartesianDimension,pointswap(ip).geom,InternalDimension,NStates,&
+                allocate(pointswap(ip).dH(InternalDimension,NState,NState))
+                call Cartesian2Internal(pointtemp(ip).geom,CartesianDimension,pointswap(ip).geom,InternalDimension,NState,&
                     cartnadgrad=pointtemp(ip).dH,intnadgrad=pointswap(ip).dH)
                 pointswap(ip).geom=pointswap(ip).geom-ReferencePoint.geom
             end do
@@ -417,8 +433,8 @@ contains
                     index=index+1
                 else
                     allocate(point(index2).geom(InternalDimension))
-                    allocate(point(index2).energy(NStates))
-                    allocate(point(index2).dH(InternalDimension,NStates,NStates))
+                    allocate(point(index2).energy(NState))
+                    allocate(point(index2).dH(InternalDimension,NState,NState))
                     point(index2)=pointswap(ip)
                     index2=index2+1
                 end if
@@ -450,7 +466,7 @@ contains
             do ip=1,NArtifactPoints
                 ArtifactPoint(ip).weight=ArtifactPointtemp(ip).weight
                 allocate(ArtifactPoint(ip).geom(InternalDimension))
-                allocate(ArtifactPoint(ip).energy(NStates))
+                allocate(ArtifactPoint(ip).energy(NState))
                     ArtifactPoint(ip).energy=ArtifactPointtemp(ip).energy
                 !Artifact points do not have energy gradient and interstate coupling
                 ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPoint(ip).geom,InternalDimension,CartesianDimension)-ReferencePoint.geom

@@ -99,10 +99,10 @@ subroutine MexSearch()
     integer::i
     real*8,dimension(InternalDimension)::q
 	real*8,dimension(CartesianDimension)::r
-	real*8,dimension(InternalDimension,NStates,NStates)::dH
+	real*8,dimension(InternalDimension,NState,NState)::dH
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',InterestingState,'and',InterestingState+1
     q=InternalCoordinateq(InterestingGeom(:,1),InternalDImension,CartesianDimension)
-    if(NStates==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
+    if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
         call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,&
             fdd=fdd,cdd=cdd,Precision=1d-8)!This is Columbus7 energy precision
     else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
@@ -139,7 +139,7 @@ subroutine MexSearch()
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,intent(out)::Hd11
-            real*8,dimension(NStates,NStates)::H
+            real*8,dimension(NState,NState)::H
             H=Hd(q)
             Hd11=H(1,1)
         end subroutine f
@@ -147,7 +147,7 @@ subroutine MexSearch()
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(intdim),intent(out)::dHd11
-            real*8,dimension(intdim,NStates,NStates)::dH
+            real*8,dimension(intdim,NState,NState)::dH
             dH=dHd(q)
             dHd11=dH(:,1,1)
         end subroutine fd
@@ -155,7 +155,7 @@ subroutine MexSearch()
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(intdim,intdim),intent(out)::ddHd11
-            real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+            real*8,dimension(intdim,intdim,NState,NState)::ddH
             ddH=ddHd(q)
             ddHd11=ddH(:,:,1,1)
             fdd=0!return 0
@@ -164,7 +164,7 @@ subroutine MexSearch()
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(2),intent(out)::cx
-            real*8,dimension(NStates,NStates)::H
+            real*8,dimension(NState,NState)::H
             H=Hd(q)
             cx(1)=H(2,2)-H(1,1)
             cx(2)=H(2,1)
@@ -173,7 +173,7 @@ subroutine MexSearch()
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(intdim,2),intent(out)::cdx
-            real*8,dimension(intdim,NStates,NStates)::dH
+            real*8,dimension(intdim,NState,NState)::dH
             dH=dHd(q)
             cdx(:,1)=dH(:,2,2)-dH(:,1,1)
             cdx(:,2)=dH(:,2,1)
@@ -182,7 +182,7 @@ subroutine MexSearch()
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(intdim,intdim,2),intent(out)::cddx
-            real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+            real*8,dimension(intdim,intdim,NState,NState)::ddH
             ddH=ddHd(q)
             cddx(:,:,1)=ddH(:,:,2,2)-ddH(:,:,1,1)
             cddx(:,:,2)=ddH(:,:,2,1)
@@ -200,7 +200,7 @@ end subroutine Evaluate
         real*8,intent(out)::E
         integer,intent(in)::intdim
         real*8,dimension(intdim),intent(in)::q
-        real*8,dimension(NStates)::energy
+        real*8,dimension(NState)::energy
         energy=AdiabaticEnergy(q)
         E=energy(InterestingState)
     end subroutine AdiabaticEnergyInterface
@@ -209,7 +209,7 @@ end subroutine Evaluate
         integer,intent(in)::intdim
         real*8,dimension(intdim),intent(out)::dV
         real*8,dimension(intdim),intent(in)::q
-        real*8,dimension(intdim,NStates,NStates)::dH
+        real*8,dimension(intdim,NState,NState)::dH
         dH=AdiabaticdH(q)
         dV=dH(:,InterestingState,InterestingState)
     end subroutine AdiabaticGradientInterface
@@ -219,8 +219,8 @@ end subroutine Evaluate
         integer,intent(in)::intdim
         real*8,dimension(intdim),intent(out)::dV
         real*8,dimension(intdim),intent(in)::q
-        real*8,dimension(NStates)::energy
-        real*8,dimension(intdim,NStates,NStates)::dH
+        real*8,dimension(NState)::energy
+        real*8,dimension(intdim,NState,NState)::dH
         call AdiabaticEnergy_dH(q,energy,dH)
         E=energy(InterestingState)
         dV=dH(:,InterestingState,InterestingState)
@@ -231,7 +231,7 @@ end subroutine Evaluate
         integer,intent(in)::intdim
         real*8,dimension(intdim,intdim),intent(out)::Hessian
         real*8,dimension(intdim),intent(in)::q
-        real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+        real*8,dimension(intdim,intdim,NState,NState)::ddH
         ddH=AdiabaticddH(q)
         Hessian=ddH(:,:,InterestingState,InterestingState)
         AdiabaticHessianInterface=0!return 0
@@ -241,7 +241,7 @@ end subroutine Evaluate
 		integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
 		real*8,dimension(1),intent(out)::gap
-		real*8,dimension(NStates)::energy
+		real*8,dimension(NState)::energy
 		energy=AdiabaticEnergy(q)
 		gap(1)=energy(InterestingState+1)-energy(InterestingState)
 	end subroutine AdiabaticGapInterface
@@ -250,7 +250,7 @@ end subroutine Evaluate
 		integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
 		real*8,dimension(intdim,1),intent(out)::dgap
-		real*8,dimension(intdim,NStates,NStates)::dH
+		real*8,dimension(intdim,NState,NState)::dH
 		dH=AdiabaticdH(q)
 		dgap(:,1)=dH(:,InterestingState+1,InterestingState+1)-dH(:,InterestingState,InterestingState)
 	end subroutine AdiabaticGapGradientInterface
@@ -259,7 +259,7 @@ end subroutine Evaluate
 	    integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
 		real*8,dimension(intdim,intdim,1),intent(out)::ddgap
-		real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+		real*8,dimension(intdim,intdim,NState,NState)::ddH
 		ddH=AdiabaticddH(q)
 		ddgap(:,:,1)=ddH(:,:,InterestingState+1,InterestingState+1)-ddH(:,:,InterestingState,InterestingState)
 	    AdiabaticGapHessianInterface=0!return 0

@@ -37,7 +37,7 @@ module Basic
     !See input example for the meaning of each variable
     !Main input
         character*32::JobType
-        integer::NStates,NOrder
+        integer::NState,NOrder
         logical::SameTrainingSet
         integer::NPoints,IndexReference
         character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile
@@ -61,7 +61,7 @@ module Basic
 
 contains
 subroutine InitializeBasic()!Initialize Basic module and lower level libraries
-    call InitializePhaseFixing(NStates)
+    call InitializePhaseFixing(NState)
 end subroutine InitializeBasic
 
 !Identify the almost degenerate points, then store them in degpoint
@@ -77,12 +77,12 @@ subroutine IdentifyDegeneracy(degpoint,NDegpoints,IndicesDeg,point,NPoints)
     type(Data),dimension(NPoints),intent(in)::point
     logical::degenerate
     integer::dim,index,ip,istate,jstate
-    real*8,dimension(NStates)::eigval
-    real*8,dimension(NStates,NStates)::eigvec
+    real*8,dimension(NState)::eigval
+    real*8,dimension(NState,NState)::eigvec
     !Count how many points are almost degenerate
     NDegpoints=0
     do ip=1,NPoints
-        call CheckDegeneracy(degenerate,AlmostDegenerate,point(ip).energy,NStates)
+        call CheckDegeneracy(degenerate,AlmostDegenerate,point(ip).energy,NState)
         if(degenerate) NDegpoints=NDegpoints+1
     end do
     !Tag the almost degenerate points, and transform them into nondegenerate representation
@@ -93,7 +93,7 @@ subroutine IdentifyDegeneracy(degpoint,NDegpoints,IndicesDeg,point,NPoints)
     dim=size(point(1).geom)
     index=1
     do ip=1,NPoints
-        call CheckDegeneracy(degenerate,AlmostDegenerate,point(ip).energy,NStates)
+        call CheckDegeneracy(degenerate,AlmostDegenerate,point(ip).energy,NState)
         if(degenerate) then
             IndicesDeg(index)=ip
             degpoint(index).weight=point(ip).weight
@@ -101,12 +101,12 @@ subroutine IdentifyDegeneracy(degpoint,NDegpoints,IndicesDeg,point,NPoints)
             degpoint(index).geom=point(ip).geom
             allocate(degpoint(index).energy(dim))
             degpoint(index).energy=point(ip).energy
-            allocate(degpoint(index).dH(dim,NStates,NStates))
+            allocate(degpoint(index).dH(dim,NState,NState))
             degpoint(index).dH=point(ip).dH
-            call NondegenerateRepresentation(degpoint(index).dH,eigval,eigvec,dim,NStates)
-            allocate(degpoint(index).H(NStates,NStates))
+            call NondegenerateRepresentation(degpoint(index).dH,eigval,eigvec,dim,NState)
+            allocate(degpoint(index).H(NState,NState))
             degpoint(index).H=transpose(eigvec)
-            forall(istate=1:NStates)
+            forall(istate=1:NState)
                 degpoint(index).H(:,istate)=degpoint(index).energy(istate)*degpoint(index).H(:,istate)
             end forall
             degpoint(index).H=matmul(degpoint(index).H,eigvec)
@@ -127,8 +127,8 @@ end subroutine IdentifyDegeneracy
                 read(99,*)point(ip).weight
                 read(99,*)point(ip).geom
                 read(99,*)point(ip).energy
-                do istate=1,NStates
-                    do jstate=istate,NStates
+                do istate=1,NState
+                    do jstate=istate,NState
                         read(99,*)point(ip).dH(:,jstate,istate)
                     end do
                 end do
@@ -147,8 +147,8 @@ end subroutine IdentifyDegeneracy
                 write(99,*)point(ip).weight
                 write(99,*)point(ip).geom
                 write(99,*)point(ip).energy
-                do istate=1,NStates
-                    do jstate=istate,NStates
+                do istate=1,NState
+                    do jstate=istate,NState
                         write(99,*)point(ip).dH(:,jstate,istate)
                     end do
                 end do
@@ -172,13 +172,13 @@ end subroutine IdentifyDegeneracy
                 read(99,*)point(ip).weight
                 allocate(point(ip).geom(dim))
                 read(99,*)point(ip).geom
-                allocate(point(ip).energy(NStates))
+                allocate(point(ip).energy(NState))
                 read(99,*)point(ip).energy
-                allocate(point(ip).H(NStates,NStates))
+                allocate(point(ip).H(NState,NState))
                 read(99,*)point(ip).H
-                allocate(point(ip).dH(dim,NStates,NStates))
-                do istate=1,NStates
-                    do jstate=istate,NStates
+                allocate(point(ip).dH(dim,NState,NState))
+                do istate=1,NState
+                    do jstate=istate,NState
                         read(99,*)point(ip).dH(:,jstate,istate)
                     end do
                 end do
@@ -199,8 +199,8 @@ end subroutine IdentifyDegeneracy
                 write(99,*)point(ip).geom
                 write(99,*)point(ip).energy
                 write(99,*)point(ip).H
-                do istate=1,NStates
-                    do jstate=istate,NStates
+                do istate=1,NState
+                    do jstate=istate,NState
                         write(99,*)point(ip).dH(:,jstate,istate)
                     end do
                 end do

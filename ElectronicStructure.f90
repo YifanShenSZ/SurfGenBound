@@ -20,11 +20,11 @@ subroutine ReadElectronicStructureData(point,NPoints)
     call ColumbusGeometry(source,point,NPoints)
     source='energy.all'
     call ColumbusEnergy(source,point,NPoints)
-    do istate=1,NStates
+    do istate=1,NState
         write(CharTemp1,'(I1)')istate
         source='cartgrd.drt1.state'//CharTemp1//'.all'
         call ColumbusGradient(source,istate,istate,point,NPoints)
-        do jstate=istate+1,NStates
+        do jstate=istate+1,NState
             write(CharTemp2,'(I1)')jstate
             source='cartgrd.nad.drt1.state'//CharTemp1//'.drt1.state'//CharTemp2//'.all'
             call ColumbusGradient(source,jstate,istate,point,NPoints)

@@ -81,17 +81,17 @@ contains
 subroutine InitializeHdLeastSquareFit()
     integer::ip,istate,jstate
     real*8::MaxEnergy,MaxGrad,temp
-    !A data point provides NStates adiabatic energies, InternalDimension x NStates x NStates ▽H
-    DataPerPoint=NStates+NStates*(NStates+1)/2*InternalDimension!Upper triangle is redundant
-    !A degenerate data point provides NStates order H, InternalDimension x NStates x NStates ▽H
-    DataPerDegeneratePoint=NStates*(NStates+1)/2*(InternalDimension+1)!Upper triangle is redundant
+    !A data point provides NState adiabatic energies, InternalDimension x NState x NState ▽H
+    DataPerPoint=NState+NState*(NState+1)/2*InternalDimension!Upper triangle is redundant
+    !A degenerate data point provides NState order H, InternalDimension x NState x NState ▽H
+    DataPerDegeneratePoint=NState*(NState+1)/2*(InternalDimension+1)!Upper triangle is redundant
     MaxEnergy=0d0
     MaxGrad=0d0
     do ip=1,NPoints
         temp=maxval(Abs(point(ip).energy))
         if(temp>MaxEnergy) MaxEnergy=temp
-        do istate=1,NStates
-            do jstate=istate,NStates
+        do istate=1,NState
+            do jstate=istate,NState
                 temp=maxval(abs(point(ip).dH(:,jstate,istate)))
                 if(temp>MaxGrad) MaxGrad=temp
             end do
@@ -106,23 +106,23 @@ subroutine FitHd()!Fit Hd with the designated solver
     integer::istate,jstate
     real*8,allocatable,dimension(:)::c
     !Initialize
-        HdLSF_NData=DataPerPoint*NPoints+DataPerDegeneratePoint*NDegeneratePoints+NStates*NArtifactPoints
+        HdLSF_NData=DataPerPoint*NPoints+DataPerDegeneratePoint*NDegeneratePoints+NState*NArtifactPoints
         !Initial value of c
         allocate(c(NExpansionCoefficients))
-        call HdEC2c(HdEC,c,NExpansionCoefficients)
+        call HdEC2c(Hd_HdEC,c,NExpansionCoefficients)
         !Allocate global work space
             if(allocated(HdLSF_energy)) deallocate(HdLSF_energy)
-            allocate(HdLSF_energy(NStates))
+            allocate(HdLSF_energy(NState))
             if(allocated(HdLSF_H)) deallocate(HdLSF_H)
-            allocate(HdLSF_H(NStates,NStates))
+            allocate(HdLSF_H(NState,NState))
             if(allocated(HdLSF_phi)) deallocate(HdLSF_phi)
-            allocate(HdLSF_phi(NStates,NStates))
+            allocate(HdLSF_phi(NState,NState))
             if(allocated(HdLSF_dH)) deallocate(HdLSF_dH)
-            allocate(HdLSF_dH(InternalDimension,NStates,NStates))
+            allocate(HdLSF_dH(InternalDimension,NState,NState))
             if(allocated(HdLSF_dcH)) deallocate(HdLSF_dcH)
-            allocate(HdLSF_dcH(NExpansionCoefficients,NStates,NStates))
+            allocate(HdLSF_dcH(NExpansionCoefficients,NState,NState))
             if(allocated(HdLSF_dcdH)) deallocate(HdLSF_dcdH)
-            allocate(HdLSF_dcdH(NExpansionCoefficients,InternalDimension,NStates,NStates))
+            allocate(HdLSF_dcdH(NExpansionCoefficients,InternalDimension,NState,NState))
             if(allocated(HdLSF_f)) deallocate(HdLSF_f)
             allocate(HdLSF_f(NExpansionBasis))
             if(allocated(HdLSF_fd)) deallocate(HdLSF_fd)
@@ -176,35 +176,35 @@ subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
 	real*8::Ltemp,temp
 	!Initialize
 		L=HdLSF_Regularization*dot_product(c,c)!Regularization
-		call c2HdEC(c,HdEC,NExpansionCoefficients)
+		call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
 	RMSDenergy=0d0
 	RMSDdH=0d0
 	do ip=1,NPoints!Regular data points, compute RMSD
 		call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
-		call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+		call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
 		RMSDdH=RMSDdH+Ltemp
 		HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (dH has done during fixing)
 		temp=dot_product(HdLSF_energy,HdLSF_energy)
 		RMSDenergy=RMSDenergy+temp
 		L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
 	end do
-	RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
-	RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
+	RMSDenergy=dSqrt(RMSDenergy/NState/NPoints)
+	RMSDdH=dSqrt(RMSDdH/(InternalDimension*NState*NState)/NPoints)
 	RMSDDegH=0d0
 	RMSDDegdH=0d0
 	do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
 		call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
-		call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+		call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
 		RMSDDegdH=RMSDDegdH+Ltemp
-		forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)!H (dH has done during fixing)
+		forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (dH has done during fixing)
 			HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
 		end forall
-		temp=dsyFrobeniusSquare(HdLSF_H,NStates)
+		temp=dsyFrobeniusSquare(HdLSF_H,NState)
 		RMSDDegH=RMSDDegH+temp
 		L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
 	end do
-	RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
-	RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
+	RMSDDegH=dSqrt(RMSDDegH/(NState*NState)/NDegeneratePoints)
+	RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NState*NState)/NDegeneratePoints)
 	Ltemp=0d0
 	do ip=1,NArtifactPoints!Unreliable data points, energy only
 		HdLSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
@@ -229,31 +229,31 @@ end subroutine L_RMSD
                 !W will not change through out the solving procedure, so fill in its value now
                     indice=1
                     do ip=1,NPoints
-                        HdLSF_W(indice:indice+NStates-1)=point(ip).weight!Energy
-                        indice=indice+NStates
-                        do i=1,NStates!▽H
+                        HdLSF_W(indice:indice+NState-1)=point(ip).weight!Energy
+                        indice=indice+NState
+                        do i=1,NState!▽H
                             HdLSF_W(indice:indice+InternalDimension-1)=point(ip).weight!Diagonal
                             indice=indice+InternalDimension
-                            HdLSF_W(indice:indice+InternalDimension*(NStates-i)-1)=2d0*point(ip).weight!Off-diagonal
-                            indice=indice+InternalDimension*(NStates-i)
+                            HdLSF_W(indice:indice+InternalDimension*(NState-i)-1)=2d0*point(ip).weight!Off-diagonal
+                            indice=indice+InternalDimension*(NState-i)
                         end do
                     end do
                     do ip=1,NDegeneratePoints
-                        do i=1,NStates!H
+                        do i=1,NState!H
                             HdLSF_W(indice)=DegeneratePoint(ip).weight!Diagonal
-                            HdLSF_W(indice+1:indice+NStates-i)=2d0*DegeneratePoint(ip).weight!Off-diagonal
-                            indice=indice+NStates-i+1
+                            HdLSF_W(indice+1:indice+NState-i)=2d0*DegeneratePoint(ip).weight!Off-diagonal
+                            indice=indice+NState-i+1
                         end do
-                        do i=1,NStates!▽H
+                        do i=1,NState!▽H
                             HdLSF_W(indice:indice+InternalDimension-1)=DegeneratePoint(ip).weight!Diagonal
                             indice=indice+InternalDimension
-                            HdLSF_W(indice:indice+InternalDimension*(NStates-i)-1)=2d0*DegeneratePoint(ip).weight!Off-diagonal
-                            indice=indice+InternalDimension*(NStates-i)
+                            HdLSF_W(indice:indice+InternalDimension*(NState-i)-1)=2d0*DegeneratePoint(ip).weight!Off-diagonal
+                            indice=indice+InternalDimension*(NState-i)
                         end do
                     end do
                     do ip=1,NArtifactPoints
-                        HdLSF_W(indice:indice+NStates-1)=ArtifactPoint(ip).weight!Energy only
-                        indice=indice+NStates
+                        HdLSF_W(indice:indice+NState-1)=ArtifactPoint(ip).weight!Energy only
+                        indice=indice+NState
                     end do
                 if(allocated(HdLSF_M)) deallocate(HdLSF_M)
                 allocate(HdLSF_M(NExpansionCoefficients,HdLSF_NData))
@@ -370,8 +370,8 @@ end subroutine L_RMSD
             write(*,*)'    dH =',RMSDDegdH,'a.u.'
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
-        call c2HdEC(cmin,HdEC,NExpansionCoefficients)
-        call WriteHdExpansionCoefficients(HdEC,NStates,NOrder)
+        call c2HdEC(cmin,Hd_HdEC,NExpansionCoefficients)
+        call WriteHdExpansionCoefficients()
         contains
             !The general form of weighted linear least square fit with pseudoregularization is:
             !    A c = b, where A = M . W . M^T + tau, b = M . W . y, c & tau have been explained at header,
@@ -387,25 +387,25 @@ end subroutine L_RMSD
                 real*8::Ltemp
                 !Initialize
                     L=HdLSF_Regularization*dot_product(b,b)!Regularization
-                    call c2HdEC(b,HdEC,NExpansionCoefficients)
+                    call c2HdEC(b,Hd_HdEC,NExpansionCoefficients)
                 !Construct M^T and y, add least square fit penalty to Lagrangian
                 indicerow=1!Start from 1st row
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
-                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !Energy
                     HdLSF_energy=HdLSF_energy-point(ip).energy
                     L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dot_product(HdLSF_energy,HdLSF_energy))
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_y(indicerow:indicerow+NStates-1)=HdLSF_EnergyScaleSquare*point(ip).energy
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_y(indicerow:indicerow+NState-1)=HdLSF_EnergyScaleSquare*point(ip).energy
+                    forall(istate=1:NState)
                         HdLSF_MT(indicerow+istate-1,:)=HdLSF_EnergyScaleSquare*HdLSF_dcH(:,istate,istate)
                     end forall
-                    indicerow=indicerow+NStates
+                    indicerow=indicerow+NState
                     !▽H (▽_c phi is neglected)
-                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)
-                    do istate=1,NStates
-                        do jstate=istate,NStates
+                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)
+                    do istate=1,NState
+                        do jstate=istate,NState
                             HdLSF_y( indicerow:indicerow+InternalDimension-1)=point(ip).dH(:,jstate,istate)
                             HdLSF_MT(indicerow:indicerow+InternalDimension-1,:)=transpose(HdLSF_dcdH(:,:,jstate,istate))
                             indicerow=indicerow+InternalDimension
@@ -414,22 +414,22 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Nondegenerate representation
-                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !H
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
                     end forall
-                    L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NStates))
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    do istate=1,NStates
-                        HdLSF_y( indicerow:indicerow+NStates-istate)=HdLSF_EnergyScaleSquare*DegeneratePoint(ip).H(istate:NStates,istate)
-                        HdLSF_MT(indicerow:indicerow+NStates-istate,:)=HdLSF_EnergyScaleSquare*transpose(HdLSF_dcH(:,istate:NStates,istate))
-                        indicerow=indicerow+NStates-istate+1
+                    L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NState))
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    do istate=1,NState
+                        HdLSF_y( indicerow:indicerow+NState-istate)=HdLSF_EnergyScaleSquare*DegeneratePoint(ip).H(istate:NState,istate)
+                        HdLSF_MT(indicerow:indicerow+NState-istate,:)=HdLSF_EnergyScaleSquare*transpose(HdLSF_dcH(:,istate:NState,istate))
+                        indicerow=indicerow+NState-istate+1
                     end do
                     !▽H (▽_c phi is neglected)
-                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)
-                    do istate=1,NStates
-                        do jstate=istate,NStates
+                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)
+                    do istate=1,NState
+                        do jstate=istate,NState
                             HdLSF_y( indicerow:indicerow+InternalDimension-1)=DegeneratePoint(ip).dH(:,jstate,istate)
                             HdLSF_MT(indicerow:indicerow+InternalDimension-1,:)=transpose(HdLSF_dcdH(:,:,jstate,istate))
                             indicerow=indicerow+InternalDimension
@@ -441,12 +441,12 @@ end subroutine L_RMSD
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
                     HdLSF_energy=HdLSF_energy-ArtifactPoint(ip).energy
                     Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_y(indicerow:indicerow+NStates-1)=HdLSF_EnergyScaleSquare*ArtifactPoint(ip).energy
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_y(indicerow:indicerow+NState-1)=HdLSF_EnergyScaleSquare*ArtifactPoint(ip).energy
+                    forall(istate=1:NState)
                         HdLSF_MT(indicerow+istate-1,:)=HdLSF_EnergyScaleSquare*HdLSF_dcH(:,istate,istate)
                     end forall
-                    indicerow=indicerow+NStates
+                    indicerow=indicerow+NState
                 end do
                 L=L+HdLSF_EnergyScaleSquare*Ltemp
                 !Done construction, put them into A and b
@@ -471,80 +471,80 @@ end subroutine L_RMSD
                 real*8::Ltemp,temp
                 !Initialize
                     L=HdLSF_Regularization*dot_product(b,b)!Regularization
-                    call c2HdEC(b,HdEC,NExpansionCoefficients)
+                    call c2HdEC(b,Hd_HdEC,NExpansionCoefficients)
                 !Construct M^T and y, add least square fit penalty to Lagrangian
                 indicerow=1!Start from 1st row
                 RMSDenergy=0d0
                 RMSDdH=0d0
                 do ip=1,NPoints!Regular data points, compute RMSD
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
-                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     RMSDdH=RMSDdH+Ltemp
                     !Energy
                     HdLSF_energy=HdLSF_energy-point(ip).energy
                     temp=dot_product(HdLSF_energy,HdLSF_energy)
                     RMSDenergy=RMSDenergy+temp
                     L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_y(indicerow:indicerow+NStates-1)=HdLSF_EnergyScaleSquare*point(ip).energy
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_y(indicerow:indicerow+NState-1)=HdLSF_EnergyScaleSquare*point(ip).energy
+                    forall(istate=1:NState)
                         HdLSF_MT(indicerow+istate-1,:)=HdLSF_EnergyScaleSquare*HdLSF_dcH(:,istate,istate)
                     end forall
-                    indicerow=indicerow+NStates
+                    indicerow=indicerow+NState
                     !▽H (▽_c phi is neglected)
-                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)
-                    do istate=1,NStates
-                        do jstate=istate,NStates
+                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)
+                    do istate=1,NState
+                        do jstate=istate,NState
                             HdLSF_y( indicerow:indicerow+InternalDimension-1)=point(ip).dH(:,jstate,istate)
                             HdLSF_MT(indicerow:indicerow+InternalDimension-1,:)=transpose(HdLSF_dcdH(:,:,jstate,istate))
                             indicerow=indicerow+InternalDimension
                         end do
                     end do
                 end do
-                RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
-                RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
+                RMSDenergy=dSqrt(RMSDenergy/NState/NPoints)
+                RMSDdH=dSqrt(RMSDdH/(InternalDimension*NState*NState)/NPoints)
                 RMSDDegH=0d0
                 RMSDDegdH=0d0
                 do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
                     call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Nondegenerate representation
-                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     RMSDDegdH=RMSDDegdH+Ltemp
                     !H
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
                     end forall
-                    temp=dsyFrobeniusSquare(HdLSF_H,NStates)
+                    temp=dsyFrobeniusSquare(HdLSF_H,NState)
                     RMSDDegH=RMSDDegH+temp
                     L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    do istate=1,NStates
-                        HdLSF_y( indicerow:indicerow+NStates-istate)=HdLSF_EnergyScaleSquare*DegeneratePoint(ip).H(istate:NStates,istate)
-                        HdLSF_MT(indicerow:indicerow+NStates-istate,:)=HdLSF_EnergyScaleSquare*transpose(HdLSF_dcH(:,istate:NStates,istate))
-                        indicerow=indicerow+NStates-istate+1
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    do istate=1,NState
+                        HdLSF_y( indicerow:indicerow+NState-istate)=HdLSF_EnergyScaleSquare*DegeneratePoint(ip).H(istate:NState,istate)
+                        HdLSF_MT(indicerow:indicerow+NState-istate,:)=HdLSF_EnergyScaleSquare*transpose(HdLSF_dcH(:,istate:NState,istate))
+                        indicerow=indicerow+NState-istate+1
                     end do
                     !▽H (▽_c phi is neglected)
-                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)
-                    do istate=1,NStates
-                        do jstate=istate,NStates
+                    HdLSF_dcdH=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)
+                    do istate=1,NState
+                        do jstate=istate,NState
                             HdLSF_y( indicerow:indicerow+InternalDimension-1)=DegeneratePoint(ip).dH(:,jstate,istate)
                             HdLSF_MT(indicerow:indicerow+InternalDimension-1,:)=transpose(HdLSF_dcdH(:,:,jstate,istate))
                             indicerow=indicerow+InternalDimension
                         end do
                     end do
                 end do
-                RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
-                RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
+                RMSDDegH=dSqrt(RMSDDegH/(NState*NState)/NDegeneratePoints)
+                RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NState*NState)/NDegeneratePoints)
                 Ltemp=0d0
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
                     HdLSF_energy=HdLSF_energy-ArtifactPoint(ip).energy
                     Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_y(indicerow:indicerow+NStates-1)=HdLSF_EnergyScaleSquare*ArtifactPoint(ip).energy
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_y(indicerow:indicerow+NState-1)=HdLSF_EnergyScaleSquare*ArtifactPoint(ip).energy
+                    forall(istate=1:NState)
                         HdLSF_MT(indicerow+istate-1,:)=HdLSF_EnergyScaleSquare*HdLSF_dcH(:,istate,istate)
                     end forall
-                    indicerow=indicerow+NStates
+                    indicerow=indicerow+NState
                 end do
                 L=L+HdLSF_EnergyScaleSquare*Ltemp
                 !Done construction, put them into A and b
@@ -578,13 +578,13 @@ end subroutine L_RMSD
                 end forall
             !Allocate global local minimizer work space
                 if(allocated(HdLSF_dHd)) deallocate(HdLSF_dHd)
-                allocate(HdLSF_dHd(InternalDimension,NStates,NStates))
+                allocate(HdLSF_dHd(InternalDimension,NState,NState))
                 if(allocated(HdLSF_dcphi)) deallocate(HdLSF_dcphi)
-                allocate(HdLSF_dcphi(NExpansionCoefficients,NStates,NStates))
+                allocate(HdLSF_dcphi(NExpansionCoefficients,NState,NState))
                 if(allocated(HdLSF_dcHrep)) deallocate(HdLSF_dcHrep)
-                allocate(HdLSF_dcHrep(NExpansionCoefficients,NStates,NStates))
+                allocate(HdLSF_dcHrep(NExpansionCoefficients,NState,NState))
                 if(allocated(HdLSF_dcdHrep)) deallocate(HdLSF_dcdHrep)
-                allocate(HdLSF_dcdHrep(NExpansionCoefficients,InternalDimension,NStates,NStates))
+                allocate(HdLSF_dcdHrep(NExpansionCoefficients,InternalDimension,NState,NState))
                 !Trust region
                     if(allocated(HdLSF_spResidue)) deallocate(HdLSF_spResidue)
                     allocate(HdLSF_spResidue(DataPerPoint))
@@ -633,8 +633,8 @@ end subroutine L_RMSD
             write(*,*)'    dH =',RMSDDegdH,'a.u.'
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
-        call c2HdEC(c,HdEC,NExpansionCoefficients)
-        call WriteHdExpansionCoefficients(HdEC,NStates,NOrder)
+        call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
+        call WriteHdExpansionCoefficients()
         contains
             !To save memory, off-diagonals are treated as twice weighed
             subroutine Residue(r,c,M,N)
@@ -643,20 +643,20 @@ end subroutine L_RMSD
                 real*8,dimension(N),intent(in)::c
                 integer::ip,istate,jstate,indicerow,indicesp
                 real*8::Ltemp
-                real*8,dimension(NStates,NStates)::phi
+                real*8,dimension(NState,NState)::phi
                 !Initialize
                     r(HdLSF_NData+1:M)=HdLSF_SqrtRegularization*c!Regularization
-                    call c2HdEC(c,HdEC,NExpansionCoefficients)
+                    call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
                 indicerow=1!Start from 1st row
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
-                    call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
-                    HdLSF_spResidue(1:NStates)=HdLSF_EnergyScale*(HdLSF_energy-point(ip).energy)!Energy
-                    indicesp=NStates+1
-                    do istate=1,NStates!▽H
+                    call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
+                    HdLSF_spResidue(1:NState)=HdLSF_EnergyScale*(HdLSF_energy-point(ip).energy)!Energy
+                    indicesp=NState+1
+                    do istate=1,NState!▽H
                         HdLSF_spResidue(indicesp:indicesp+InternalDimension-1)=HdLSF_dH(:,istate,istate)-point(ip).dH(:,istate,istate)!Diagonal
                         indicesp=indicesp+InternalDimension
-                        do jstate=istate+1,NStates!Off-diagonal
+                        do jstate=istate+1,NState!Off-diagonal
                             HdLSF_spResidue(indicesp:indicesp+InternalDimension-1)=Sqrt2*(HdLSF_dH(:,jstate,istate)-point(ip).dH(:,jstate,istate))
                             indicesp=indicesp+InternalDimension
                         end do
@@ -666,17 +666,17 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
-                    call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+                    call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
                     indicesp=1
-                    do istate=1,NStates!H
+                    do istate=1,NState!H
                         HdLSF_sdegpResidue(indicesp)=HdLSF_EnergyScale*(HdLSF_H(istate,istate)-DegeneratePoint(ip).H(istate,istate))!Diagonal
-                        HdLSF_sdegpResidue(indicesp+1:indicesp+NStates-istate)=Sqrt2*HdLSF_EnergyScale*(HdLSF_H(istate+1:NStates,istate)-DegeneratePoint(ip).H(istate+1:NStates,istate))
-                        indicesp=indicesp+NStates-istate+1
+                        HdLSF_sdegpResidue(indicesp+1:indicesp+NState-istate)=Sqrt2*HdLSF_EnergyScale*(HdLSF_H(istate+1:NState,istate)-DegeneratePoint(ip).H(istate+1:NState,istate))
+                        indicesp=indicesp+NState-istate+1
                     end do
-                    do istate=1,NStates!▽H
+                    do istate=1,NState!▽H
                         HdLSF_sdegpResidue(indicesp:indicesp+InternalDimension-1)=HdLSF_dH(:,istate,istate)-DegeneratePoint(ip).dH(:,istate,istate)!Diagonal
                         indicesp=indicesp+InternalDimension
-                        do jstate=istate+1,NStates!Off-diagonal
+                        do jstate=istate+1,NState!Off-diagonal
                             HdLSF_sdegpResidue(indicesp:indicesp+InternalDimension-1)=Sqrt2*(HdLSF_dH(:,jstate,istate)-DegeneratePoint(ip).dH(:,jstate,istate))
                             indicesp=indicesp+InternalDimension
                         end do
@@ -685,8 +685,8 @@ end subroutine L_RMSD
                     indicerow=indicerow+DataPerDegeneratePoint
                 end do
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
-                    r(indicerow:indicerow+NStates-1)=ArtifactPoint(ip).weight*HdLSF_EnergyScale*(AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy)
-                    indicerow=indicerow+NStates
+                    r(indicerow:indicerow+NState-1)=ArtifactPoint(ip).weight*HdLSF_EnergyScale*(AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy)
+                    indicerow=indicerow+NState
                 end do
             end subroutine Residue
             integer function Jacobian(Jacob,c,M,N)
@@ -695,34 +695,34 @@ end subroutine L_RMSD
                 real*8,dimension(N),intent(in)::c
                 integer::ip,istate,jstate,i,indicerow,indicesp
                 real*8::Ltemp
-                real*8,dimension(NStates,NStates)::phi
+                real*8,dimension(NState,NState)::phi
                 real*8,dimension(InternalDimension)::gradienttemp
                 !Initialize
                     Jacob(HdLSF_NData+1:M,:)=0d0
                     forall(ip=1:NExpansionCoefficients)!Regularization
                         Jacob(HdLSF_NData+ip,ip)=HdLSF_SqrtRegularization
                     end forall
-                    call c2HdEC(c,HdEC,NExpansionCoefficients)
+                    call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
                 indicerow=1!Start from 1st row
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
-                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NState)
                     !Energy
-                    forall(istate=1:NStates)
+                    forall(istate=1:NState)
                         HdLSF_spJacobian(istate,:)=HdLSF_EnergyScale*HdLSF_dcH(:,istate,istate)
                     end forall
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    indicesp=NStates+1
-                    do istate=1,NStates
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    indicesp=NState+1
+                    do istate=1,NState
                         HdLSF_spJacobian(indicesp:indicesp+InternalDimension-1,:)=transpose(HdLSF_dcdHrep(:,:,istate,istate))!Diagonal
                         indicesp=indicesp+InternalDimension
-                        do jstate=istate+1,NStates!Off-diagonal
+                        do jstate=istate+1,NState!Off-diagonal
                             HdLSF_spJacobian(indicesp:indicesp+InternalDimension-1,:)=Sqrt2*transpose(HdLSF_dcdHrep(:,:,jstate,istate))
                             indicesp=indicesp+InternalDimension
                         end do
@@ -733,29 +733,29 @@ end subroutine L_RMSD
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
                     call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
-                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase   
+                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase   
                     !▽_c phi
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NState),NExpansionCoefficients,NState)
                     !H
-                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NStates)
-                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)&
-                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NStates,NStates)
+                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NState)
+                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)&
+                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NState,NState)
                     indicesp=1
-                    do istate=1,NStates
+                    do istate=1,NState
                         HdLSF_sdegpJacobian(indicesp,:)=HdLSF_EnergyScale*HdLSF_dcHrep(:,istate,istate)!Diagonal
-                        forall(jstate=istate+1:NStates)!Off-diagonal
+                        forall(jstate=istate+1:NState)!Off-diagonal
                             HdLSF_sdegpJacobian(indicesp+jstate-istate,:)=Sqrt2*HdLSF_EnergyScale*HdLSF_dcHrep(:,jstate,istate)
                         end forall
-                        indicesp=indicesp+NStates-istate+1
+                        indicesp=indicesp+NState-istate+1
                     end do
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    do istate=1,NStates
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    do istate=1,NState
                         HdLSF_spJacobian(indicesp:indicesp+InternalDimension-1,:)=transpose(HdLSF_dcdHrep(:,:,istate,istate))!Diagonal
                         indicesp=indicesp+InternalDimension
-                        do jstate=istate+1,NStates!Off-diagonal
+                        do jstate=istate+1,NState!Off-diagonal
                             HdLSF_spJacobian(indicesp:indicesp+InternalDimension-1,:)=Sqrt2*transpose(HdLSF_dcdHrep(:,:,jstate,istate))
                             indicesp=indicesp+InternalDimension
                         end do
@@ -765,11 +765,11 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    forall(istate=1:NState)
                         Jacob(indicerow+istate-1,:)=ArtifactPoint(ip).weight*HdLSF_EnergyScale*HdLSF_dcH(:,istate,istate)
                     end forall
-                    indicerow=indicerow+NStates
+                    indicerow=indicerow+NState
                 end do
                 Jacobian=0!return 0
             end function Jacobian
@@ -781,13 +781,13 @@ end subroutine L_RMSD
         !Initialize
             !Allocate global local minimizer work space
             if(allocated(HdLSF_dHd)) deallocate(HdLSF_dHd)
-            allocate(HdLSF_dHd(InternalDimension,NStates,NStates))
+            allocate(HdLSF_dHd(InternalDimension,NState,NState))
             if(allocated(HdLSF_dcphi)) deallocate(HdLSF_dcphi)
-            allocate(HdLSF_dcphi(NExpansionCoefficients,NStates,NStates))
+            allocate(HdLSF_dcphi(NExpansionCoefficients,NState,NState))
             if(allocated(HdLSF_dcHrep)) deallocate(HdLSF_dcHrep)
-            allocate(HdLSF_dcHrep(NExpansionCoefficients,NStates,NStates))
+            allocate(HdLSF_dcHrep(NExpansionCoefficients,NState,NState))
             if(allocated(HdLSF_dcdHrep)) deallocate(HdLSF_dcdHrep)
-            allocate(HdLSF_dcdHrep(NExpansionCoefficients,InternalDimension,NStates,NStates))
+            allocate(HdLSF_dcdHrep(NExpansionCoefficients,InternalDimension,NState,NState))
         !Solve
         call showtime()
         select case(HdLSF_LineSearcher)
@@ -816,8 +816,8 @@ end subroutine L_RMSD
             write(*,*)'    dH =',RMSDDegdH,'a.u.'
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
-        call c2HdEC(c,HdEC,NExpansionCoefficients)
-        call WriteHdExpansionCoefficients(HdEC,NStates,NOrder)
+        call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
+        call WriteHdExpansionCoefficients()
         !Clean up
             deallocate(HdLSF_dHd)
             deallocate(HdLSF_dcphi)
@@ -833,20 +833,20 @@ end subroutine L_RMSD
                 real*8::Ltemp
                 !Initialize
                     L=HdLSF_Regularization*dot_product(c,c)!Regularization
-                    call c2HdEC(c,HdEC,NExpansionCoefficients)
+                    call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
-                    call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+                    call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
                     HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (▽H has done during fixing)
                     L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dot_product(HdLSF_energy,HdLSF_energy))
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
-                    call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)!H (▽H has done during fixing)
+                    call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (▽H has done during fixing)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
                     end forall
-                    L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NStates))
+                    L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NState))
                 end do
                 Ltemp=0d0
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
@@ -864,68 +864,68 @@ end subroutine L_RMSD
                 real*8,dimension(dim)::Ldtemp
                 !Initialize
                     Ld=HdLSF_Regularization*c!Regularization
-                    call c2HdEC(c,HdEC,NExpansionCoefficients)
+                    call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
-                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NState)
                     !Energy
-                    forall(istate=1:NStates)
+                    forall(istate=1:NState)
                         HdLSF_dcHrep(:,istate,istate)=HdLSF_dcH(:,istate,istate)
                     end forall
-                    forall(istate=2:NStates,jstate=1:NStates-1,istate>jstate)
+                    forall(istate=2:NState,jstate=1:NState-1,istate>jstate)
                         HdLSF_dcHrep(:,istate,jstate)=0d0
                     end forall
-                    HdLSF_H=diag(HdLSF_energy-point(ip).energy,NStates)
+                    HdLSF_H=diag(HdLSF_energy-point(ip).energy,NState)
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_dH(:,istate,jstate)=HdLSF_dH(:,istate,jstate)-point(ip).dH(:,istate,jstate)
                     end forall
                     Ld=Ld+point(ip).weight*(&
-                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)&    
-                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates),NExpansionCoefficients,NStates))
+                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)&    
+                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState),NExpansionCoefficients,NState))
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
                     call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
-                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NState),NExpansionCoefficients,NState)
                     !H
-                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NStates)
-                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)&
-                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NState)
+                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)&
+                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
                     end forall
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_dH(:,istate,jstate)=HdLSF_dH(:,istate,jstate)-DegeneratePoint(ip).dH(:,istate,jstate)
                     end forall
                     Ld=Ld+DegeneratePoint(ip).weight*(&
-                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)&
-                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates),NExpansionCoefficients,NStates))
+                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)&
+                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState),NExpansionCoefficients,NState))
                 end do
                 Ldtemp=0d0
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    forall(istate=1:NState)
                         HdLSF_dcHrep(:,istate,istate)=HdLSF_dcH(:,istate,istate)
                     end forall
-                    forall(istate=2:NStates,jstate=1:NStates-1,istate>jstate)
+                    forall(istate=2:NState,jstate=1:NState-1,istate>jstate)
                         HdLSF_dcHrep(:,istate,jstate)=0d0
                     end forall
-                    HdLSF_H=diag(HdLSF_energy-ArtifactPoint(ip).energy,NStates)
-                    Ldtemp=Ldtemp+ArtifactPoint(ip).weight*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)
+                    HdLSF_H=diag(HdLSF_energy-ArtifactPoint(ip).energy,NState)
+                    Ldtemp=Ldtemp+ArtifactPoint(ip).weight*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)
                 end do
                 Ld=Ld+HdLSF_EnergyScaleSquare*Ldtemp
             end subroutine LagrangianGradient
@@ -940,72 +940,72 @@ end subroutine L_RMSD
                 !Initialize
                     L =HdLSF_Regularization*dot_product(c,c)!Regularization
                     Ld=HdLSF_Regularization*c!Regularization
-                    call c2HdEC(c,HdEC,NExpansionCoefficients)
+                    call c2HdEC(c,Hd_HdEC,NExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
-                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dAssignBasisPhaseBydH(HdLSF_phi,HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,HdLSF_dcH,NExpansionCoefficients,NState)
                     !Energy
-                    forall(istate=1:NStates)
+                    forall(istate=1:NState)
                         HdLSF_dcHrep(:,istate,istate)=HdLSF_dcH(:,istate,istate)
                     end forall
-                    forall(istate=2:NStates,jstate=1:NStates-1,istate>jstate)
+                    forall(istate=2:NState,jstate=1:NState-1,istate>jstate)
                         HdLSF_dcHrep(:,istate,jstate)=0d0
                     end forall
-                    HdLSF_H=diag(HdLSF_energy-point(ip).energy,NStates)
+                    HdLSF_H=diag(HdLSF_energy-point(ip).energy,NState)
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_dH(:,istate,jstate)=HdLSF_dH(:,istate,jstate)-point(ip).dH(:,istate,jstate)
                     end forall
-                    L =L +point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NStates))
+                    L =L +point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NState))
                     Ld=Ld+point(ip).weight*(&
-                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)&    
-                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates),NExpansionCoefficients,NStates))
+                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)&    
+                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState),NExpansionCoefficients,NState))
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
                     call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
-                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Assign basis phase
+                    call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
-                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)
+                    HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NExpansionCoefficients,NState),NExpansionCoefficients,NState)
                     !H
-                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NStates)
-                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)&
-                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcHrep=asy3matmulsy(HdLSF_dcphi,HdLSF_H,NExpansionCoefficients,NState)
+                    HdLSF_dcHrep=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)&
+                        -HdLSF_dcHrep-transpose3(HdLSF_dcHrep,NExpansionCoefficients,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
                     end forall
                     !▽H
-                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates)
-                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NStates)&
-                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NStates,NStates)
-                    forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                    HdLSF_dcdHrep=asy3matdirectmulsy3(HdLSF_dcphi,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState)
+                    HdLSF_dcdHrep=sy4UnitaryTransformation(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_phi,NExpansionCoefficients,InternalDimension,NState)&
+                        -HdLSF_dcdHrep-transpose4(HdLSF_dcdHrep,NExpansionCoefficients,InternalDimension,NState,NState)
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                         HdLSF_dH(:,istate,jstate)=HdLSF_dH(:,istate,jstate)-DegeneratePoint(ip).dH(:,istate,jstate)
                     end forall
-                    L =L +DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NStates))
+                    L =L +DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dsyFrobeniusSquare(HdLSF_H,NState))
                     Ld=Ld+DegeneratePoint(ip).weight*(&
-                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)&
-                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NStates),NExpansionCoefficients,NStates))
+                        HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)&
+                        +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NExpansionCoefficients,InternalDimension,NState),NExpansionCoefficients,NState))
                 end do
                 Ltemp=0d0
                 Ldtemp=0d0
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
-                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NStates)
-                    forall(istate=1:NStates)
+                    HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NExpansionCoefficients,NState)
+                    forall(istate=1:NState)
                         HdLSF_dcHrep(:,istate,istate)=HdLSF_dcH(:,istate,istate)
                     end forall
-                    forall(istate=2:NStates,jstate=1:NStates-1,istate>jstate)
+                    forall(istate=2:NState,jstate=1:NState-1,istate>jstate)
                         HdLSF_dcHrep(:,istate,jstate)=0d0
                     end forall
-                    HdLSF_H=diag(HdLSF_energy-ArtifactPoint(ip).energy,NStates)
-                    Ltemp = Ltemp+ArtifactPoint(ip).weight*dsyFrobeniusSquare(HdLSF_H,NStates)
-                    Ldtemp=Ldtemp+ArtifactPoint(ip).weight*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NStates),NExpansionCoefficients,NStates)
+                    HdLSF_H=diag(HdLSF_energy-ArtifactPoint(ip).energy,NState)
+                    Ltemp = Ltemp+ArtifactPoint(ip).weight*dsyFrobeniusSquare(HdLSF_H,NState)
+                    Ldtemp=Ldtemp+ArtifactPoint(ip).weight*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NExpansionCoefficients,NState),NExpansionCoefficients,NState)
                 end do
                 L =(L+HdLSF_EnergyScaleSquare* Ltemp)/2d0
                 Ld=Ld+HdLSF_EnergyScaleSquare*Ldtemp

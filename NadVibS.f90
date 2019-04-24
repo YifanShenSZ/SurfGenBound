@@ -11,7 +11,7 @@ subroutine GenerateNadVibSInput()
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
-    real*8,dimension(InternalDimension,InternalDimension,NStates,NStates)::Htemp
+    real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     type(Data),allocatable,dimension(:)::pointtemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     real*8,dimension(InternalDimension)::dshift
@@ -26,8 +26,8 @@ subroutine GenerateNadVibSInput()
         allocate(pointtemp(NPoints))
         do ip=1,NPoints
             allocate(pointtemp(ip).geom(CartesianDimension))
-            allocate(pointtemp(ip).energy(NStates))
-            allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
+            allocate(pointtemp(ip).energy(NState))
+            allocate(pointtemp(ip).dH(CartesianDimension,NState,NState))
         end do
     call ReadElectronicStructureData(pointtemp,NPoints)!Read reference geometry
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
@@ -42,11 +42,11 @@ HSuccessor=Htemp(:,:,1,1)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A59)')'Angular frequency in atomic unit of each vibrational basis:'
         write(99,*)freqSuccessor
-        do istate=1,NStates
-            do jstate=istate,NStates
+        do istate=1,NState
+            do jstate=istate,NState
                 do iorder=0,NOrder
                     write(99,'(A2,I2,I2,A15,I2)')'Hd',jstate,istate,'Expansion order',iorder
-                    write(99,*)HdEC(jstate,istate).Order(iorder).Array
+                    write(99,*)Hd_HdEC(jstate,istate).Order(iorder).Array
                 end do
             end do
         end do
