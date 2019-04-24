@@ -103,9 +103,14 @@ subroutine MexSearch()
 	real*8,dimension(InternalDimension,NStates,NStates)::dH
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',InterestingState,'and',InterestingState+1
     q=InternalCoordinateq(InterestingGeom(:,1),InternalDImension,CartesianDimension)
-	call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
-	    q,InternalDImension,1,&
-		fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
+    if(NStates==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
+        call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,&
+            fdd=fdd,cdd=cdd,Precision=1d-8)!This is Columbus7 energy precision
+    else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
+	    call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
+	        q,InternalDImension,1,Precision=1d-8,&!This is Columbus7 energy precision
+            fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
+    end if
 	r=CartesianCoordinater(q,CartesianDimension,InternalDImension,MoleculeDetail.mass,InterestingGeom(:,1))
 	dH=AdiabaticdH(q)
 	if(allocated(g_AbInitio).and.allocated(h_AbInitio)) then
@@ -130,13 +135,67 @@ subroutine MexSearch()
 	open(unit=99,file='Mexh.out',status='replace')
 	    write(99,*)dH(:,InterestingState+1,InterestingState)
     close(99)
+    contains!Special routine for 2 state mex search
+        subroutine f(Hd11,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,intent(out)::Hd11
+            real*8,dimension(NStates,NStates)::H
+            H=Hd(q)
+            Hd11=H(1,1)
+        end subroutine f
+        subroutine fd(dHd11,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim),intent(out)::dHd11
+            real*8,dimension(intdim,NStates,NStates)::dH
+            dH=dHd(q)
+            dHd11=dH(:,1,1)
+        end subroutine fd
+        integer function fdd(ddHd11,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,intdim),intent(out)::ddHd11
+            real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+            ddH=ddHd(q)
+            ddHd11=ddH(:,:,1,1)
+            fdd=0!return 0
+        end function fdd
+        subroutine c(cx,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(2),intent(out)::cx
+            real*8,dimension(NStates,NStates)::H
+            H=Hd(q)
+            cx(1)=H(2,2)-H(1,1)
+            cx(2)=H(2,1)
+        end subroutine c
+        subroutine cd(cdx,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,2),intent(out)::cdx
+            real*8,dimension(intdim,NStates,NStates)::dH
+            dH=dHd(q)
+            cdx(:,1)=dH(:,2,2)-dH(:,1,1)
+            cdx(:,2)=dH(:,2,1)
+        end subroutine cd
+        integer function cdd(cddx,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,intdim,2),intent(out)::cddx
+            real*8,dimension(intdim,intdim,NStates,NStates)::ddH
+            ddH=ddHd(q)
+            cddx(:,:,1)=ddH(:,:,2,2)-ddH(:,:,1,1)
+            cddx(:,:,2)=ddH(:,:,2,1)
+            cdd=0!return 0
+        end function cdd
 end subroutine MexSearch
 
 subroutine Evaluate()
 end subroutine Evaluate
 
 !---------- Auxiliary routine ----------
-    !Reformat routine for NonlinearOptimization
+    !Reformat routine for calling nonlinear optimizers
 
     subroutine AdiabaticEnergyInterface(E,q,intdim)
         real*8,intent(out)::E
@@ -182,7 +241,7 @@ end subroutine Evaluate
 	subroutine AdiabaticGapInterface(gap,q,M,intdim)
 		integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
-		real*8,dimension(M),intent(out)::gap
+		real*8,dimension(1),intent(out)::gap
 		real*8,dimension(NStates)::energy
 		energy=AdiabaticEnergy(q)
 		gap(1)=energy(InterestingState+1)-energy(InterestingState)
@@ -191,7 +250,7 @@ end subroutine Evaluate
 	subroutine AdiabaticGapGradientInterface(dgap,q,M,intdim)
 		integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
-		real*8,dimension(intdim,M),intent(out)::dgap
+		real*8,dimension(intdim,1),intent(out)::dgap
 		real*8,dimension(intdim,NStates,NStates)::dH
 		dH=AdiabaticdH(q)
 		dgap(:,1)=dH(:,InterestingState+1,InterestingState+1)-dH(:,InterestingState,InterestingState)
@@ -200,7 +259,7 @@ end subroutine Evaluate
 	integer function AdiabaticGapHessianInterface(ddgap,q,M,intdim)
 	    integer,intent(in)::M,intdim
 		real*8,dimension(intdim),intent(in)::q
-		real*8,dimension(intdim,intdim,M),intent(out)::ddgap
+		real*8,dimension(intdim,intdim,1),intent(out)::ddgap
 		real*8,dimension(intdim,intdim,NStates,NStates)::ddH
 		ddH=AdiabaticddH(q)
 		ddgap(:,:,1)=ddH(:,:,InterestingState+1,InterestingState+1)-ddH(:,:,InterestingState,InterestingState)
