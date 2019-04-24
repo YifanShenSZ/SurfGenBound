@@ -23,7 +23,6 @@
 !c is sorted by istate -> jstate ( >= istate ) -> iorder according to module DiabaticHamiltonian
 module HdLeastSquareFit
     use Basic
-    use DiabaticHamiltonian
     implicit none
 
 !Parameter
@@ -164,6 +163,55 @@ subroutine FitHd()!Fit Hd with the designated solver
             deallocate(HdLSF_f)
             deallocate(HdLSF_fd)
 end subroutine FitHd
+
+!Lagrangian and root mean square deviations are the evaluation standards for the fit
+    !Input:  current c
+    !Output: L harvests Lagrangian,
+    !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
+    !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
+subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
+	real*8,dimension(NExpansionCoefficients),intent(in)::c
+	real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
+	integer::ip,istate,jstate
+	real*8::Ltemp,temp
+	!Initialize
+		L=HdLSF_Regularization*dot_product(c,c)!Regularization
+		call c2HdEC(c,HdEC,NExpansionCoefficients)
+	RMSDenergy=0d0
+	RMSDdH=0d0
+	do ip=1,NPoints!Regular data points, compute RMSD
+		call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
+		call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+		RMSDdH=RMSDdH+Ltemp
+		HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (dH has done during fixing)
+		temp=dot_product(HdLSF_energy,HdLSF_energy)
+		RMSDenergy=RMSDenergy+temp
+		L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
+	end do
+	RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
+	RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
+	RMSDDegH=0d0
+	RMSDDegdH=0d0
+	do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
+		call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
+		call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
+		RMSDDegdH=RMSDDegdH+Ltemp
+		forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)!H (dH has done during fixing)
+			HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
+		end forall
+		temp=dsyFrobeniusSquare(HdLSF_H,NStates)
+		RMSDDegH=RMSDDegH+temp
+		L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
+	end do
+	RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
+	RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
+	Ltemp=0d0
+	do ip=1,NArtifactPoints!Unreliable data points, energy only
+		HdLSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
+		Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
+	end do
+	L=L+HdLSF_EnergyScaleSquare*Ltemp
+end subroutine L_RMSD
 
 !--------------- Solvers ---------------
     subroutine pseudolinear(cmin)!Fit Hd by pseudolinear method
@@ -412,10 +460,9 @@ end subroutine FitHd
                 end forall
                 b=matmul(HdLSF_M,HdLSF_y)
             end subroutine LSFMatrices_L
-            !Input:  b = current c
-            !Output: A harvests A, b harvests b, L harvests Lagrangian
-            !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
-            !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
+            !Additional output:
+            !    RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
+            !    RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
             subroutine LSFMatrices_L_RMSD(A,b,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
                 real*8,dimension(NExpansionCoefficients,NExpansionCoefficients),intent(out)::A
                 real*8,dimension(NExpansionCoefficients),intent(inout)::b
@@ -965,136 +1012,6 @@ end subroutine FitHd
                 Lagrangian_LagrangianGradient=0!return 0
             end function Lagrangian_LagrangianGradient
     end subroutine LineSearchInterface
-!----------------- End -----------------
-
-!---------- Auxiliary routine ----------
-    !Convert c to DiabaticHamiltonian module form of Hd expansion coefficient
-    subroutine c2HdEC(c,HdEC,N)
-        integer,intent(in)::N
-        real*8,dimension(N),intent(in)::c
-        type(HdExpansionCoefficient),dimension(NStates,NStates),intent(inout)::HdEC
-        integer::i,j,istate,jstate,iorder,indice
-        indice=1
-        do istate=1,NStates
-            do jstate=istate,NStates
-                do iorder=0,NOrder
-                    j=size(HdEC(jstate,istate).Order(iorder).Array)
-                    HdEC(jstate,istate).Order(iorder).Array=c(indice:indice+j-1)
-                    indice=indice+j
-                end do
-            end do
-        end do
-    end subroutine c2HdEC
-    !Inverse conversion
-    subroutine HdEC2c(HdEC,c,N)
-        integer,intent(in)::N
-        type(HdExpansionCoefficient),dimension(NStates,NStates),intent(in)::HdEC
-        real*8,dimension(N),intent(out)::c
-        integer::i,j,istate,jstate,iorder,indice
-        indice=1
-        do istate=1,NStates
-            do jstate=istate,NStates
-                do iorder=0,NOrder
-                    j=size(HdEC(jstate,istate).Order(iorder).Array)
-                    c(indice:indice+j-1)=HdEC(jstate,istate).Order(iorder).Array
-                    indice=indice+j
-                end do
-            end do
-        end do
-    end subroutine HdEC2c
-
-    !Lagrangian and root mean square deviations are the evaluation standards for the fit
-    !Input:  current c
-    !Output: L harvests Lagrangian,
-    !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
-    !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
-    subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
-        real*8,dimension(NExpansionCoefficients),intent(in)::c
-        real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
-        integer::ip,istate,jstate
-        real*8::Ltemp,temp
-        !Initialize
-            L=HdLSF_Regularization*dot_product(c,c)!Regularization
-            call c2HdEC(c,HdEC,NExpansionCoefficients)
-        RMSDenergy=0d0
-        RMSDdH=0d0
-        do ip=1,NPoints!Regular data points, compute RMSD
-            call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
-            call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
-            RMSDdH=RMSDdH+Ltemp
-            HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (dH has done during fixing)
-            temp=dot_product(HdLSF_energy,HdLSF_energy)
-            RMSDenergy=RMSDenergy+temp
-            L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-        end do
-        RMSDenergy=dSqrt(RMSDenergy/NStates/NPoints)
-        RMSDdH=dSqrt(RMSDdH/(InternalDimension*NStates*NStates)/NPoints)
-        RMSDDegH=0d0
-        RMSDDegdH=0d0
-        do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
-            call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
-            call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NStates)!Fix off-diagonals phase
-            RMSDDegdH=RMSDDegdH+Ltemp
-            forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)!H (dH has done during fixing)
-                HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
-            end forall
-            temp=dsyFrobeniusSquare(HdLSF_H,NStates)
-            RMSDDegH=RMSDDegH+temp
-            L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-        end do
-        RMSDDegH=dSqrt(RMSDDegH/(NStates*NStates)/NDegeneratePoints)
-        RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NStates*NStates)/NDegeneratePoints)
-        Ltemp=0d0
-        do ip=1,NArtifactPoints!Unreliable data points, energy only
-            HdLSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
-            Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
-        end do
-        L=L+HdLSF_EnergyScaleSquare*Ltemp
-    end subroutine L_RMSD
-
-    !The value of ▽_cHd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
-    !f stores expansion basis function values at this q
-    function dcHd_ByKnownf(f)
-        real*8,dimension(NExpansionCoefficients,NStates,NStates)::dcHd_ByKnownf
-        real*8,dimension(NExpansionBasis),intent(in)::f
-        integer::i,j,indice
-        indice=1
-        do j=1,NStates
-            do i=j,NStates
-                dcHd_ByKnownf(1:indice-1,i,j)=0d0
-                dcHd_ByKnownf(indice:indice+NExpansionBasis-1,i,j)=f
-                indice=indice+NExpansionBasis
-                dcHd_ByKnownf(indice:NExpansionCoefficients,i,j)=0d0
-            end do
-        end do
-    end function dcHd_ByKnownf
-
-    !The value of ▽_c▽Hd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
-    !fdT(i,:) stores the gradient of i-th expansion basis function
-    function dcdHd_ByKnownfdT(fdT)
-        real*8,dimension(NExpansionCoefficients,InternalDimension,NStates,NStates)::dcdHd_ByKnownfdT
-        real*8,dimension(NExpansionBasis,InternalDimension),intent(in)::fdT
-        integer::i,j,indice
-        indice=1
-        do j=1,NStates
-            do i=j,NStates
-                dcdHd_ByKnownfdT(1:indice-1,:,i,j)=0d0
-                dcdHd_ByKnownfdT(indice:indice+NExpansionBasis-1,:,i,j)=fdT
-                indice=indice+NExpansionBasis
-                dcdHd_ByKnownfdT(indice:NExpansionCoefficients,:,i,j)=0d0
-            end do
-        end do
-    end function dcdHd_ByKnownfdT
-
-    !The value of ▽_cA in diabatic representation at some coordinate q, where c is the expansion coefficient vector
-    !For A adopted here, i.e. (▽H)^2, we can use known ▽_c▽Hd & ▽Hd to calculate
-    function dcAd_ByKnown(dcdHd,dHd)
-        real*8,dimension(NExpansionCoefficients,NStates,NStates)::dcAd_ByKnown
-        real*8,dimension(NExpansionCoefficients,InternalDimension,NStates,NStates),intent(in)::dcdHd
-        real*8,dimension(InternalDimension,NStates,NStates),intent(in)::dHd
-        dcAd_ByKnown=sy4matdotmulsy3(dcdHd,dHd,NExpansionCoefficients,InternalDimension,NStates)
-        dcAd_ByKnown=dcAd_ByKnown+transpose3(dcAd_ByKnown,NExpansionCoefficients,NStates,NStates)
-    end function dcAd_ByKnown
 !----------------- End -----------------
 
 end module HdLeastSquareFit

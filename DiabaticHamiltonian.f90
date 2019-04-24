@@ -287,6 +287,89 @@ end subroutine WriteHdExpansionCoefficients
     end function ExpansionBasisHessian
 !------------------- End --------------------
 
+!------------- Fitting support --------------
+	!To determine Hd, we need all kind of operation concerning undetermined parameter vector c
+
+	!Convert c to DiabaticHamiltonian module form of Hd expansion coefficient
+    subroutine c2HdEC(c,HdEC,N)
+        integer,intent(in)::N
+        real*8,dimension(N),intent(in)::c
+        type(HdExpansionCoefficient),dimension(NStates,NStates),intent(inout)::HdEC
+        integer::i,j,istate,jstate,iorder,indice
+        indice=1
+        do istate=1,NStates
+            do jstate=istate,NStates
+                do iorder=0,NOrder
+                    j=size(HdEC(jstate,istate).Order(iorder).Array)
+                    HdEC(jstate,istate).Order(iorder).Array=c(indice:indice+j-1)
+                    indice=indice+j
+                end do
+            end do
+        end do
+    end subroutine c2HdEC
+    !Inverse conversion
+    subroutine HdEC2c(HdEC,c,N)
+        integer,intent(in)::N
+        type(HdExpansionCoefficient),dimension(NStates,NStates),intent(in)::HdEC
+        real*8,dimension(N),intent(out)::c
+        integer::i,j,istate,jstate,iorder,indice
+        indice=1
+        do istate=1,NStates
+            do jstate=istate,NStates
+                do iorder=0,NOrder
+                    j=size(HdEC(jstate,istate).Order(iorder).Array)
+                    c(indice:indice+j-1)=HdEC(jstate,istate).Order(iorder).Array
+                    indice=indice+j
+                end do
+            end do
+        end do
+	end subroutine HdEC2c
+	
+	!The value of ▽_cHd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
+    !f stores expansion basis function values at this q
+    function dcHd_ByKnownf(f)
+        real*8,dimension(NExpansionCoefficients,NStates,NStates)::dcHd_ByKnownf
+        real*8,dimension(NExpansionBasis),intent(in)::f
+        integer::i,j,indice
+        indice=1
+        do j=1,NStates
+            do i=j,NStates
+                dcHd_ByKnownf(1:indice-1,i,j)=0d0
+                dcHd_ByKnownf(indice:indice+NExpansionBasis-1,i,j)=f
+                indice=indice+NExpansionBasis
+                dcHd_ByKnownf(indice:NExpansionCoefficients,i,j)=0d0
+            end do
+        end do
+    end function dcHd_ByKnownf
+
+    !The value of ▽_c▽Hd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
+    !fdT(i,:) stores the gradient of i-th expansion basis function
+    function dcdHd_ByKnownfdT(fdT)
+        real*8,dimension(NExpansionCoefficients,InternalDimension,NStates,NStates)::dcdHd_ByKnownfdT
+        real*8,dimension(NExpansionBasis,InternalDimension),intent(in)::fdT
+        integer::i,j,indice
+        indice=1
+        do j=1,NStates
+            do i=j,NStates
+                dcdHd_ByKnownfdT(1:indice-1,:,i,j)=0d0
+                dcdHd_ByKnownfdT(indice:indice+NExpansionBasis-1,:,i,j)=fdT
+                indice=indice+NExpansionBasis
+                dcdHd_ByKnownfdT(indice:NExpansionCoefficients,:,i,j)=0d0
+            end do
+        end do
+    end function dcdHd_ByKnownfdT
+
+    !The value of ▽_cA in diabatic representation at some coordinate q, where c is the expansion coefficient vector
+    !For A adopted here, i.e. (▽H)^2, we can use known ▽_c▽Hd & ▽Hd to calculate
+    function dcAd_ByKnown(dcdHd,dHd)
+        real*8,dimension(NExpansionCoefficients,NStates,NStates)::dcAd_ByKnown
+        real*8,dimension(NExpansionCoefficients,InternalDimension,NStates,NStates),intent(in)::dcdHd
+        real*8,dimension(InternalDimension,NStates,NStates),intent(in)::dHd
+        dcAd_ByKnown=sy4matdotmulsy3(dcdHd,dHd,NExpansionCoefficients,InternalDimension,NStates)
+        dcAd_ByKnown=dcAd_ByKnown+transpose3(dcAd_ByKnown,NExpansionCoefficients,NStates,NStates)
+    end function dcAd_ByKnown
+!------------------- End --------------------
+
 !------------ Diabatic quantity -------------
     function Hd(q)!Return the value of Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_NStates,Hd_NStates)::Hd
