@@ -1,7 +1,7 @@
 !Generate NadVibS input files
 module NadVibS
     use Basic
-    use ESSInput
+    use ElectronicStructureInput
     use DiabaticHamiltonian
     use Analyzation
     implicit none
@@ -19,7 +19,7 @@ subroutine GenerateNadVibSInput()
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
-    call ReadESSHessian(HPrecursor,InternalDimension)
+    call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(freqPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,NAtoms)
     if(minval(freqPrecursor)<-1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
     !Successor
@@ -30,7 +30,7 @@ subroutine GenerateNadVibSInput()
             allocate(pointtemp(ip).energy(NStates))
             allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
         end do
-    call ReadESSData(pointtemp,NPoints)!Read reference geometry
+    call ReadElectronicStructureData(pointtemp,NPoints)!Read reference geometry
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,pointtemp(IndexReference).geom,InternalDimension,CartesianDimension)
 !This version directly use ground state Hessian at reference geometry
 Htemp=AdiabaticddH(qSuccessor)

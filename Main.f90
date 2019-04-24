@@ -2,10 +2,10 @@
 !Construct diabatic hamiltonian (Hd) by least square fitting H & ▽H
 !IO & computation unit: atomic unit
 !
-!Level: Main <- (HdLeastSquareFit, Analyze, NadVibS) <- DiabaticHamiltonian <- ESSInput <- Basic
+!Level: Main <- (HdLeastSquareFit, Analyze, NadVibS) <- ElectronicStructure <- Basic <- DiabaticHamiltonian
 program main
     use Basic
-    use ESSInput
+    use ElectronicStructure
     use DiabaticHamiltonian
     use HdLeastSquareFit
     use Analyzation
@@ -219,7 +219,7 @@ contains
             call BetterRandomSeed()
             call InitializeBasic()
             CartesianDimension=3*NAtoms
-            call DefineInternalCoordinate()
+            call DefineInternalCoordinate(ElectronicStructureSoftware,InternalDimension)
         select case(JobType)!Job specific initialize
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
                 call Initialize_NewTrainingSet()
@@ -304,7 +304,7 @@ contains
                     allocate(pointtemp(ip).energy(NStates))
                     allocate(pointtemp(ip).dH(CartesianDimension,NStates,NStates))
                 end do
-            call ReadESSData(pointtemp,NPoints)
+            call ReadElectronicStructureData(pointtemp,NPoints)
             allocate(ArtifactPointtemp(NArtifactPoints))
             open(unit=99,file=ArtifactGeometryDataFile,status='old')
             open(unit=100,file=ArtifactEnergyDataFile,status='old')
