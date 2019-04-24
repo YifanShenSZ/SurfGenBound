@@ -1,5 +1,6 @@
 !Diabatic Hamiltonian (Hd) and related quantities
 module DiabaticHamiltonian
+    use General
     use Mathematics
     use LinearAlgebra
     implicit none
@@ -33,51 +34,58 @@ module DiabaticHamiltonian
     !    InternalDimension: dimension of internal space Hd takes into account
     !    NOrder: Hd expansion order
     !    HdEC & EBNR: see derived type section above
-    integer::DiabaticHamiltonian_NStates,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NOrder
-    type(HdExpansionCoefficient),allocatable,dimension(:,:)::DiabaticHamiltonian_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
-    type(ExpansionBasisNumberingRule),allocatable,dimension(:)::DiabaticHamiltonian_EBNR!short for Expansion Basis Numbering Rule
+    integer::Hd_NStates,Hd_InternalDimension,Hd_NOrder
+    type(HdExpansionCoefficient),allocatable,dimension(:,:)::Hd_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
+    type(ExpansionBasisNumberingRule),allocatable,dimension(:)::Hd_EBNR!short for Expansion Basis Numbering Rule
 
 contains
 !The initializer for DiabaticHamiltonian module
-subroutine InitializeDiabaticHamiltonian()
+subroutine InitializeDiabaticHamiltonian(NewHd,NStates,NOrder)
+    logical,intent(in),optional::NewHd
+    integer,intent(in),optional::NStates,NOrder
     logical::degenerate
     integer::istate,jstate,iorder,i,n
-    !Initialize Hd expansion coefficient (DiabaticHamiltonian_HdEC)
+    !Initialize Hd expansion coefficient (Hd_HdEC)
+        if((.not.present(NewHd)).or.(.not.NewHd)) then
+            fill0=NewHd
+        else
+            fill0=.false.
+        end if
         select case(JobType)
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, provide an initial guess
                 !Allocate storage space
-                    allocate(DiabaticHamiltonian_HdEC(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates))
-                    do istate=1,DiabaticHamiltonian_NStates
-                        do jstate=istate,DiabaticHamiltonian_NStates
-                            allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(0:DiabaticHamiltonian_NOrder))
-                            do iorder=0,DiabaticHamiltonian_NOrder
-                                allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(DiabaticHamiltonian_InternalDimension+iorder-1,iorder))))
-                                DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array=0d0
+                    allocate(Hd_HdEC(Hd_NStates,Hd_NStates))
+                    do istate=1,Hd_NStates
+                        do jstate=istate,Hd_NStates
+                            allocate(Hd_HdEC(jstate,istate).Order(0:Hd_NOrder))
+                            do iorder=0,Hd_NOrder
+                                allocate(Hd_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(Hd_InternalDimension+iorder-1,iorder))))
+                                Hd_HdEC(jstate,istate).Order(iorder).Array=0d0
                             end do
                         end do
                     end do
-                call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,DiabaticHamiltonian_NStates)
+                call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,Hd_NStates)
                 if(Degenerate) then
-                    forall(istate=1:Nstates,jstate=1:DiabaticHamiltonian_NStates,istate>=jstate)
-                        DiabaticHamiltonian_HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
+                    forall(istate=1:Nstates,jstate=1:Hd_NStates,istate>=jstate)
+                        Hd_HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
                     end forall
                 else
-                    forall(istate=2:DiabaticHamiltonian_NStates)
-                        DiabaticHamiltonian_HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
+                    forall(istate=2:Hd_NStates)
+                        Hd_HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
                     end forall
                 end if
-                forall(istate=1:Nstates,jstate=1:DiabaticHamiltonian_NStates,istate>=jstate)
-                    DiabaticHamiltonian_HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
+                forall(istate=1:Nstates,jstate=1:Hd_NStates,istate>=jstate)
+                    Hd_HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
                 end forall
             case('ContinueFitting')!Read old Hd expansion coefficients
                 !Allocate storage space
-                    allocate(DiabaticHamiltonian_HdEC(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates))
-                    do istate=1,DiabaticHamiltonian_NStates
-                        do jstate=istate,DiabaticHamiltonian_NStates
-                            allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(0:DiabaticHamiltonian_NOrder))
-                            do iorder=0,DiabaticHamiltonian_NOrder
-                                allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(DiabaticHamiltonian_InternalDimension+iorder-1,iorder))))
-                                DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array=0d0
+                    allocate(Hd_HdEC(Hd_NStates,Hd_NStates))
+                    do istate=1,Hd_NStates
+                        do jstate=istate,Hd_NStates
+                            allocate(Hd_HdEC(jstate,istate).Order(0:Hd_NOrder))
+                            do iorder=0,Hd_NOrder
+                                allocate(Hd_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(Hd_InternalDimension+iorder-1,iorder))))
+                                Hd_HdEC(jstate,istate).Order(iorder).Array=0d0
                             end do
                         end do
                     end do
@@ -86,18 +94,18 @@ subroutine InitializeDiabaticHamiltonian()
             case default!Use same NStates & NOrder of the fitted Hd, read old Hd expansion coefficients
                 open(unit=99,file='HdExpansionCoefficient.out',status='old')
                     read(99,*)
-                    read(99,*)DiabaticHamiltonian_NStates
+                    read(99,*)Hd_NStates
                     read(99,*)
-                    read(99,*)DiabaticHamiltonian_NOrder
+                    read(99,*)Hd_NOrder
                 close(99)
                 !Allocate storage space
-                    allocate(DiabaticHamiltonian_HdEC(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates))
-                    do istate=1,DiabaticHamiltonian_NStates
-                        do jstate=istate,DiabaticHamiltonian_NStates
-                            allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(0:DiabaticHamiltonian_NOrder))
-                            do iorder=0,DiabaticHamiltonian_NOrder
-                                allocate(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(DiabaticHamiltonian_InternalDimension+iorder-1,iorder))))
-                                DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array=0d0
+                    allocate(Hd_HdEC(Hd_NStates,Hd_NStates))
+                    do istate=1,Hd_NStates
+                        do jstate=istate,Hd_NStates
+                            allocate(Hd_HdEC(jstate,istate).Order(0:Hd_NOrder))
+                            do iorder=0,Hd_NOrder
+                                allocate(Hd_HdEC(jstate,istate).Order(iorder).Array(int(iCombination(Hd_InternalDimension+iorder-1,iorder))))
+                                Hd_HdEC(jstate,istate).Order(iorder).Array=0d0
                             end do
                         end do
                     end do
@@ -106,15 +114,15 @@ subroutine InitializeDiabaticHamiltonian()
     !Initialize NExpansionBasis, NExpansionCoefficients
         NExpansionBasis=0!Set counter to 0
         !Count how many basis functions for an Hd element
-        do i=0,DiabaticHamiltonian_NOrder
-            NExpansionBasis=NExpansionBasis+size(DiabaticHamiltonian_HdEC(1,1).Order(i).Array)
+        do i=0,Hd_NOrder
+            NExpansionBasis=NExpansionBasis+size(Hd_HdEC(1,1).Order(i).Array)
         end do
         !Times the number of independent Hd elements, we obtain the number of expansion coefficients
-        NExpansionCoefficients=DiabaticHamiltonian_NStates*(DiabaticHamiltonian_NStates+1)/2*NExpansionBasis
+        NExpansionCoefficients=Hd_NStates*(Hd_NStates+1)/2*NExpansionBasis
     call InitializeExpansionBasisNumberingRule()
 end subroutine InitializeDiabaticHamiltonian
 
-!Load Hd expansion coefficient from HdExpansionCoefficient.out to global variable DiabaticHamiltonian_HdEC
+!Load Hd expansion coefficient from HdExpansionCoefficient.out to global variable Hd_HdEC
 subroutine ReadHdExpansionCoefficients()
     integer::NStates,NOrder!The old Hd is not necessarily fitted under same condition
     integer::istate,jstate,iorder
@@ -129,7 +137,7 @@ subroutine ReadHdExpansionCoefficients()
                 read(99,*)
                 do iorder=0,NOrder
                     read(99,*)
-                    read(99,*)DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array
+                    read(99,*)Hd_HdEC(jstate,istate).Order(iorder).Array
                 end do
             end do
         end do
@@ -152,7 +160,7 @@ subroutine WriteHdExpansionCoefficients(HdEC,NStates,NOrder)
                 write(99,'(A2,I2,I2)')'Hd',jstate,istate
                 do iorder=0,NOrder
                     write(99,'(A15,I2)')'Expansion order',iorder
-                    write(99,*)DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array
+                    write(99,*)Hd_HdEC(jstate,istate).Order(iorder).Array
                 end do
             end do
         end do
@@ -166,39 +174,39 @@ end subroutine WriteHdExpansionCoefficients
     !Comment:
     !This treatment is good only for bounded system, where the molecule is semi-rigid
 
-    subroutine InitializeExpansionBasisNumberingRule()!DiabaticHamiltonian_EBNR
+    subroutine InitializeExpansionBasisNumberingRule()!Hd_EBNR
         integer::i,iorder,n
         i=0!Count the number of the expansion basis functions
-        do iorder=0,DiabaticHamiltonian_NOrder
-            i=i+int(iCombination(DiabaticHamiltonian_InternalDimension+iorder-1,iorder))
+        do iorder=0,Hd_NOrder
+            i=i+int(iCombination(Hd_InternalDimension+iorder-1,iorder))
         end do
-        allocate(DiabaticHamiltonian_EBNR(i))
+        allocate(Hd_EBNR(i))
         n=1!The serial number of the expansion basis function
-        do iorder=0,DiabaticHamiltonian_NOrder
+        do iorder=0,Hd_NOrder
             !The 1st one in each order
-            DiabaticHamiltonian_EBNR(n).order=iorder
-            allocate(DiabaticHamiltonian_EBNR(n).indice(iorder))
-            DiabaticHamiltonian_EBNR(n).indice=1
+            Hd_EBNR(n).order=iorder
+            allocate(Hd_EBNR(n).indice(iorder))
+            Hd_EBNR(n).indice=1
             n=n+1
             !This is a pseudo counter, we add 1 to the 1st digit then carry to latter digits
-            !but it should satisfy DiabaticHamiltonian_EBNR(n).indice(i)>=DiabaticHamiltonian_EBNR(n).indice(i+1)
-            do istate=2,int(iCombination(DiabaticHamiltonian_InternalDimension+iorder-1,iorder))
-                DiabaticHamiltonian_EBNR(n).order=iorder
-                allocate(DiabaticHamiltonian_EBNR(n).indice(iorder))
-                DiabaticHamiltonian_EBNR(n).indice=DiabaticHamiltonian_EBNR(n-1).indice
+            !but it should satisfy Hd_EBNR(n).indice(i)>=Hd_EBNR(n).indice(i+1)
+            do istate=2,int(iCombination(Hd_InternalDimension+iorder-1,iorder))
+                Hd_EBNR(n).order=iorder
+                allocate(Hd_EBNR(n).indice(iorder))
+                Hd_EBNR(n).indice=Hd_EBNR(n-1).indice
                 !Add 1 to the 1st digit
-                DiabaticHamiltonian_EBNR(n).indice(1)=DiabaticHamiltonian_EBNR(n).indice(1)+1
+                Hd_EBNR(n).indice(1)=Hd_EBNR(n).indice(1)+1
                 !Carry to latter digits
                 do i=1,iorder
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)>DiabaticHamiltonian_InternalDimension) then
-                        DiabaticHamiltonian_EBNR(n).indice(i)=1
-                        DiabaticHamiltonian_EBNR(n).indice(i+1)=DiabaticHamiltonian_EBNR(n).indice(i+1)+1
+                    if(Hd_EBNR(n).indice(i)>Hd_InternalDimension) then
+                        Hd_EBNR(n).indice(i)=1
+                        Hd_EBNR(n).indice(i+1)=Hd_EBNR(n).indice(i+1)+1
                     end if
                 end do
-                !Modify to satisfy DiabaticHamiltonian_EBNR(n).indice(i)>=DiabaticHamiltonian_EBNR(n).indice(i+1)
+                !Modify to satisfy Hd_EBNR(n).indice(i)>=Hd_EBNR(n).indice(i+1)
                 do i=iorder-1,1,-1
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)<DiabaticHamiltonian_EBNR(n).indice(i+1)) then
-                        DiabaticHamiltonian_EBNR(n).indice(i)=DiabaticHamiltonian_EBNR(n).indice(i+1)
+                    if(Hd_EBNR(n).indice(i)<Hd_EBNR(n).indice(i+1)) then
+                        Hd_EBNR(n).indice(i)=Hd_EBNR(n).indice(i+1)
                     end if
                 end do
                 n=n+1
@@ -209,30 +217,30 @@ end subroutine WriteHdExpansionCoefficients
     !The value of n-th expansion basis function at some coordinate q
     function ExpansionBasis(q,n)
         real*8::ExpansionBasis
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer,intent(in)::n
         integer::i
         ExpansionBasis=1d0
-        do i=1,DiabaticHamiltonian_EBNR(n).order
-            ExpansionBasis=ExpansionBasis*q(DiabaticHamiltonian_EBNR(n).indice(i))
+        do i=1,Hd_EBNR(n).order
+            ExpansionBasis=ExpansionBasis*q(Hd_EBNR(n).indice(i))
         end do
     end function ExpansionBasis
 
     !The value of ▽(n-th expansion basis function) at some coordinate q
     function ExpansionBasisGradient(q,n)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension)::ExpansionBasisGradient
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension)::ExpansionBasisGradient
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer,intent(in)::n
         integer::m,i,OrderCount
-        do m=1,DiabaticHamiltonian_InternalDimension
+        do m=1,Hd_InternalDimension
             OrderCount=0
-            do i=1,DiabaticHamiltonian_EBNR(n).order
-                if (DiabaticHamiltonian_EBNR(n).indice(i)==m) OrderCount=OrderCount+1
+            do i=1,Hd_EBNR(n).order
+                if (Hd_EBNR(n).indice(i)==m) OrderCount=OrderCount+1
             end do
             if(OrderCount>0) then
                 ExpansionBasisGradient(m)=dble(OrderCount)*q(m)**(OrderCount-1)
-                do i=1,DiabaticHamiltonian_EBNR(n).order
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)/=m) ExpansionBasisGradient(m)=ExpansionBasisGradient(m)*q(DiabaticHamiltonian_EBNR(n).indice(i))
+                do i=1,Hd_EBNR(n).order
+                    if(Hd_EBNR(n).indice(i)/=m) ExpansionBasisGradient(m)=ExpansionBasisGradient(m)*q(Hd_EBNR(n).indice(i))
                 end do
             else
                 ExpansionBasisGradient(m)=0d0
@@ -242,34 +250,34 @@ end subroutine WriteHdExpansionCoefficients
 
     !The value of ▽▽(n-th expansion basis function) at some coordinate q
     function ExpansionBasisHessian(q,n)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension)::ExpansionBasisHessian
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension,Hd_InternalDimension)::ExpansionBasisHessian
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer,intent(in)::n
         integer::m1,m2,i,OrderCount1,OrderCount2
-        do m1=1,DiabaticHamiltonian_InternalDimension
+        do m1=1,Hd_InternalDimension
             OrderCount1=0!Diagonal
-            do i=1,DiabaticHamiltonian_EBNR(n).order
-                if (DiabaticHamiltonian_EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
+            do i=1,Hd_EBNR(n).order
+                if (Hd_EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
             end do
             if(OrderCount1>0) then
                 ExpansionBasisHessian(m1,m1)=dble(OrderCount1*(OrderCount1-1))*q(m1)**(OrderCount1-2)
-                do i=1,DiabaticHamiltonian_EBNR(n).order
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)/=m1) ExpansionBasisHessian(m1,m1)=ExpansionBasisHessian(m1,m1)*q(DiabaticHamiltonian_EBNR(n).indice(i))
+                do i=1,Hd_EBNR(n).order
+                    if(Hd_EBNR(n).indice(i)/=m1) ExpansionBasisHessian(m1,m1)=ExpansionBasisHessian(m1,m1)*q(Hd_EBNR(n).indice(i))
                 end do
             else
                 ExpansionBasisHessian(m1,m1)=0d0
             end if
-            do m2=m1+1,DiabaticHamiltonian_InternalDimension!Off-diagonal
+            do m2=m1+1,Hd_InternalDimension!Off-diagonal
                 OrderCount1=0
                 OrderCount2=0
-                do i=1,DiabaticHamiltonian_EBNR(n).order
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
-                    if(DiabaticHamiltonian_EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
+                do i=1,Hd_EBNR(n).order
+                    if(Hd_EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
+                    if(Hd_EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
                 end do
                 if(OrderCount1>0.and.OrderCount2>0) then
                     ExpansionBasisHessian(m2,m1)=dble(OrderCount1*OrderCount2)*q(m1)**(OrderCount1-1)*q(m2)**(OrderCount2-1)
-                    do i=1,DiabaticHamiltonian_EBNR(n).order
-                        if(DiabaticHamiltonian_EBNR(n).indice(i)/=m1.and.DiabaticHamiltonian_EBNR(n).indice(i)/=m2) ExpansionBasisHessian(m2,m1)=ExpansionBasisHessian(m2,m1)*q(DiabaticHamiltonian_EBNR(n).indice(i))
+                    do i=1,Hd_EBNR(n).order
+                        if(Hd_EBNR(n).indice(i)/=m1.and.Hd_EBNR(n).indice(i)/=m2) ExpansionBasisHessian(m2,m1)=ExpansionBasisHessian(m2,m1)*q(Hd_EBNR(n).indice(i))
                     end do
                 else
                     ExpansionBasisHessian(m2,m1)=0d0
@@ -281,20 +289,20 @@ end subroutine WriteHdExpansionCoefficients
 
 !------------ Diabatic quantity -------------
     function Hd(q)!Return the value of Hd in diabatic representation at some coordinate q
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::Hd
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates,Hd_NStates)::Hd
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
         real*8,dimension(NExpansionBasis)::f
         do i=1,NExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
-        do istate=1,DiabaticHamiltonian_NStates
-            do jstate=istate,DiabaticHamiltonian_NStates
+        do istate=1,Hd_NStates
+            do jstate=istate,Hd_NStates
                 Hd(jstate,istate)=0d0
                 n=1!The serial number of the expansion basis function
-                do iorder=0,DiabaticHamiltonian_NOrder
-                    do i=1,size(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array)
-                        Hd(jstate,istate)=Hd(jstate,istate)+DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
+                do iorder=0,Hd_NOrder
+                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
+                        Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
                         n=n+1
                     end do
                 end do
@@ -303,21 +311,21 @@ end subroutine WriteHdExpansionCoefficients
     end function Hd
 
     function dHd(q)!Return the value of ▽Hd in diabatic representation at some coordinate q
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::dHd
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates)::dHd
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,NExpansionBasis)::fd
+        real*8,dimension(Hd_InternalDimension,NExpansionBasis)::fd
         do i=1,NExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
-        do istate=1,DiabaticHamiltonian_NStates
-            do jstate=istate,DiabaticHamiltonian_NStates
+        do istate=1,Hd_NStates
+            do jstate=istate,Hd_NStates
                 dHd(:,jstate,istate)=0d0
                 n=1!The serial number of the expansion basis function
-                do iorder=0,DiabaticHamiltonian_NOrder
-                    do i=1,size(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array)
+                do iorder=0,Hd_NOrder
+                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
                         dHd(:,jstate,istate)=dHd(:,jstate,istate)&
-                            +DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
+                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
                         n=n+1
                     end do
                 end do
@@ -326,21 +334,21 @@ end subroutine WriteHdExpansionCoefficients
     end function dHd
 
     function ddHd(q)!Return the value of ▽▽Hd in diabatic representation at some coordinate q
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::ddHd
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension,Hd_InternalDimension,Hd_NStates,Hd_NStates)::ddHd
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,NExpansionBasis)::fdd
+        real*8,dimension(Hd_InternalDimension,Hd_InternalDimension,NExpansionBasis)::fdd
         do i=1,NExpansionBasis
             fdd(:,:,i)=ExpansionBasisHessian(q,i)
         end do
-        do istate=1,DiabaticHamiltonian_NStates
-            do jstate=istate,DiabaticHamiltonian_NStates
+        do istate=1,Hd_NStates
+            do jstate=istate,Hd_NStates
                 ddHd(:,:,jstate,istate)=0d0
                 n=1!The serial number of the expansion basis function
-                do iorder=0,DiabaticHamiltonian_NOrder
-                    do i=1,size(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array)
+                do iorder=0,Hd_NOrder
+                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
                         ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)&
-                            +DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
+                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
                         n=n+1
                     end do
                 end do
@@ -350,21 +358,21 @@ end subroutine WriteHdExpansionCoefficients
 
     !The value of Hd in diabatic representation and expansion basis functions at some coordinate q
     subroutine Hd_f(Hd,f,q)
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::Hd
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::Hd
         real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
         do i=1,NExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
-        do istate=1,DiabaticHamiltonian_NStates
-            do jstate=istate,DiabaticHamiltonian_NStates
+        do istate=1,Hd_NStates
+            do jstate=istate,Hd_NStates
                 Hd(jstate,istate)=0d0
                 n=1!The serial number of the expansion basis function
-                do iorder=0,DiabaticHamiltonian_NOrder
-                    do i=1,size(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array)
+                do iorder=0,Hd_NOrder
+                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
                         Hd(jstate,istate)=Hd(jstate,istate)&
-                            +DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
+                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
                         n=n+1
                     end do
                 end do
@@ -375,21 +383,21 @@ end subroutine WriteHdExpansionCoefficients
     !The value of ▽Hd in diabatic representation and expansion basis function gradient at some coordinate q
     !fd(:,i) stores the gradient of i-th expansion basis function
     subroutine dHd_fd(dHd,fd,q)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dHd
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,NExpansionBasis),intent(out)::fd
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dHd
+        real*8,dimension(Hd_InternalDimension,NExpansionBasis),intent(out)::fd
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
         integer::istate,jstate,iorder,i,n
         do i=1,NExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
-        do istate=1,DiabaticHamiltonian_NStates
-            do jstate=istate,DiabaticHamiltonian_NStates
+        do istate=1,Hd_NStates
+            do jstate=istate,Hd_NStates
                 dHd(:,jstate,istate)=0d0
                 n=1!The serial number of the expansion basis function
-                do iorder=0,DiabaticHamiltonian_NOrder
-                    do i=1,size(DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array)
+                do iorder=0,Hd_NOrder
+                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
                         dHd(:,jstate,istate)=dHd(:,jstate,istate)&
-                            +DiabaticHamiltonian_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
+                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
                         n=n+1
                     end do
                 end do
@@ -402,74 +410,74 @@ end subroutine WriteHdExpansionCoefficients
     !Compute adiabatic quantity from Hd at some coordinate q
 
     function AdiabaticEnergy(q)!Return adiabatic energy
-        real*8,dimension(DiabaticHamiltonian_NStates)::AdiabaticEnergy
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::phi
+        real*8,dimension(Hd_NStates)::AdiabaticEnergy
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates,Hd_NStates)::phi
         phi=Hd(q)
-        call My_dsyev('N',phi,AdiabaticEnergy,DiabaticHamiltonian_NStates)
+        call My_dsyev('N',phi,AdiabaticEnergy,Hd_NStates)
     end function AdiabaticEnergy
 
     function AdiabaticdH(q)!Return adiabatic gradient
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::AdiabaticdH
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates)::energy
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::phi
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates)::AdiabaticdH
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates)::energy
+        real*8,dimension(Hd_NStates,Hd_NStates)::phi
         phi=Hd(q)
-        call My_dsyev('V',phi,energy,DiabaticHamiltonian_NStates)
+        call My_dsyev('V',phi,energy,Hd_NStates)
         AdiabaticdH=dHd(q)
-        AdiabaticdH=sy3UnitaryTransformation(AdiabaticdH,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        AdiabaticdH=sy3UnitaryTransformation(AdiabaticdH,phi,Hd_InternalDimension,Hd_NStates)
     end function AdiabaticdH
 
     function AdiabaticddH(q)!Return adiabatic Hessian
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::AdiabaticddH
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::dH,M
-        real*8,dimension(DiabaticHamiltonian_NStates)::energy
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::phi
+        real*8,dimension(Hd_InternalDimension,Hd_InternalDimension,Hd_NStates,Hd_NStates)::AdiabaticddH
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates)::dH,M
+        real*8,dimension(Hd_NStates)::energy
+        real*8,dimension(Hd_NStates,Hd_NStates)::phi
         phi=Hd(q)
-        call My_dsyev('V',phi,energy,DiabaticHamiltonian_NStates)
+        call My_dsyev('V',phi,energy,Hd_NStates)
         dH=dHd(q)
-        dH=sy3UnitaryTransformation(dH,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
-        M=deigvec_ByKnowneigval_dA(energy,dH,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
-        AdiabaticddH=asy3matdirectmulsy3(M,dH,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
-        AdiabaticddH=sy4UnitaryTransformation(ddHd(q),phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)&
-            -AdiabaticddH-transpose4(AdiabaticddH,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)
+        dH=sy3UnitaryTransformation(dH,phi,Hd_InternalDimension,Hd_NStates)
+        M=deigvec_ByKnowneigval_dA(energy,dH,Hd_InternalDimension,Hd_NStates)
+        AdiabaticddH=asy3matdirectmulsy3(M,dH,Hd_InternalDimension,Hd_InternalDimension,Hd_NStates)
+        AdiabaticddH=sy4UnitaryTransformation(ddHd(q),phi,Hd_InternalDimension,Hd_InternalDimension,Hd_NStates)&
+            -AdiabaticddH-transpose4(AdiabaticddH,Hd_InternalDimension,Hd_InternalDimension,Hd_NStates,Hd_NStates)
     end function AdiabaticddH
 
     !energy harvests adiabatic energy, dH harvests ▽H_a
     subroutine AdiabaticEnergy_dH(q,energy,dH)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates),intent(out)::energy
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dH
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::phi
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates),intent(out)::energy
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dH
+        real*8,dimension(Hd_NStates,Hd_NStates)::phi
         phi=Hd(q)
-        call My_dsyev('V',phi,energy,DiabaticHamiltonian_NStates)
+        call My_dsyev('V',phi,energy,Hd_NStates)
         dH=dHd(q)
-        dH=sy3UnitaryTransformation(dH,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        dH=sy3UnitaryTransformation(dH,phi,Hd_InternalDimension,Hd_NStates)
     end subroutine AdiabaticEnergy_dH
 
     !phi harvests adiabatic states in diabatic representation, f harvests expansion basis function values 
     subroutine AdiabaticEnergy_State_f(q,energy,phi,f)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates),intent(out)::energy
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::phi
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates),intent(out)::energy
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::phi
         real*8,dimension(NExpansionBasis),intent(out)::f
         call Hd_f(phi,f,q)
-        call My_dsyev('V',phi,energy,DiabaticHamiltonian_NStates)
+        call My_dsyev('V',phi,energy,Hd_NStates)
     end subroutine AdiabaticEnergy_State_f
 
     !fd harvests expansion basis function gradient values, fd(:,i) = the gradient of i-th expansion basis function
     subroutine AdiabaticEnergy_dH_State_f_fd(q,energy,dH,phi,f,fd)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates),intent(out)::energy
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dH
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::phi
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates),intent(out)::energy
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dH
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::phi
         real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,NExpansionBasis),intent(out)::fd
+        real*8,dimension(Hd_InternalDimension,NExpansionBasis),intent(out)::fd
         call Hd_f(phi,f,q)
-        call My_dsyev('V',phi,energy,DiabaticHamiltonian_NStates)
+        call My_dsyev('V',phi,energy,Hd_NStates)
         call dHd_fd(dH,fd,q)
-        dH=sy3UnitaryTransformation(dH,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        dH=sy3UnitaryTransformation(dH,phi,Hd_InternalDimension,Hd_NStates)
     end subroutine AdiabaticEnergy_dH_State_f_fd
 !------------------- End --------------------
 
@@ -504,14 +512,14 @@ end subroutine WriteHdExpansionCoefficients
 
     !H harvests H_nd, dH harvests ▽H_nd
     subroutine NondegenerateH_dH(q,H,dH)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::H
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dH
-        real*8,dimension(DiabaticHamiltonian_NStates)::eigval
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates)::phi
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::H
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dH
+        real*8,dimension(Hd_NStates)::eigval
+        real*8,dimension(Hd_NStates,Hd_NStates)::phi
         H=Hd(q)
         dH=dHd(q)
-        call NondegenerateRepresentation(dH,eigval,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        call NondegenerateRepresentation(dH,eigval,phi,Hd_InternalDimension,Hd_NStates)
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH
 
@@ -519,34 +527,34 @@ end subroutine WriteHdExpansionCoefficients
     !f harvests expansion basis function values
     !fd harvests expansion basis function gradient values, fd(:,i) = the gradient of i-th expansion basis function
     subroutine NondegenerateH_dH_State_f_fd(q,H,dH,phi,f,fd)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::H
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dH
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::phi
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::H
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dH
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::phi
         real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,NExpansionBasis),intent(out)::fd
-        real*8,dimension(DiabaticHamiltonian_NStates)::eigval
+        real*8,dimension(Hd_InternalDimension,NExpansionBasis),intent(out)::fd
+        real*8,dimension(Hd_NStates)::eigval
         call Hd_f(H,f,q)
         call dHd_fd(dH,fd,q)
-        call NondegenerateRepresentation(dH,eigval,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        call NondegenerateRepresentation(dH,eigval,phi,Hd_InternalDimension,Hd_NStates)
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH_State_f_fd
 
     !eigval harvests the eigenvalues corresponding to phi
     !dHd harvests ▽H_d
     subroutine NondegenerateH_dH_eigval_State_dHd_f_fd(q,H,dH,eigval,phi,dHd,f,fd)
-        real*8,dimension(DiabaticHamiltonian_InternalDimension),intent(in)::q
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::H
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dH
-        real*8,dimension(DiabaticHamiltonian_NStates),intent(out)::eigval
-        real*8,dimension(DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::phi
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates,DiabaticHamiltonian_NStates),intent(out)::dHd
+        real*8,dimension(Hd_InternalDimension),intent(in)::q
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::H
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dH
+        real*8,dimension(Hd_NStates),intent(out)::eigval
+        real*8,dimension(Hd_NStates,Hd_NStates),intent(out)::phi
+        real*8,dimension(Hd_InternalDimension,Hd_NStates,Hd_NStates),intent(out)::dHd
         real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(DiabaticHamiltonian_InternalDimension,NExpansionBasis),intent(out)::fd
+        real*8,dimension(Hd_InternalDimension,NExpansionBasis),intent(out)::fd
         call Hd_f(H,f,q)
         call dHd_fd(dHd,fd,q)
         dH=dHd
-        call NondegenerateRepresentation(dH,eigval,phi,DiabaticHamiltonian_InternalDimension,DiabaticHamiltonian_NStates)
+        call NondegenerateRepresentation(dH,eigval,phi,Hd_InternalDimension,Hd_NStates)
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH_eigval_State_dHd_f_fd
 !------------------- End --------------------
