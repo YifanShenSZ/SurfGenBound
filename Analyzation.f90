@@ -34,7 +34,7 @@ end subroutine Analyze
 subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	logical::intgeom
 	character*128::GeomFile,RefghFile,DispFile
-	integer::i
+	integer::i,j
     open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
         read(99,*)
         read(99,*)
@@ -46,6 +46,8 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 		read(99,*)
 		read(99,*)GeomFile
 		read(99,*)
+		read(99,*)intgeom
+		read(99,*)
 		read(99,*)RefghFile
 	close(99)
 	open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
@@ -55,17 +57,28 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 			if(i/=0) exit
 			Analyzation_NGeoms=Analyzation_NGeoms+1
 		end do
-		Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
-		rewind 99
-		allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
-		do i=1,Analyzation_NGeoms
-			read(99,*)Analyzation_cartgeom(:,i)
-		end do
-		allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
-		do i=1,Analyzation_NGeoms
-			Analyzation_intgeom(:,i)=InternalCoordinateq(Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)&
-			    -ReferencePoint.geom!This program requires only internal coordinate difference
-		end do
+		if(intgeom) then
+			Analyzation_NGeoms=Analyzation_NGeoms/InternalDimension
+	    	rewind 99
+	    	allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
+			do i=1,Analyzation_NGeoms
+				do j=1,InternalDimension
+				    read(99,*)Analyzation_intgeom(j,i)
+				end do
+	    	end do
+		else
+	    	Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
+	    	rewind 99
+	    	allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
+	    	do i=1,Analyzation_NGeoms
+	    		read(99,*)Analyzation_cartgeom(:,i)
+	    	end do
+	    	allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
+	    	do i=1,Analyzation_NGeoms
+	    		Analyzation_intgeom(:,i)=InternalCoordinateq(Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)&
+	    		    -ReferencePoint.geom!This program requires only internal coordinate difference
+	    	end do
+	    end if
 	close(99)
 	if(Analyzation_JobType=='mex') then!Look for reference g & h
 		open(unit=99,file=RefghFile,status='old',iostat=i)
@@ -117,8 +130,8 @@ subroutine MinimumSearch()
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-    integer::i
-    real*8,dimension(InternalDimension)::q
+    integer::i,j,k
+    real*8,dimension(InternalDimension)::q,g,h,qtemp
 	real*8,dimension(CartesianDimension)::r
 	real*8,dimension(InternalDimension,NState,NState)::dH
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
@@ -141,11 +154,39 @@ subroutine MexSearch()
 	else
 	    call ghOrthogonalization(dH(:,Analyzation_state,Analyzation_state),dH(:,Analyzation_state+1,Analyzation_state+1),dH(:,Analyzation_state+1,Analyzation_state),InternalDimension)
 	end if
+	g=(dH(:,Analyzation_state+1,Analyzation_state+1)-dH(:,Analyzation_state,Analyzation_state))/2d0
+	h=dH(:,Analyzation_state+1,Analyzation_state)
 	open(unit=99,file='Mexg.out',status='replace')
-	    write(99,*)(dH(:,Analyzation_state+1,Analyzation_state+1)-dH(:,Analyzation_state,Analyzation_state))/2d0
+	    write(99,*)g
     close(99)
 	open(unit=99,file='Mexh.out',status='replace')
-	    write(99,*)dH(:,Analyzation_state+1,Analyzation_state)
+	    write(99,*)h
+	close(99)
+	open(unit=99,file='gPathToEvaluate.in',status='replace')
+	    do i=-10,10
+	    	qtemp=q+dble(i)/10d0*g
+	    	do j=1,InternalDimension
+	    		write(99,*)qtemp(j)
+	    	end do
+	    end do
+	close(99)
+	open(unit=99,file='hPathToEvaluate.in',status='replace')
+	    do i=-10,10
+	    	qtemp=q+dble(i)/10d0*h
+	    	do j=1,InternalDimension
+	    		write(99,*)qtemp(j)
+	    	end do
+	    end do
+	close(99)
+	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
+		do i=-10,10
+			do j=-10,10
+				qtemp=q+dble(i)/10d0*g+dble(i)/10d0*h
+			    do k=1,InternalDimension
+			    	write(99,*)qtemp(k)
+			    end do
+			end do
+		end do
 	close(99)
 	q=q+ReferencePoint.geom
 	r=CartesianCoordinater(q,CartesianDimension,InternalDImension,&
@@ -156,7 +197,7 @@ subroutine MexSearch()
         do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
-    close(99)
+	close(99)
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim
