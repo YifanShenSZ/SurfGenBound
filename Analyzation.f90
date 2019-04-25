@@ -77,7 +77,14 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	    	do i=1,Analyzation_NGeoms
 	    		Analyzation_intgeom(:,i)=InternalCoordinateq(Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)&
 	    		    -ReferencePoint.geom!This program requires only internal coordinate difference
-	    	end do
+			end do
+			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
+				do i=1,Analyzation_NGeoms
+					do j=1,InternalDimension
+						write(100,*)Analyzation_intgeom(j,i)
+					end do
+				end do
+			close(99)
 	    end if
 	close(99)
 	if(Analyzation_JobType=='mex') then!Look for reference g & h

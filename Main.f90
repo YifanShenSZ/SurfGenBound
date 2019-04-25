@@ -417,10 +417,10 @@ contains
 					call ghOrthogonalization(grad1,grad2,h,InternalDimension)
 					g=(grad2-grad1)/2d0
 					write(CharTemp128,*)ip
-					open(unit=99,file='g'//CharTemp128,status='replace')
+					open(unit=99,file='g'//trim(adjustl(CharTemp128)),status='replace')
 					    write(99,*)g
 					close(99)
-					open(unit=99,file='h'//CharTemp128,status='replace')
+					open(unit=99,file='h'//trim(adjustl(CharTemp128)),status='replace')
 					    write(99,*)h
 					close(99)
 				end if
