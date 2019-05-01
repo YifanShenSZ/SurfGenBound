@@ -233,32 +233,26 @@ end subroutine WriteHdExpansionCoefficients
     subroutine c2HdEC(c,HdEC,N)
         integer,intent(in)::N
         real*8,dimension(N),intent(in)::c
-        type(HdExpansionCoefficient),dimension(Hd_NState,Hd_NState),intent(inout)::HdEC
-        integer::i,j,istate,jstate,iorder,indice
+        type(d2PArray),dimension(Hd_NState,Hd_NState),intent(inout)::HdEC
+        integer::istate,jstate,indice
         indice=1
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
-                do iorder=0,Hd_NOrder
-                    j=size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                    Hd_HdEC(jstate,istate).Order(iorder).Array=c(indice:indice+j-1)
-                    indice=indice+j
-                end do
+                Hd_HdEC(jstate,istate).Array=c(indice:indice+NHdExpansionBasis-1)
+                indice=indice+NHdExpansionBasis
             end do
         end do
     end subroutine c2HdEC
     subroutine HdEC2c(HdEC,c,N)
         integer,intent(in)::N
-        type(HdExpansionCoefficient),dimension(Hd_NState,Hd_NState),intent(in)::HdEC
+        type(d2PArray),dimension(Hd_NState,Hd_NState),intent(in)::HdEC
         real*8,dimension(N),intent(out)::c
-        integer::i,j,istate,jstate,iorder,indice
+        integer::istate,jstate,indice
         indice=1
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
-                do iorder=0,Hd_NOrder
-                    j=size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                    c(indice:indice+j-1)=Hd_HdEC(jstate,istate).Order(iorder).Array
-                    indice=indice+j
-                end do
+                c(indice:indice+NHdExpansionBasis-1)=Hd_HdEC(jstate,istate).Array
+                indice=indice+NHdExpansionBasis
             end do
         end do
 	end subroutine HdEC2c
@@ -312,7 +306,7 @@ end subroutine WriteHdExpansionCoefficients
     function Hd(q)!Return the value of Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_NState,Hd_NState)::Hd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,iorder,i,n
+        integer::istate,jstate,i
         real*8,dimension(NHdExpansionBasis)::f
         do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
@@ -320,12 +314,8 @@ end subroutine WriteHdExpansionCoefficients
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
                 Hd(jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,Hd_NOrder
-                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                        Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
-                        n=n+1
-                    end do
+                do i=1,NHdExpansionBasis
+                    Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*f(i)
                 end do
             end do
         end do
@@ -334,7 +324,7 @@ end subroutine WriteHdExpansionCoefficients
     function dHd(q)!Return the value of ▽Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState)::dHd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,iorder,i,n
+        integer::istate,jstate,i
         real*8,dimension(Hd_intdim,NHdExpansionBasis)::fd
         do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
@@ -342,13 +332,8 @@ end subroutine WriteHdExpansionCoefficients
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
                 dHd(:,jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,Hd_NOrder
-                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                        dHd(:,jstate,istate)=dHd(:,jstate,istate)&
-                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
-                        n=n+1
-                    end do
+                do i=1,NHdExpansionBasis
+                    dHd(:,jstate,istate)=dHd(:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fd(:,i)
                 end do
             end do
         end do
@@ -357,7 +342,7 @@ end subroutine WriteHdExpansionCoefficients
     function ddHd(q)!Return the value of ▽▽Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_intdim,Hd_intdim,Hd_NState,Hd_NState)::ddHd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,iorder,i,n
+        integer::istate,jstate,i
         real*8,dimension(Hd_intdim,Hd_intdim,NHdExpansionBasis)::fdd
         do i=1,NHdExpansionBasis
             fdd(:,:,i)=ExpansionBasisHessian(q,i)
@@ -365,13 +350,8 @@ end subroutine WriteHdExpansionCoefficients
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
                 ddHd(:,:,jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,Hd_NOrder
-                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                        ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)&
-                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fdd(:,:,n)
-                        n=n+1
-                    end do
+                do i=1,NHdExpansionBasis
+                    ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fdd(:,:,i)
                 end do
             end do
         end do
@@ -382,20 +362,15 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::Hd
         real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,iorder,i,n
+        integer::istate,jstate,i
         do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
                 Hd(jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,Hd_NOrder
-                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                        Hd(jstate,istate)=Hd(jstate,istate)&
-                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*f(n)
-                        n=n+1
-                    end do
+                do i=1,NHdExpansionBasis
+                    Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*f(i)
                 end do
             end do
         end do
@@ -407,20 +382,15 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dHd
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,iorder,i,n
+        integer::istate,jstate,i
         do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
         do istate=1,Hd_NState
             do jstate=istate,Hd_NState
                 dHd(:,jstate,istate)=0d0
-                n=1!The serial number of the expansion basis function
-                do iorder=0,Hd_NOrder
-                    do i=1,size(Hd_HdEC(jstate,istate).Order(iorder).Array)
-                        dHd(:,jstate,istate)=dHd(:,jstate,istate)&
-                            +Hd_HdEC(jstate,istate).Order(iorder).Array(i)*fd(:,n)
-                        n=n+1
-                    end do
+                do i=1,NHdExpansionBasis
+                    dHd(:,jstate,istate)=dHd(:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fd(:,i)
                 end do
             end do
         end do
