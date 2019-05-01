@@ -5,6 +5,13 @@ module NadVibS
     use Analyzation
     implicit none
 
+!Example: type(HdExpansionCoefficient),allocatable,dimension(:,:)::HdEC
+    !         HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
+    !         in iorder-th order terms for Hd(jstate,istate)
+    type HdExpansionCoefficient
+        type(d2PArray),allocatable,dimension(:)::order
+    end type HdExpansionCoefficient
+
 contains
 subroutine GenerateNadVibSInput()
     integer::ip,istate,jstate,iorder

@@ -7,13 +7,6 @@ module DiabaticHamiltonian
     implicit none
 
 !Derived type
-    !Example: type(HdExpansionCoefficient),allocatable,dimension(:,:)::HdEC
-    !         HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
-    !         in iorder-th order terms for Hd(jstate,istate)
-    type HdExpansionCoefficient
-        type(d2PArray),allocatable,dimension(:)::order
-    end type HdExpansionCoefficient
-
     !This defines the mapping rule between an actual basis and its serial number
     !Example: type(ExpansionBasisDefinition),allocatable,dimension(:)::EBNR
     !         EBNR(i).order is the polynomial order for i-th basis function
@@ -27,7 +20,7 @@ module DiabaticHamiltonian
 
 !Global variable
     !Number of Hd expansion basis functions, number of expansion coefficients
-    integer::NExpansionBasis,NExpansionCoefficients
+    integer::NHdExpansionBasis,NHdExpansionCoefficients
 
 !DiabaticHamiltonian module only variable
     !Basic information of Hd:
@@ -36,7 +29,7 @@ module DiabaticHamiltonian
     !    NOrder: Hd expansion order
     !    HdEC & EBNR: see derived type section above
     integer::Hd_NState,Hd_intdim,Hd_NOrder
-    type(HdExpansionCoefficient),allocatable,dimension(:,:)::Hd_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
+    type(d2PArray),allocatable,dimension(:,:)::Hd_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
     type(ExpansionBasisNumberingRule),allocatable,dimension(:)::Hd_EBNR!short for Expansion Basis Numbering Rule
 
 contains
@@ -48,6 +41,8 @@ subroutine InitializeDiabaticHamiltonian(NewHd,NState,intdim,NOrder)
     logical,intent(in),optional::NewHd
     integer,intent(in),optional::NState,intdim,NOrder
     integer::istate,jstate,iorder,i,n
+    call InitializeExpansionBasisNumberingRule()
+    NHdExpansionCoefficients=Hd_NState*(Hd_NState+1)/2*NHdExpansionBasis!Multiply the number of independent Hd elements
 	!Initialize Hd expansion coefficient (Hd_HdEC)
 		open(unit=99,file='HdExpansionCoefficient.out',status='old',iostat=i)!Set NState & intdim & NOrder
 			if(i==0) then
@@ -74,21 +69,11 @@ subroutine InitializeDiabaticHamiltonian(NewHd,NState,intdim,NOrder)
 		    allocate(Hd_HdEC(Hd_NState,Hd_NState))
             do istate=1,Hd_NState
                 do jstate=istate,Hd_NState
-                    allocate(Hd_HdEC(jstate,istate).Order(0:Hd_NOrder))
-                    do iorder=0,Hd_NOrder
-                        allocate(Hd_HdEC(jstate,istate).Order(iorder).Array(iCombination(Hd_intdim+iorder-1,iorder)))
-                        Hd_HdEC(jstate,istate).Order(iorder).Array=0d0
-                    end do
+                    allocate(Hd_HdEC(jstate,istate).Array(NHdExpansionBasis))
+                    Hd_HdEC(jstate,istate).Array=0d0
                 end do
 		    end do
         if((.not.present(NewHd)).or.(.not.NewHd)) call ReadHdExpansionCoefficients()
-    !Initialize NExpansionBasis, NExpansionCoefficients
-        NExpansionBasis=0!Set counter to 0
-        do i=0,Hd_NOrder!Count how many basis functions for an Hd element
-            NExpansionBasis=NExpansionBasis+size(Hd_HdEC(1,1).Order(i).Array)
-        end do
-        NExpansionCoefficients=Hd_NState*(Hd_NState+1)/2*NExpansionBasis!Multiply the number of independent Hd elements
-    call InitializeExpansionBasisNumberingRule()
 end subroutine InitializeDiabaticHamiltonian
 
 !Load Hd expansion coefficient from HdExpansionCoefficient.out to global variable Hd_HdEC
@@ -146,43 +131,25 @@ end subroutine WriteHdExpansionCoefficients
     !This treatment is good only for bounded system, where the molecule is semi-rigid
 
     subroutine InitializeExpansionBasisNumberingRule()!Hd_EBNR
-        integer::i,j,iorder,n
-        i=0!Count the number of the expansion basis functions
-        do iorder=0,Hd_NOrder
-            i=i+int(iCombination(Hd_intdim+iorder-1,iorder))
-        end do
-        allocate(Hd_EBNR(i))
-        n=1!The serial number of the expansion basis function
-        do iorder=0,Hd_NOrder
-            !The 1st one in each order
-            Hd_EBNR(n).order=iorder
-            allocate(Hd_EBNR(n).indice(iorder))
-            Hd_EBNR(n).indice=1
-            n=n+1
-            !This is a pseudo counter, we add 1 to the 1st digit then carry to latter digits
-            !but it should satisfy Hd_EBNR(n).indice(i)>=Hd_EBNR(n).indice(i+1)
-            do j=2,iCombination(Hd_intdim+iorder-1,iorder)
-                Hd_EBNR(n).order=iorder
-                allocate(Hd_EBNR(n).indice(iorder))
-                Hd_EBNR(n).indice=Hd_EBNR(n-1).indice
-                !Add 1 to the 1st digit
-                Hd_EBNR(n).indice(1)=Hd_EBNR(n).indice(1)+1
-                !Carry to latter digits
-                do i=1,iorder
-                    if(Hd_EBNR(n).indice(i)>Hd_intdim) then
-                        Hd_EBNR(n).indice(i)=1
-                        Hd_EBNR(n).indice(i+1)=Hd_EBNR(n).indice(i+1)+1
-                    end if
-                end do
-                !Modify to satisfy Hd_EBNR(n).indice(i)>=Hd_EBNR(n).indice(i+1)
-                do i=iorder-1,1,-1
-                    if(Hd_EBNR(n).indice(i)<Hd_EBNR(n).indice(i+1)) then
-                        Hd_EBNR(n).indice(i)=Hd_EBNR(n).indice(i+1)
-                    end if
-                end do
-                n=n+1
+        integer::i,j
+        NHdExpansionBasis=0
+        open(unit=99,file='basis.in',status='old')
+            do while(.true.)!Count how many expansion basis functions there are
+                read(99,*,iostat=i)
+                if(i/=0) exit
+                NHdExpansionBasis=NHdExpansionBasis+1
             end do
-        end do
+            rewind 99
+            allocate(Hd_EBNR(NHdExpansionBasis))!Read the definition of expansion basis functions
+            do i=1,NHdExpansionBasis
+                read(99,'(I5)',advance='no')Hd_EBNR(i).order
+                allocate(Hd_EBNR(i).indice(Hd_EBNR(i).order))
+                do j=1,Hd_EBNR(i).order-1
+                    read(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
+                end do
+                read(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+            end do
+        close(99)
     end subroutine InitializeExpansionBasisNumberingRule
 
     !The value of n-th expansion basis function at some coordinate q
@@ -299,16 +266,16 @@ end subroutine WriteHdExpansionCoefficients
 	!The value of ▽_cHd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
     !f stores expansion basis function values at this q
     function dcHd_ByKnownf(f)
-        real*8,dimension(NExpansionCoefficients,Hd_NState,Hd_NState)::dcHd_ByKnownf
-        real*8,dimension(NExpansionBasis),intent(in)::f
+        real*8,dimension(NHdExpansionCoefficients,Hd_NState,Hd_NState)::dcHd_ByKnownf
+        real*8,dimension(NHdExpansionBasis),intent(in)::f
         integer::i,j,indice
         indice=1
         do j=1,Hd_NState
             do i=j,Hd_NState
                 dcHd_ByKnownf(1:indice-1,i,j)=0d0
-                dcHd_ByKnownf(indice:indice+NExpansionBasis-1,i,j)=f
-                indice=indice+NExpansionBasis
-                dcHd_ByKnownf(indice:NExpansionCoefficients,i,j)=0d0
+                dcHd_ByKnownf(indice:indice+NHdExpansionBasis-1,i,j)=f
+                indice=indice+NHdExpansionBasis
+                dcHd_ByKnownf(indice:NHdExpansionCoefficients,i,j)=0d0
             end do
         end do
     end function dcHd_ByKnownf
@@ -316,16 +283,16 @@ end subroutine WriteHdExpansionCoefficients
     !The value of ▽_c▽Hd in diabatic representation at some coordinate q, where c is the expansion coefficient vector
     !fdT(i,:) stores the gradient of i-th expansion basis function
     function dcdHd_ByKnownfdT(fdT)
-        real*8,dimension(NExpansionCoefficients,Hd_intdim,Hd_NState,Hd_NState)::dcdHd_ByKnownfdT
-        real*8,dimension(NExpansionBasis,Hd_intdim),intent(in)::fdT
+        real*8,dimension(NHdExpansionCoefficients,Hd_intdim,Hd_NState,Hd_NState)::dcdHd_ByKnownfdT
+        real*8,dimension(NHdExpansionBasis,Hd_intdim),intent(in)::fdT
         integer::i,j,indice
         indice=1
         do j=1,Hd_NState
             do i=j,Hd_NState
                 dcdHd_ByKnownfdT(1:indice-1,:,i,j)=0d0
-                dcdHd_ByKnownfdT(indice:indice+NExpansionBasis-1,:,i,j)=fdT
-                indice=indice+NExpansionBasis
-                dcdHd_ByKnownfdT(indice:NExpansionCoefficients,:,i,j)=0d0
+                dcdHd_ByKnownfdT(indice:indice+NHdExpansionBasis-1,:,i,j)=fdT
+                indice=indice+NHdExpansionBasis
+                dcdHd_ByKnownfdT(indice:NHdExpansionCoefficients,:,i,j)=0d0
             end do
         end do
     end function dcdHd_ByKnownfdT
@@ -333,11 +300,11 @@ end subroutine WriteHdExpansionCoefficients
     !The value of ▽_cA in diabatic representation at some coordinate q, where c is the expansion coefficient vector
     !For A adopted here, i.e. (▽H)^2, we can use known ▽_c▽Hd & ▽Hd to calculate
     function dcAd_ByKnown(dcdHd,dHd)
-        real*8,dimension(NExpansionCoefficients,Hd_NState,Hd_NState)::dcAd_ByKnown
-        real*8,dimension(NExpansionCoefficients,Hd_intdim,Hd_NState,Hd_NState),intent(in)::dcdHd
+        real*8,dimension(NHdExpansionCoefficients,Hd_NState,Hd_NState)::dcAd_ByKnown
+        real*8,dimension(NHdExpansionCoefficients,Hd_intdim,Hd_NState,Hd_NState),intent(in)::dcdHd
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(in)::dHd
-        dcAd_ByKnown=sy4matdotmulsy3(dcdHd,dHd,NExpansionCoefficients,Hd_intdim,Hd_NState)
-        dcAd_ByKnown=dcAd_ByKnown+transpose3(dcAd_ByKnown,NExpansionCoefficients,Hd_NState,Hd_NState)
+        dcAd_ByKnown=sy4matdotmulsy3(dcdHd,dHd,NHdExpansionCoefficients,Hd_intdim,Hd_NState)
+        dcAd_ByKnown=dcAd_ByKnown+transpose3(dcAd_ByKnown,NHdExpansionCoefficients,Hd_NState,Hd_NState)
     end function dcAd_ByKnown
 !------------------- End --------------------
 
@@ -346,8 +313,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_NState,Hd_NState)::Hd
         real*8,dimension(Hd_intdim),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        real*8,dimension(NExpansionBasis)::f
-        do i=1,NExpansionBasis
+        real*8,dimension(NHdExpansionBasis)::f
+        do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
         do istate=1,Hd_NState
@@ -368,8 +335,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState)::dHd
         real*8,dimension(Hd_intdim),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        real*8,dimension(Hd_intdim,NExpansionBasis)::fd
-        do i=1,NExpansionBasis
+        real*8,dimension(Hd_intdim,NHdExpansionBasis)::fd
+        do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
         do istate=1,Hd_NState
@@ -391,8 +358,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_intdim,Hd_intdim,Hd_NState,Hd_NState)::ddHd
         real*8,dimension(Hd_intdim),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        real*8,dimension(Hd_intdim,Hd_intdim,NExpansionBasis)::fdd
-        do i=1,NExpansionBasis
+        real*8,dimension(Hd_intdim,Hd_intdim,NHdExpansionBasis)::fdd
+        do i=1,NHdExpansionBasis
             fdd(:,:,i)=ExpansionBasisHessian(q,i)
         end do
         do istate=1,Hd_NState
@@ -413,10 +380,10 @@ end subroutine WriteHdExpansionCoefficients
     !The value of Hd in diabatic representation and expansion basis functions at some coordinate q
     subroutine Hd_f(Hd,f,q)
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::Hd
-        real*8,dimension(NExpansionBasis),intent(out)::f
+        real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        do i=1,NExpansionBasis
+        do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
         do istate=1,Hd_NState
@@ -438,10 +405,10 @@ end subroutine WriteHdExpansionCoefficients
     !fd(:,i) stores the gradient of i-th expansion basis function
     subroutine dHd_fd(dHd,fd,q)
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dHd
-        real*8,dimension(Hd_intdim,NExpansionBasis),intent(out)::fd
+        real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,dimension(Hd_intdim),intent(in)::q
         integer::istate,jstate,iorder,i,n
-        do i=1,NExpansionBasis
+        do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
         do istate=1,Hd_NState
@@ -515,7 +482,7 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState),intent(out)::energy
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
-        real*8,dimension(NExpansionBasis),intent(out)::f
+        real*8,dimension(NHdExpansionBasis),intent(out)::f
         call Hd_f(phi,f,q)
         call My_dsyev('V',phi,energy,Hd_NState)
     end subroutine AdiabaticEnergy_State_f
@@ -526,8 +493,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_NState),intent(out)::energy
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
-        real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(Hd_intdim,NExpansionBasis),intent(out)::fd
+        real*8,dimension(NHdExpansionBasis),intent(out)::f
+        real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         call Hd_f(phi,f,q)
         call My_dsyev('V',phi,energy,Hd_NState)
         call dHd_fd(dH,fd,q)
@@ -588,8 +555,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::H
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
-        real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(Hd_intdim,NExpansionBasis),intent(out)::fd
+        real*8,dimension(NHdExpansionBasis),intent(out)::f
+        real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,dimension(Hd_NState)::eigval
         call Hd_f(H,f,q)
         call dHd_fd(dH,fd,q)
@@ -606,8 +573,8 @@ end subroutine WriteHdExpansionCoefficients
         real*8,dimension(Hd_NState),intent(out)::eigval
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dHd
-        real*8,dimension(NExpansionBasis),intent(out)::f
-        real*8,dimension(Hd_intdim,NExpansionBasis),intent(out)::fd
+        real*8,dimension(NHdExpansionBasis),intent(out)::f
+        real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         call Hd_f(H,f,q)
         call dHd_fd(dHd,fd,q)
         dH=dHd

@@ -6,7 +6,6 @@ x64/
 Library/
 Back up/
 example/
-*.py
 input
 *.in
 *.all
@@ -21,3 +20,5 @@ g238
 h238
 g359
 h359
+CheckUp.py
+*.com

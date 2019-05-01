@@ -52,7 +52,7 @@ program main
                     HdLSF_RegularizationOld=HdLSF_Regularization
                         HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
                 !At least this number of data points are required to have more equations than variables
-                NPoints=ceiling(dble(NExpansionCoefficients)/dble(DataPerPoint))
+                NPoints=ceiling(dble(NHdExpansionCoefficients)/dble(DataPerPoint))
                 if(AutoGradualFit) then
                     write(*,'(1x,A54)')'Generating initial guess with fewest nearest points...'
                 else
