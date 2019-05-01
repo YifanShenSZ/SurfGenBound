@@ -154,8 +154,6 @@ contains
             read(99,*)
             read(99,*)NState
             read(99,*)
-            read(99,*)NOrder
-            read(99,*)
             read(99,*)SameTrainingSet
             read(99,*)
             read(99,*)NPoints
@@ -210,7 +208,8 @@ contains
     subroutine Initialize()
 		character*128::CharTemp128
 		logical::degenerate
-        integer::ip,istate,jstate
+        integer::istate,jstate,i,j
+        integer,dimension(1)::indice
         real*8::absdev
         real*8,allocatable,dimension(:)::OldRefGeom
         !General initialize
@@ -221,21 +220,30 @@ contains
         select case(JobType)!Job specific initialize
             case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
                 call Initialize_NewTrainingSet()
-				call InitializeDiabaticHamiltonian(NewHd=.true.,NState=NState,intdim=InternalDimension,NOrder=NOrder)
+				call InitializeDiabaticHamiltonian(NState,InternalDimension,NewHd=.true.)
 				!Provide an initial guess of Hd
-			       call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
-                   if(Degenerate) then
-                       forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
-                           Hd_HdEC(istate,jstate).Order(0).Array(1)=ReferencePoint.H(istate,jstate)
-                       end forall
-                   else
-                       forall(istate=2:Hd_NState)
-                           Hd_HdEC(istate,istate).Order(0).Array(1)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
-                       end forall
-                   end if
-                   forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
-                       Hd_HdEC(istate,jstate).Order(1).Array=ReferencePoint.dH(:,istate,jstate)
-                   end forall
+                    call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
+                    i=WhichExpansionBasis(0,indice(1:0))
+                    if(i>0) then
+                        if(Degenerate) then
+                            forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
+                                Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.H(istate,jstate)
+                            end forall
+                        else
+                            forall(istate=2:Hd_NState)
+                                Hd_HdEC(istate,istate).Array(i)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
+                            end forall
+                        end if
+                    end if
+                    do jstate=1,NState
+                        do istate=jstate,NState
+                            do j=1,InternalDimension
+                                indice(1)=j
+                                i=WhichExpansionBasis(1,indice)
+                                if(i>0) Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.dH(j,istate,jstate)
+                            end do
+                        end do
+                    end do
                 call InitializeHdLeastSquareFit()
             case('ContinueFitting')
                 if(SameTrainingSet) then!Read the rearranged training set
@@ -254,25 +262,25 @@ contains
                     NPoints=NPoints-NDegeneratePoints
                     CharTemp128='point.CheckPoint'
                         allocate(point(NPoints))
-                        do ip=1,NPoints
-                            allocate(point(ip).geom(InternalDimension))
-                            allocate(point(ip).energy(NState))
-                            allocate(point(ip).dH(InternalDimension,NState,NState))
+                        do i=1,NPoints
+                            allocate(point(i).geom(InternalDimension))
+                            allocate(point(i).energy(NState))
+                            allocate(point(i).dH(InternalDimension,NState,NState))
                         end do
                     call ReadData(CharTemp128,point,NPoints)
                     CharTemp128='ArtifactPoint.CheckPoint'
                         allocate(ArtifactPoint(NArtifactPoints))
-                        do ip=1,NArtifactPoints
-                            allocate(ArtifactPoint(ip).geom(InternalDimension))
-                            allocate(ArtifactPoint(ip).energy(NState))
+                        do i=1,NArtifactPoints
+                            allocate(ArtifactPoint(i).geom(InternalDimension))
+                            allocate(ArtifactPoint(i).energy(NState))
                         end do
                     call ReadArtifactData(CharTemp128,ArtifactPoint,NArtifactPoints)
                     if(GradualFit) then
                         !Read the Cartesian distances to the reference geometry
                         allocate(GeomDifference(NPoints))
                         open(unit=99,file='GeomDifference.CheckPoint',status='old')
-                            do ip=1,NPoints
-                                read(99,*)GeomDifference(ip)
+                            do i=1,NPoints
+                                read(99,*)GeomDifference(i)
                             end do
                         close(99)
                     end if
@@ -283,16 +291,16 @@ contains
                     open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                         read(99,*)OldRefGeom
                     close(99)
-                    do ip=1,InternalDimension
-                        absdev=Abs(ReferencePoint.geom(ip)-OldRefGeom(ip))
-                        if(absdev>1d-14.and.absdev/Abs(OldRefGeom(ip))>1d-14) then
+                    do i=1,InternalDimension
+                        absdev=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
+                        if(absdev>1d-14.and.absdev/Abs(OldRefGeom(i))>1d-14) then
                             ReferenceChange=.true.
                             exit
                         end if
 					end do
 					if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
                 end if
-                call InitializeDiabaticHamiltonian(NState=NState,intdim=InternalDimension,NOrder=NOrder)
+                call InitializeDiabaticHamiltonian(NState,InternalDimension)
                 call InitializeHdLeastSquareFit()
 			case default
 				open(unit=99,file='ReferencePoint.CheckPoint',status='old')
@@ -305,7 +313,7 @@ contains
                     read(99,*)ReferencePoint.H
                     read(99,*)ReferencePoint.dH
                 close(99)
-                call InitializeDiabaticHamiltonian()
+                call InitializeDiabaticHamiltonian(NState,InternalDimension)
         end select
     end subroutine Initialize
     !Support Initialize

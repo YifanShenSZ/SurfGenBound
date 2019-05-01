@@ -36,7 +36,7 @@ module Basic
     !See input example for the meaning of each variable
     !Main input
         character*32::JobType
-        integer::NState,NOrder
+        integer::NState
         logical::SameTrainingSet
         integer::NPoints,IndexReference
         character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile

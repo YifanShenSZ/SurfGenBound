@@ -1,4 +1,5 @@
 !Diabatic Hamiltonian (Hd) and related quantities
+!EBNR and routines in Hd definition section are the only things to modify for basis change
 module DiabaticHamiltonian
     use General
     use Mathematics
@@ -26,102 +27,33 @@ module DiabaticHamiltonian
     !Basic information of Hd:
     !    NState: number of states Hd describes
     !    intdim: dimension of internal space Hd takes into account
-    !    NOrder: Hd expansion order
-    !    HdEC & EBNR: see derived type section above
-    integer::Hd_NState,Hd_intdim,Hd_NOrder
-    type(d2PArray),allocatable,dimension(:,:)::Hd_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
+    !    EBNR: see derived type section above
+    !    HdEC: HdEC(i,j).Array(k) is the expansion coefficient for k-th basis of Hd(i,j)
+    integer::Hd_NState,Hd_intdim
     type(ExpansionBasisNumberingRule),allocatable,dimension(:)::Hd_EBNR!short for Expansion Basis Numbering Rule
+    type(d2PArray),allocatable,dimension(:,:)::Hd_HdEC!Short for Hd Expansion Coefficient, use only lower triangle
 
 contains
 !Initialize DiabaticHamiltonian module
-!Optional argument:
-!    NewHd: (default = false) if true, will return a blank Hd expansion coefficient
-!    NState & intdim & NOrder: if absent, will seek for old values from fitted Hd and abort if not found
-subroutine InitializeDiabaticHamiltonian(NewHd,NState,intdim,NOrder)
+!Required: NState & intdim
+!Optional: NewHd: (default = false) if true, will return a blank Hd expansion coefficient
+subroutine InitializeDiabaticHamiltonian(NState,intdim,NewHd)
+    integer,intent(in)::NState,intdim
     logical,intent(in),optional::NewHd
-    integer,intent(in),optional::NState,intdim,NOrder
     integer::istate,jstate,iorder,i,n
-    call InitializeExpansionBasisNumberingRule()
+    Hd_NState=NState
+    Hd_intdim=intdim
+    call InitializeExpansionBasisNumberingRule()!NHdExpansionBasis, EBNR
     NHdExpansionCoefficients=Hd_NState*(Hd_NState+1)/2*NHdExpansionBasis!Multiply the number of independent Hd elements
-	!Initialize Hd expansion coefficient (Hd_HdEC)
-		open(unit=99,file='HdExpansionCoefficient.out',status='old',iostat=i)!Set NState & intdim & NOrder
-			if(i==0) then
-				read(99,*)
-		    	read(99,*)Hd_NState
-		    	if(present(NState)) Hd_NState=NState
-		    	read(99,*)
-		    	read(99,*)Hd_intdim
-		    	if(present(intdim)) Hd_intdim=intdim
-		    	read(99,*)
-		    	read(99,*)Hd_NOrder
-		    	if(present(NOrder)) Hd_NOrder=NOrder
-		    else
-                if(present(NState).and.present(intdim).and.present(NOrder)) then
-		    		Hd_NState=NState
-		    		Hd_intdim=intdim
-		    		Hd_NOrder=NOrder
-		    	else
-		    		stop 'Program abort: no NState or internal dimension or NOrder provided'
-		    	end if
-		    end if
-		close(99)
-		!Allocate storage space
-		    allocate(Hd_HdEC(Hd_NState,Hd_NState))
-            do istate=1,Hd_NState
-                do jstate=istate,Hd_NState
-                    allocate(Hd_HdEC(jstate,istate).Array(NHdExpansionBasis))
-                    Hd_HdEC(jstate,istate).Array=0d0
-                end do
-		    end do
-        if((.not.present(NewHd)).or.(.not.NewHd)) call ReadHdExpansionCoefficients()
+	allocate(Hd_HdEC(Hd_NState,Hd_NState))!HdEC
+    do istate=1,Hd_NState
+        do jstate=istate,Hd_NState
+            allocate(Hd_HdEC(jstate,istate).Array(NHdExpansionBasis))
+            Hd_HdEC(jstate,istate).Array=0d0
+        end do
+	end do
+    if((.not.present(NewHd)).or.(.not.NewHd)) call ReadHdExpansionCoefficients()
 end subroutine InitializeDiabaticHamiltonian
-
-!Load Hd expansion coefficient from HdExpansionCoefficient.out to global variable Hd_HdEC
-subroutine ReadHdExpansionCoefficients()
-    integer::NState,intdim,NOrder!The old Hd is not necessarily fitted under same condition
-    integer::istate,jstate,iorder
-    open(unit=99,file='HdExpansionCoefficient.out',status='old')
-        read(99,*)
-		read(99,*)NState
-		read(99,*)
-		read(99,*)intdim
-        read(99,*)
-        read(99,*)NOrder
-        read(99,*)
-        do istate=1,NState
-            do jstate=istate,NState
-                read(99,*)
-                do iorder=0,NOrder
-                    read(99,*)!If new Hd has more dimensions, new dimensions must be added after old dimensions
-                    read(99,*)Hd_HdEC(jstate,istate).Order(iorder).Array(1:iCombination(intdim+iorder-1,iorder))
-                end do
-            end do
-        end do
-    close(99)
-end subroutine ReadHdExpansionCoefficients
-
-!Write current Hd expansion coefficient to file HdExpansionCoefficient.out 
-subroutine WriteHdExpansionCoefficients()
-    integer::istate,jstate,iorder
-    open(unit=99,file='HdExpansionCoefficient.out',status='replace')
-        write(99,'(A28)')'Number of electronic states:'
-		write(99,*)Hd_NState
-		write(99,'(A47)')'Dimension of internal space taken into account:'
-		write(99,*)Hd_intdim
-        write(99,'(A37)')'Diabatic hamiltonian expansion order:'
-        write(99,*)Hd_NOrder
-        write(99,'(A40)')'Expansion coefficients for each element:'
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                write(99,'(A2,I2,I2)')'Hd',jstate,istate
-                do iorder=0,Hd_NOrder
-                    write(99,'(A15,I2)')'Expansion order',iorder
-                    write(99,*)Hd_HdEC(jstate,istate).Order(iorder).Array
-                end do
-            end do
-        end do
-    close(99)
-end subroutine WriteHdExpansionCoefficients
 
 !-------------- Hd definition ---------------
     !This version generates Hd in NadVibS format: cast the elements of Hd into
@@ -134,7 +66,7 @@ end subroutine WriteHdExpansionCoefficients
         integer::i,j
         NHdExpansionBasis=0
         open(unit=99,file='basis.in',status='old')
-            do while(.true.)!Count how many expansion basis functions there are
+            do!Count how many expansion basis functions there are
                 read(99,*,iostat=i)
                 if(i/=0) exit
                 NHdExpansionBasis=NHdExpansionBasis+1
@@ -147,10 +79,135 @@ end subroutine WriteHdExpansionCoefficients
                 do j=1,Hd_EBNR(i).order-1
                     read(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
                 end do
-                read(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                if(Hd_EBNR(i).order>0) read(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
             end do
         close(99)
     end subroutine InitializeExpansionBasisNumberingRule
+
+    integer function WhichExpansionBasis(order,indice)!Return the location of the specified basis in Hd_EBNR, 0 if not found
+        integer,intent(in)::order
+        integer,dimension(order),intent(in)::indice
+        logical::done
+        done=.false.
+        call bisect(1,NHdExpansionBasis)
+        contains
+        recursive subroutine bisect(low,up)
+            integer,intent(in)::low,up
+            integer::bisection,i,match
+            if(up-low==1) then
+                if(order==Hd_EBNR(low).order) then
+                    do i=order,1,-1
+                        if(indice(i)/=Hd_EBNR(low).indice(i)) exit
+                    end do
+                    if(i<1) then
+                        done=.true.
+                        WhichExpansionBasis=low
+                        return
+                    end if
+                end if
+                if(order==Hd_EBNR(up).order) then
+                    do i=order,1,-1
+                        if(indice(i)/=Hd_EBNR(up).indice(i)) exit
+                    end do
+                    if(i<1) then
+                        done=.true.
+                        WhichExpansionBasis=up
+                        return
+                    end if
+                end if
+                done=.true.
+                WhichExpansionBasis=0
+                return
+            else
+                bisection=(low+up)/2
+                if(order>Hd_EBNR(bisection).order) then
+                    call bisect(low,bisection)
+                    if(done) return
+                else if(order<Hd_EBNR(bisection).order) then
+                    call bisect(bisection,up)
+                    if(done) return
+                else
+                    match=0
+                    do i=order,1,-1
+                        if(indice(i)>Hd_EBNR(bisection).indice(i)) then
+                            call bisect(bisection,up)
+                            if(done) return
+                        else if(indice(i)<Hd_EBNR(bisection).indice(i)) then
+                            call bisect(low,bisection)
+                            if(done) return
+                        else
+                            match=match+1
+                        end if
+                    end do
+                    if(match==order) then
+                        done=.true.
+                        WhichExpansionBasis=bisection
+                        return
+                    end if
+                end if
+            end if
+        end subroutine bisect
+    end function WhichExpansionBasis
+
+    subroutine ReadHdExpansionCoefficients()!Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
+        character*2::char2temp
+        character*28::char28temp
+        integer::NState,NBasis,NOrder!The old Hd is not necessarily fitted under same condition
+        integer::istate,jstate,i,j,order,location
+        integer,allocatable,dimension(:)::indice
+        real*8::dbtemp
+        open(unit=99,file='Hd.CheckPoint',status='old')
+            read(99,'(A28,I2)')char28temp,NState!Get old Hd fitting condition
+            read(99,*)
+            read(99,*)dbtemp
+            read(99,'(I5)')NOrder
+            allocate(indice(NOrder))
+            NBasis=2
+            do
+                read(99,'(A2)')char2temp
+                if(char2temp=='Hd') exit
+                NBasis=NBasis+1
+            end do
+            NBasis=NBasis/2
+            rewind 99
+            read(99,*)!Read old Hd
+            do istate=1,NState
+                do jstate=istate,NState
+                    read(99,*)
+                    do i=1,NBasis
+                        read(99,*)dbtemp
+                        read(99,'(I5)',advance='no')order
+                        do j=1,order-1
+                            read(99,'(I5)',advance='no')indice(j)
+                        end do
+                        if(order>0)read(99,'(I5)')indice(order)
+                        location=WhichExpansionBasis(order,indice(1:order))
+                        if(location>0) Hd_HdEC(jstate,istate).Array(location)=dbtemp
+                    end do
+                end do
+            end do
+        close(99)
+    end subroutine ReadHdExpansionCoefficients
+
+    subroutine WriteHdExpansionCoefficients()!Write current Hd expansion coefficient and expansion basis specification to file Hd.CheckPoint
+        integer::istate,jstate,i,j
+        open(unit=99,file='Hd.CheckPoint',status='replace')
+    		write(99,'(A28,I2)')'Number of electronic states:',Hd_NState
+            do istate=1,Hd_NState
+                do jstate=istate,Hd_NState
+                    write(99,'(A2,I2,I2)')'Hd',jstate,istate
+                    do i=1,NHdExpansionBasis
+                        write(99,*)Hd_HdEC(jstate,istate).Array(i)
+                        write(99,'(I5)',advance='no')Hd_EBNR(i).order
+                        do j=1,Hd_EBNR(i).order-1
+                            write(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
+                        end do
+                        if(Hd_EBNR(i).order>0) write(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                    end do
+                end do
+            end do
+        close(99)
+    end subroutine WriteHdExpansionCoefficients
 
     !The value of n-th expansion basis function at some coordinate q
     function ExpansionBasis(q,n)
