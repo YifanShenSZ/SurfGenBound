@@ -76,10 +76,14 @@ end subroutine InitializeDiabaticHamiltonian
             do i=1,NHdExpansionBasis
                 read(99,'(I5)',advance='no')Hd_EBNR(i).order
                 allocate(Hd_EBNR(i).indice(Hd_EBNR(i).order))
-                do j=1,Hd_EBNR(i).order-1
-                    read(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
-                end do
-                if(Hd_EBNR(i).order>0) read(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                if(Hd_EBNR(i).order>0) then
+                    do j=1,Hd_EBNR(i).order-1
+                        read(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
+                    end do
+                    read(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                else
+                    read(99,*)
+                end if
             end do
         close(99)
     end subroutine InitializeExpansionBasisNumberingRule
@@ -198,10 +202,14 @@ end subroutine InitializeDiabaticHamiltonian
                     do i=1,NBasis
                         read(99,*)dbtemp
                         read(99,'(I5)',advance='no')order
-                        do j=1,order-1
-                            read(99,'(I5)',advance='no')indice(j)
-                        end do
-                        if(order>0)read(99,'(I5)')indice(order)
+                        if(order>0) then
+                            do j=1,order-1
+                                read(99,'(I5)',advance='no')indice(j)
+                            end do
+                            read(99,'(I5)')indice(order)
+                        else
+                            read(99,*)
+                        end if
                         location=WhichExpansionBasis(order,indice(1:order))
                         if(location>0) Hd_HdEC(jstate,istate).Array(location)=dbtemp
                     end do
@@ -219,11 +227,15 @@ end subroutine InitializeDiabaticHamiltonian
                     write(99,'(A2,I2,I2)')'Hd',jstate,istate
                     do i=1,NHdExpansionBasis
                         write(99,*)Hd_HdEC(jstate,istate).Array(i)
-                        write(99,'(I5)',advance='no')Hd_EBNR(i).order
-                        do j=1,Hd_EBNR(i).order-1
-                            write(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
-                        end do
-                        if(Hd_EBNR(i).order>0) write(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                        if(Hd_EBNR(i).order>0) then
+                            write(99,'(I5)',advance='no')Hd_EBNR(i).order
+                            do j=1,Hd_EBNR(i).order-1
+                                write(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
+                            end do
+                            write(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                        else
+                            write(99,'(I5)')Hd_EBNR(i).order
+                        end if
                     end do
                 end do
             end do
