@@ -149,6 +149,27 @@ end subroutine InitializeDiabaticHamiltonian
         end subroutine bisect
     end function WhichExpansionBasis
 
+    subroutine OriginShift(shift)!Transform HdEC according to origin shift from q0 to q1: shift = q1 - q0
+        real*8,dimension(Hd_intdim),intent(in)::shift
+        integer::istate,jstate,n,i,location
+        integer,allocatable,dimension(:)::indice
+        real*8::coeff
+        allocate(indice(Hd_EBNR(1).order))
+        do n=1,NHdExpansionBasis
+            coeff=Hd_HdEC(istate,jstate).Array(n)
+            do i=1,Hd_EBNR(n).order
+                indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
+                location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
+                if(location==0) stop 'Program abort: basis space is not closed under origin shift'
+                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
+                    Hd_HdEC(istate,jstate).Array(location)=Hd_HdEC(istate,jstate).Array(location)+coeff
+                end forall
+                coeff=coeff*shift(Hd_EBNR(n).indice(i))
+            end do
+        end do
+        deallocate(indice)
+    end subroutine OriginShift
+
     subroutine ReadHdExpansionCoefficients()!Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
         character*2::char2temp
         character*28::char28temp

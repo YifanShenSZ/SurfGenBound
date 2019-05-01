@@ -47,7 +47,6 @@ module Basic
     integer::NDegeneratePoints!Number of almost degenerate points
     integer::CartesianDimension,InternalDimension!Dimension of Cartesian/internal coordinate space
     !Training set:
-        logical::ReferenceChange=.false.
         integer::DataPerPoint,DataPerDegeneratePoint!How much data a point provides
         type(Data)::ReferencePoint!The reference point
         !Data to be least square fitted:

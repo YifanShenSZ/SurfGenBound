@@ -207,7 +207,7 @@ contains
     !The initializer for the program
     subroutine Initialize()
 		character*128::CharTemp128
-		logical::degenerate
+		logical::flag
         integer::istate,jstate,i,j
         integer,dimension(1)::indice
         real*8::absdev
@@ -222,10 +222,10 @@ contains
                 call Initialize_NewTrainingSet()
 				call InitializeDiabaticHamiltonian(NState,InternalDimension,NewHd=.true.)
 				!Provide an initial guess of Hd
-                    call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
+                    call CheckDegeneracy(flag,AlmostDegenerate,ReferencePoint.energy,NState)
                     i=WhichExpansionBasis(0,indice(1:0))
                     if(i>0) then
-                        if(Degenerate) then
+                        if(flag) then
                             forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
                                 Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.H(istate,jstate)
                             end forall
@@ -284,6 +284,7 @@ contains
                             end do
                         close(99)
                     end if
+                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
                 else!Read training set then rearrange it, and check whether reference point has changed
                     call Initialize_NewTrainingSet()
                     !Check whether the reference point has been changed
@@ -291,16 +292,17 @@ contains
                     open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                         read(99,*)OldRefGeom
                     close(99)
+                    flag=.false.
                     do i=1,InternalDimension
                         absdev=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
                         if(absdev>1d-14.and.absdev/Abs(OldRefGeom(i))>1d-14) then
-                            ReferenceChange=.true.
+                            flag=.true.
                             exit
                         end if
-					end do
-					if(ReferenceChange) stop 'Program abort: reference point changed, not supported yet'
+                    end do
+                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
+					if(flag) call OriginShift(ReferencePoint.geom-OldRefGeom)
                 end if
-                call InitializeDiabaticHamiltonian(NState,InternalDimension)
                 call InitializeHdLeastSquareFit()
 			case default
 				open(unit=99,file='ReferencePoint.CheckPoint',status='old')
