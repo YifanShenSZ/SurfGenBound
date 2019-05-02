@@ -14,25 +14,12 @@ DegreeOfFreedom=39
     # 4th-order for carbon skeleton dihedral angle (18,19) &
     #               C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23)
     # 2th-order for others
-SelectBasis=[[4,18,19,1,7,20,21,22,23],[2,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
-# Trial 3 ---- Add more data points before trying below
-    # 4th-order for carbon skeleton dihedral angle (18,19) &
-    #               C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23) &
-    #               carbon skeleton bond (2-6) & angle (16,17)
-    # 2th-order for others
-#SelectBasis=[[4,2,3,4,5,6,16,17,18,19,1,7,20,21,22,23],[2,8,9,10,11,12,13,14,15,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
-# Trial 4
+#SelectBasis=[[4,18,19,1,7,20,21,22,23],[2,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
+# Trial 3
     # 6th-order for carbon skeleton dihedral angle (18,19)
-    # 4th-order for C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23) &
-    #               carbon skeleton bond (2-6) & angle (16,17)
+    # 4th-order for C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23)
     # 2th-order for others
-#SelectBasis=[[6,18,19],[4,1,2,3,4,5,6,7,16,17,20,21,22,23],[2,8,9,10,11,12,13,14,15,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
-# Trial 5
-    # 6th-order for carbon skeleton dihedral angle (18,19) &
-    #               C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23)
-    # 4th-order for carbon skeleton bond (2-6) & angle (16,17)
-    # 2th-order for others
-#SelectBasis=[[6,18,19,1,7,20,21,22,23],[4,2,3,4,5,6,16,17],[2,8,9,10,11,12,13,14,15,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
+SelectBasis=[[6,18,19],[4,1,7,20,21,22,23],[2,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
 
 ''' Import libraries '''
 import sys
