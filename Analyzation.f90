@@ -13,6 +13,7 @@ module Analyzation
 	!Geometry information
 		integer::Analyzation_NGeoms
 		real*8,allocatable,dimension(:,:)::Analyzation_cartgeom,Analyzation_intgeom
+		real*8,allocatable,dimension(:,:,:)::Analyzation_B
 		real*8,allocatable,dimension(:)::Analyzation_g,Analyzation_h
     
 contains
@@ -73,10 +74,11 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	    	do i=1,Analyzation_NGeoms
 	    		read(99,*)Analyzation_cartgeom(:,i)
 	    	end do
-	    	allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
-	    	do i=1,Analyzation_NGeoms
-	    		Analyzation_intgeom(:,i)=InternalCoordinateq(Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)&
-	    		    -ReferencePoint.geom!This program requires only internal coordinate difference
+			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
+			allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
+			do i=1,Analyzation_NGeoms
+				call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)
+	    		Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
 			end do
 			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
 				do i=1,Analyzation_NGeoms
@@ -266,24 +268,44 @@ subroutine Evaluate()
 	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
 	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
     real*8,dimension(NState,NState)::eigvec
-    real*8,dimension(InternalDimension,NState,NState)::dH,dHa
-	do i=1,Analyzation_NGeoms!Compute
-        HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
-		dH=dHd(Analyzation_intgeom(:,i))
-		forall(j=1:NState,k=1:NState,j>=k)
-			dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
-		end forall
-        eigvec=HdSurface(:,:,i)
-        call My_dsyev('V',eigvec,PES(:,i),NState)
-		dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
-		forall(j=1:NState,k=1:NState,j>=k)
-		    dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
-		end forall
-		call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-		forall(j=1:NState,k=1:NState,j>=k)
-		    dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
-		end forall
-    end do
+	real*8,dimension(InternalDimension,NState,NState)::dH,dHa
+	if(allocated(Analyzation_cartgeom)) then
+		do i=1,Analyzation_NGeoms!Compute
+            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
+	    	dH=dHd(Analyzation_intgeom(:,i))
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    		dHdNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+	    	end forall
+            eigvec=HdSurface(:,:,i)
+            call My_dsyev('V',eigvec,PES(:,i),NState)
+	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    	    dHaNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dHa(:,j,k)))
+	    	end forall
+	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+		        dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+	    	end forall
+		end do
+	else
+	    do i=1,Analyzation_NGeoms!Compute
+            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
+	    	dH=dHd(Analyzation_intgeom(:,i))
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    		dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
+	    	end forall
+            eigvec=HdSurface(:,:,i)
+            call My_dsyev('V',eigvec,PES(:,i),NState)
+	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    	    dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
+	    	end forall
+	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+		        dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
+	    	end forall
+		end do
+	end if
     !Output
     open(unit=99,file='PotentialEnergySurface.txt',status='replace')
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
