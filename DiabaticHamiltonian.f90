@@ -396,55 +396,40 @@ end subroutine InitializeDiabaticHamiltonian
     function Hd(q)!Return the value of Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_NState,Hd_NState)::Hd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,i
+        integer::i,j
         real*8,dimension(NHdExpansionBasis)::f
         do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                Hd(jstate,istate)=0d0
-                do i=1,NHdExpansionBasis
-                    Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*f(i)
-                end do
-            end do
-        end do
+        forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+            Hd(i,j)=dot_product(f,Hd_HdEC(i,j).Array)
+        end forall
     end function Hd
 
     function dHd(q)!Return the value of ▽Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState)::dHd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,i
+        integer::i,j
         real*8,dimension(Hd_intdim,NHdExpansionBasis)::fd
         do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                dHd(:,jstate,istate)=0d0
-                do i=1,NHdExpansionBasis
-                    dHd(:,jstate,istate)=dHd(:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fd(:,i)
-                end do
-            end do
-        end do
+        forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+            dHd(:,i,j)=matmul(fd,Hd_HdEC(i,j).Array)
+        end forall
     end function dHd
 
     function ddHd(q)!Return the value of ▽▽Hd in diabatic representation at some coordinate q
         real*8,dimension(Hd_intdim,Hd_intdim,Hd_NState,Hd_NState)::ddHd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,i
+        integer::i,j,k
         real*8,dimension(Hd_intdim,Hd_intdim,NHdExpansionBasis)::fdd
         do i=1,NHdExpansionBasis
             fdd(:,:,i)=ExpansionBasisHessian(q,i)
         end do
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                ddHd(:,:,jstate,istate)=0d0
-                do i=1,NHdExpansionBasis
-                    ddHd(:,:,jstate,istate)=ddHd(:,:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fdd(:,:,i)
-                end do
-            end do
-        end do
+        forall(i=1:Hd_NState,j=1:Hd_NState,k=1:Hd_intdim,i>=j)
+            ddHd(:,k,i,j)=matmul(fdd(:,k,:),Hd_HdEC(i,j).Array)
+        end forall
     end function ddHd
 
     !The value of Hd in diabatic representation and expansion basis functions at some coordinate q
@@ -452,18 +437,13 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::Hd
         real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,i
+        integer::i,j
         do i=1,NHdExpansionBasis
             f(i)=ExpansionBasis(q,i)
         end do
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                Hd(jstate,istate)=0d0
-                do i=1,NHdExpansionBasis
-                    Hd(jstate,istate)=Hd(jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*f(i)
-                end do
-            end do
-        end do
+        forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+            Hd(i,j)=dot_product(f,Hd_HdEC(i,j).Array)
+        end forall
     end subroutine Hd_f
 
     !The value of ▽Hd in diabatic representation and expansion basis function gradient at some coordinate q
@@ -472,18 +452,13 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dHd
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,dimension(Hd_intdim),intent(in)::q
-        integer::istate,jstate,i
+        integer::i,j
         do i=1,NHdExpansionBasis
             fd(:,i)=ExpansionBasisGradient(q,i)
         end do
-        do istate=1,Hd_NState
-            do jstate=istate,Hd_NState
-                dHd(:,jstate,istate)=0d0
-                do i=1,NHdExpansionBasis
-                    dHd(:,jstate,istate)=dHd(:,jstate,istate)+Hd_HdEC(jstate,istate).Array(i)*fd(:,i)
-                end do
-            end do
-        end do
+        forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+            dHd(:,i,j)=matmul(fd,Hd_HdEC(i,j).Array)
+        end forall
     end subroutine dHd_fd
 !------------------- End --------------------
 

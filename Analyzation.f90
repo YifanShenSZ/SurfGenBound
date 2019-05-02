@@ -156,14 +156,14 @@ subroutine MexSearch()
 	real*8,dimension(InternalDimension,NState,NState)::dH
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
-    !if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
-    !    call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,&
-    !        fdd=fdd,cdd=cdd,Precision=1d-8)!This is Columbus7 energy precision
-    !else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
+    if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
+        call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,&
+            fdd=fdd,cdd=cdd,Precision=1d-8)!This is Columbus7 energy precision
+    else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
 	    call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
 	        q,InternalDImension,1,Precision=1d-8,&!This is Columbus7 energy precision
             fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
-	!end if
+	end if
 	open(unit=99,file='MexInternalGeometry.out',status='replace')
         write(99,*)q
     close(99)
