@@ -140,6 +140,7 @@ subroutine MinimumSearch()
 		end do
 		write(99,'(I4)')InternalDimension
 		do i=1,InternalDimension
+			write(99,'(I4,A1)',advance='no')i,char(9)
 			do j=1,InternalDimension-1
 				write(99,'(F18.15,A1)',advance='no')Hessian(i,j),char(9)
 			end do
