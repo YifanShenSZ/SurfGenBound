@@ -43,7 +43,7 @@ module HdLeastSquareFit
             HdLSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
     !LineSearch:
         character*32::HdLSF_LineSearcher='ConjugateGradient'!Available: LBFGS, ConjugateGradient
-        logical::HdLSF_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
+        logical::HdLSF_UseStrongWolfe=.false.!Whether use strong Wolfe condition instead of Wolfe condition
         !LBFGS:
             integer::HdLSF_LBFGSMemory=10!Memory usage control, [3,30] is recommended (must > 0)
         !ConjugateGradient:
