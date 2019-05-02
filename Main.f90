@@ -197,6 +197,8 @@ contains
                         HdLSF_MaxHopperIteration,HdLSF_MaxLocalMinimizerIteration,HdLSF_Max2StepIteration,&
                         HdLSF_pseudolinearFollowFreq,HdLSF_pseudolinearMaxMonotonicalIncrease,&
                         HdLSF_LineSearcher,HdLSF_UseStrongWolfe,HdLSF_LBFGSMemory,HdLSF_ConjugateGradientSolver,&
+                    !Analyzation
+                        Analyzation_miu0,&
                     !Main
                         GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)
