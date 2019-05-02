@@ -133,7 +133,7 @@ subroutine MinimumSearch()
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-	open(unit=99,file='MinimumNormalMode.out',status='replace')
+	open(unit=99,file='MinimumNormalMode.txt',status='replace')
 	    write(99,'(A4,A1)',advance='no')'Mode',char(9)
 		do i=1,InternalDimension
 			write(99,'(I4,A1)',advance='no')i,char(9)
