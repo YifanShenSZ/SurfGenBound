@@ -804,7 +804,7 @@ end subroutine L_RMSD
         end select
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
-        write(*,'(1x,A15)')'Result of LBFGS:'
+        write(*,'(1x,A15)')'Result of line search:'
         write(*,*)'Lagrangian =',L
         write(*,*)'RMSD over regular data points:'
         write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
