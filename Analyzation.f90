@@ -102,7 +102,7 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 end subroutine ReadAnalyzeInput
 
 subroutine MinimumSearch()
-    integer::i
+    integer::i,j
     real*8,dimension(InternalDimension)::q,freq
     real*8,dimension(CartesianDimension)::r
     real*8,dimension(InternalDimension,CartesianDimension)::B
@@ -128,13 +128,22 @@ subroutine MinimumSearch()
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
     call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='MinimumVibrationalFrequency.txt',status='replace')
-        write(99,'(A19)')'Mode'//char(9)//'Frequency/cm-1'
+        write(99,'(A4,A1,A14)')'Mode'//char(9)//'Frequency/cm-1'
         do i=1,InternalDimension
-            write(99,'(I4,1x,F14.8)')i,freq(i)/cm_1InAu
+            write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-    open(unit=99,file='MinimumNormalMode.out',status='replace')
-        write(99,*)Hessian
+	open(unit=99,file='MinimumNormalMode.out',status='replace')
+	    write(99,'(A4,A1)',advance='no')'Mode',char(9)
+		do i=1,InternalDimension
+			write(99,'(I4,A1)',advance='no')i,char(9)
+		end do
+		write(99,*)
+		do i=1,InternalDimension
+			do j=1,InternalDimension
+				write(99,'(F18.15,A1)')Hessian(i,j),char(9)
+			end do
+		end do
     close(99)
 end subroutine MinimumSearch
 
