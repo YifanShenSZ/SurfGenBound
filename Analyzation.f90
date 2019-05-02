@@ -135,14 +135,15 @@ subroutine MinimumSearch()
     close(99)
 	open(unit=99,file='MinimumNormalMode.txt',status='replace')
 	    write(99,'(A4,A1)',advance='no')'Mode',char(9)
-		do i=1,InternalDimension
+		do i=1,InternalDimension-1
 			write(99,'(I4,A1)',advance='no')i,char(9)
 		end do
-		write(99,*)
+		write(99,'(I4)')InternalDimension
 		do i=1,InternalDimension
-			do j=1,InternalDimension
-				write(99,'(F18.15,A1)')Hessian(i,j),char(9)
+			do j=1,InternalDimension-1
+				write(99,'(F18.15,A1)',advance='no')Hessian(i,j),char(9)
 			end do
+			write(99,'(F18.15)')Hessian(i,InternalDimension)
 		end do
     close(99)
 end subroutine MinimumSearch
@@ -317,31 +318,31 @@ subroutine Evaluate()
 	end if
     !Output
     open(unit=99,file='PotentialEnergySurface.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
+        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
+        do i=1,NState-1
             write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',i,'/cm-1',char(9)
         end do
-        write(99,*)
+        write(99,'(2x,A6,I2,A5,3x)')'Energy',NState,'/cm-1'
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
+            do j=1,NState-1
                 write(99,'(F18.8,A1)',advance='no')PES(j,i)/cm_1InAU,char(9)
             end do
-            write(99,*)
+            write(99,'(F18.8)')PES(j,i)/cm_1InAU
         end do
     close(99)
     open(unit=99,file='NondegenerateEigenValue.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
+        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
+        do i=1,NState-1
             write(99,'(A10,I2,A5,1x,A1)',advance='no')'Eigenvalue',i,'/a.u.',char(9)
         end do
-        write(99,*)
+        write(99,'(A10,I2,A5,1x)')'Eigenvalue',i,'/a.u.'
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
+            do j=1,NState-1
                 write(99,'(F18.8,A1)',advance='no')ndSurface(j,i),char(9)
             end do
-            write(99,*)
+            write(99,'(F18.8)')ndSurface(j,i)
         end do
     close(99)
     open(unit=99,file='Hd.txt',status='replace')
