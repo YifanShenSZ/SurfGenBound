@@ -128,7 +128,7 @@ program main
         case('NadVibS')
             call GenerateNadVibSInput()
         case default!Throw a warning
-            write(*,'(1x,A35,1x,A32)')'Program abort: unsupported job type',JobType
+            write(*,*)'Program abort: unsupported job type '//trim(adjustl(JobType))
             stop
     end select
 !------------- End --------------
@@ -199,6 +199,7 @@ contains
                         HdLSF_LineSearcher,HdLSF_UseStrongWolfe,HdLSF_LBFGSMemory,HdLSF_ConjugateGradientSolver,&
                     !Analyzation
                         Analyzation_ghstep,Analyzation_miu0,&
+                        Analyzation_Searcher,Analyzation_UseStrongWolfe,Analyzation_ConjugateGradientSolver,&
                     !Main
                         GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)

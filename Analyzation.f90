@@ -8,7 +8,11 @@ module Analyzation
 
 !Parameter
 	real*8::Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point, 10 points each direction
-	        Analyzation_miu0=1d0!Initial strength of constraint violation penalty
+			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
+	!Search control
+		character*32::Analyzation_Searcher='ConjugateGradient'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
+	    logical::Analyzation_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
+	    character*32::Analyzation_ConjugateGradientSolver='PR'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
 
 !Analyzation module only variable
 	!Input variable
@@ -31,7 +35,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
         case('evaluate')
             call evaluate()
         case default!Throw a warning
-            write(*,'(1x,A47,1x,A32)')'Program abort: unsupported analyzation job type',Analyzation_JobType
+            write(*,*)'Program abort: unsupported analyzation job type '//trim(adjustl(Analyzation_JobType))
             stop
     end select
 end subroutine Analyze
@@ -112,9 +116,27 @@ subroutine MinimumSearch()
     real*8,dimension(InternalDimension,CartesianDimension)::B
 	real*8,dimension(InternalDimension,InternalDimension)::Hessian
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
-    q=Analyzation_intgeom(:,1)
-    call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
+	q=Analyzation_intgeom(:,1)
+	select case(Analyzation_Searcher)
+	case('NewtonRaphson')
+		call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
+			fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
+			Strong=Analyzation_UseStrongWolfe)
+    case('BFGS')
+        call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
+			fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
+			Strong=Analyzation_UseStrongWolfe)
+	case('LBFGS')
+		call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
+			f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+	case('ConjugateGradient')
+		call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
+			f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,&
+			Method=Analyzation_ConjugateGradientSolver)
+	case default
+		write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+		stop
+    end select
 	open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
 	close(99)
@@ -195,13 +217,13 @@ subroutine MexSearch()
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
 	if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
-        call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,miu0=Analyzation_miu0,&
-            fdd=fdd,cdd=cdd,Precision=1d-8)!This is Columbus7 energy precision
+		call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
+		    miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
     else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
 	    call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
-	        q,InternalDImension,1,miu0=Analyzation_miu0,&
+	        q,InternalDImension,1,Precision=1d-8,&!This is Columbus7 energy precision
 			fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-			Precision=1d-8)!This is Columbus7 energy precision
+			miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
 	end if
 	open(unit=99,file='MexInternalGeometry.out',status='replace')
         write(99,*)q
