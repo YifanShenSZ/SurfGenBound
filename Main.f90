@@ -329,7 +329,7 @@ contains
         real*8,allocatable,dimension(:)::differencetemp
         real*8,dimension(NState)::eigval
 		real*8,dimension(NState,NState)::eigvec
-		real*8,dimension(InternalDimension)::grad1,grad2,g,h
+		real*8,dimension(CartesianDimension)::grad1,grad2,g,h
         type(Data)::ReferencePointtemp
         type(Data),allocatable,dimension(:)::pointtemp,pointswap,ArtifactPointtemp
         !Read training set
@@ -371,16 +371,16 @@ contains
 		!Provide a human readable version of training set
 			open(unit=99,file='TrainingEnergy.txt',status='replace')
 			    write(99,'(A10)',advance='no')'Geometry#'//char(9)
-			    do istate=1,NState
+			    do istate=1,NState-1
 			    	write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',istate,'/cm-1',char(9)
 			    end do
-			    write(99,*)
+			    write(99,'(2x,A6,I2,A5,3x)')'Energy',NState,'/cm-1'
 			    do ip=1,NPoints
 			    	write(99,'(I9,A1)',advance='no')ip,char(9)
-			    	do jstate=1,NState
+			    	do jstate=1,NState-1
 			    		write(99,'(F18.8,A1)',advance='no')pointtemp(ip).energy(jstate)/cm_1InAU,char(9)
 			    	end do
-			    	write(99,*)
+			    	write(99,'(F18.8)')pointtemp(ip).energy(NState)/cm_1InAU
 			    end do
 			close(99)
 			open(unit=99,file='TrainingGradient.txt',status='replace')
@@ -400,6 +400,24 @@ contains
                 end do
                 write(99,*)
                 do ip=1,NPoints
+                    call CheckDegeneracy(degenerate,1d-8,pointtemp(ip).energy,NState)
+				    if(degenerate) then!gh orthogonalization for conical intersection
+				    	do istate=1,NState-1
+				    		if(pointtemp(ip).energy(istate+1)-pointtemp(ip).energy(istate)<1d-8) exit
+				    	end do
+				    	grad1=pointtemp(ip).dH(:,istate,istate)
+				    	grad2=pointtemp(ip).dH(:,istate+1,istate+1)
+				    	h    =pointtemp(ip).dH(:,istate+1,istate)
+				    	call ghOrthogonalization(grad1,grad2,h,CartesianDimension)
+				    	g=(grad2-grad1)/2d0
+				    	write(CharTemp128,*)ip
+				    	open(unit=100,file='g'//trim(adjustl(CharTemp128)),status='replace')
+				    	    write(100,*)g
+				    	close(100)
+				    	open(unit=100,file='h'//trim(adjustl(CharTemp128)),status='replace')
+				    	    write(100,*)h
+				    	close(100)
+				    end if
                     write(99,'(I9,A1)',advance='no')ip,char(9)
                     do jstate=1,NState
                         write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,jstate)),char(9)
@@ -417,26 +435,6 @@ contains
                     write(99,*)
                 end do
 			close(99)
-			do ip=1,NPoints
-				call CheckDegeneracy(degenerate,1d-8,pointtemp(ip).energy,NState)
-				if(degenerate) then
-					do istate=1,NState-1
-						if(pointtemp(ip).energy(istate+1)-pointtemp(ip).energy(istate)<1d-8) exit
-					end do
-					grad1=pointtemp(ip).dH(:,istate,istate)
-					grad2=pointtemp(ip).dH(:,istate+1,istate+1)
-					h    =pointtemp(ip).dH(:,istate+1,istate)
-					call ghOrthogonalization(grad1,grad2,h,InternalDimension)
-					g=(grad2-grad1)/2d0
-					write(CharTemp128,*)ip
-					open(unit=99,file='g'//trim(adjustl(CharTemp128)),status='replace')
-					    write(99,*)g
-					close(99)
-					open(unit=99,file='h'//trim(adjustl(CharTemp128)),status='replace')
-					    write(99,*)h
-					close(99)
-				end if
-			end do
         do ip=1,NArtifactPoints!Modify artifact points
             ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePointtemp.energy(1)
             if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=HighEnergy/ArtifactPointtemp(ip).energy(1)

@@ -95,8 +95,8 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyzation: AnalyzeInput
 	if(Analyzation_JobType=='mex') then!Look for reference g & h
 		open(unit=99,file=RefghFile,status='old',iostat=i)
 			if(i==0) then
-				allocate(Analyzation_g(InternalDimension))
-				allocate(Analyzation_h(InternalDimension))
+				allocate(Analyzation_g(CartesianDimension))
+				allocate(Analyzation_h(CartesianDimension))
 				read(99,*)Analyzation_g
 				read(99,*)Analyzation_h
 			end if
@@ -153,10 +153,11 @@ subroutine MinimumSearch()
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-	integer::i,j,k
-    real*8,dimension(InternalDimension)::q,g,h,qtemp
-	real*8,dimension(CartesianDimension)::r
-	real*8,dimension(InternalDimension,NState,NState)::dH
+	integer::i,j
+    real*8,dimension(InternalDimension)::q
+	real*8,dimension(CartesianDimension)::r,rtemp,g,h
+	real*8,dimension(InternalDimension,NState,NState)::intdH
+	real*8,dimension(CartesianDimension,NState,NState)::cartdH
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
 	if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
@@ -171,56 +172,63 @@ subroutine MexSearch()
 	open(unit=99,file='MexInternalGeometry.out',status='replace')
         write(99,*)q
     close(99)
-	dH=AdiabaticdH(q)
-	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
-		call ghOrthogonalization(dH(:,Analyzation_state,Analyzation_state),dH(:,Analyzation_state+1,Analyzation_state+1),dH(:,Analyzation_state+1,Analyzation_state),InternalDimension,&
-		    gref=Analyzation_g,href=Analyzation_h)
-	else
-	    call ghOrthogonalization(dH(:,Analyzation_state,Analyzation_state),dH(:,Analyzation_state+1,Analyzation_state+1),dH(:,Analyzation_state+1,Analyzation_state),InternalDimension)
-	end if
-	g=(dH(:,Analyzation_state+1,Analyzation_state+1)-dH(:,Analyzation_state,Analyzation_state))/2d0
-	h=dH(:,Analyzation_state+1,Analyzation_state)
-	open(unit=99,file='Mexg.out',status='replace')
-	    write(99,*)g
-    close(99)
-	open(unit=99,file='Mexh.out',status='replace')
-	    write(99,*)h
-	close(99)
-	open(unit=99,file='gPathToEvaluate.in',status='replace')
-	    do i=-10,10
-	    	qtemp=q+dble(i)/10d0*g
-	    	do j=1,InternalDimension
-	    		write(99,*)qtemp(j)
-	    	end do
-	    end do
-	close(99)
-	open(unit=99,file='hPathToEvaluate.in',status='replace')
-	    do i=-10,10
-	    	qtemp=q+dble(i)/10d0*h
-	    	do j=1,InternalDimension
-	    		write(99,*)qtemp(j)
-	    	end do
-	    end do
-	close(99)
-	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
-		do i=-10,10
-			do j=-10,10
-				qtemp=q+dble(i)/10d0*g+dble(i)/10d0*h
-			    do k=1,InternalDimension
-			    	write(99,*)qtemp(k)
-			    end do
-			end do
-		end do
-	close(99)
+	intdH=AdiabaticdH(q)
 	q=q+ReferencePoint.geom
-	r=CartesianCoordinater(q,CartesianDimension,InternalDImension,&
+	call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
+	    intnadgrad=intdH,cartnadgrad=cartdH,&
 		mass=MoleculeDetail.mass,r0=Analyzation_cartgeom(:,1))
+	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
+		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
+			gref=Analyzation_g,href=Analyzation_h)
+	else
+		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension)
+	end if
+	g=(cartdH(:,Analyzation_state+1,Analyzation_state+1)-cartdH(:,Analyzation_state,Analyzation_state))/2d0
+	h=cartdH(:,Analyzation_state+1,Analyzation_state)
 	open(unit=99,file='MexCartesianGeometry.xyz',status='replace')
 		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
         do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
+	close(99)
+	open(unit=99,file='Mexg.out',status='replace')
+	    write(99,*)g
+    close(99)
+	open(unit=99,file='Mexh.out',status='replace')
+	    write(99,*)h
+	close(99)
+	g=g/norm2(g)
+	h=h/norm2(h)
+	open(unit=99,file='gPathToEvaluate.in',status='replace')!To evaluate
+	open(unit=100,file='gPath.geom',status='replace')!For Columbus
+	    do i=-50,50
+	    	rtemp=r+dble(i)/100d0*g
+			write(99,*)rtemp
+			do j=1,MoleculeDetail.NAtoms
+				write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+			end do
+		end do
+	close(100)
+	close(99)
+	open(unit=99,file='hPathToEvaluate.in',status='replace')!To evaluate
+	open(unit=100,file='hPath.geom',status='replace')!For Columbus
+	    do i=-50,50
+	    	rtemp=r+dble(i)/100d0*h
+			write(99,*)rtemp
+			do j=1,MoleculeDetail.NAtoms
+				write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+			end do
+		end do
+	close(100)
+	close(99)
+	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')!To evaluate
+		do i=-50,50
+			do j=-50,50
+				rtemp=r+dble(i)/100d0*g+dble(j)/100d0*h
+			    write(99,*)rtemp
+			end do
+		end do
 	close(99)
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
