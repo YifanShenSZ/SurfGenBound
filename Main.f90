@@ -591,6 +591,7 @@ contains
         type NadVibS_HdEC!Store Hd expansion coefficient in NadVibS format
             type(d2PArray),allocatable,dimension(:)::order
         end type NadVibS_HdEC
+        character*2::chartemp
         integer::i,j,istate,jstate,iorder,NOrder
         integer,allocatable,dimension(:)::indice
         real*8::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH,L1,RMSDenergy1,RMSDdH1,RMSDDegH1,RMSDDegdH1
@@ -600,7 +601,6 @@ contains
         real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
         real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
         real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
-        type(Data),allocatable,dimension(:)::pointtemp
         type(NadVibS_HdEC),dimension(NState,NState)::HdEC
         !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
         real*8,dimension(InternalDimension)::dshift
@@ -611,20 +611,15 @@ contains
         call WilsonGFMethod(freqPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
         if(minval(freqPrecursor)<-1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
         !Successor
-        Analyzation_state=1!Search for ground state minimum
-        qSuccessor=ReferencePoint.geom
-        call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qSuccessor,InternalDimension,&
-            fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface)
-        allocate(pointtemp(NPoints))!Read reference Cartesian geometry to provide int2cart initial guess
-        do i=1,NPoints
-            allocate(pointtemp(i).geom(CartesianDimension))
-            allocate(pointtemp(i).energy(NState))
-            allocate(pointtemp(i).dH(CartesianDimension,NState,NState))
-        end do
-        call ReadElectronicStructureData(pointtemp,NPoints)
-        rSuccesor=CartesianCoordinater(qSuccessor,CartesianDimension,InternalDimension,&
-            mass=MoleculeDetail.mass,r0=pointtemp(IndexReference).geom)
+        open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
+	    	read(99,*)
+	    	read(99,*)
+            do i=1,MoleculeDetail.NAtoms
+                read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
+            end do
+        close(99)
         call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
+        qSuccessor=qSuccessor-ReferencePoint.geom
         Htemp=AdiabaticddH(qSuccessor)
         HSuccessor=Htemp(:,:,1,1)
         call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
@@ -632,7 +627,7 @@ contains
         !Reformat Hd expansion coefficient into NadVibS format
         call HdEC2c(Hd_HdEC,c,NHdExpansionCoefficients)
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
-        call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
+        call OriginShift(qSuccessor)!Shift origin to ground state minimum
         call HdEC2c(Hd_HdEC,c,NHdExpansionCoefficients)
         call L_RMSD(c,L1,RMSDenergy1,RMSDdH1,RMSDDegH1,RMSDDegdH1)
         if(dAbs(L1-L)>1d-14.or.dAbs(RMSDenergy1-RMSDenergy)>1d-14.or.dAbs(RMSDdH1-RMSDdH)>1d-14.or.dAbs(RMSDDegH1-RMSDDegH)>1d-14.or.dAbs(RMSDDegdH1-RMSDDegdH)>1d-14) write(*,*)'Warning'
