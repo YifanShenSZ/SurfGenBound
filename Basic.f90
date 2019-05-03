@@ -5,7 +5,7 @@ module Basic
     use LinearAlgebra
     use GeometryTransformation
     use NonlinearOptimization
-    use Nonadiabatic
+    use Chemistry
     use DiabaticHamiltonian
     implicit none
 

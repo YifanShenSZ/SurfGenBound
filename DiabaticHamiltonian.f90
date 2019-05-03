@@ -4,7 +4,7 @@ module DiabaticHamiltonian
     use General
     use Mathematics
 	use LinearAlgebra
-	use Nonadiabatic
+	use Chemistry
     implicit none
 
 !Derived type

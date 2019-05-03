@@ -200,29 +200,19 @@ subroutine MexSearch()
 	close(99)
 	g=g/norm2(g)
 	h=h/norm2(h)
-	open(unit=99,file='gPathToEvaluate.in',status='replace')!To evaluate
-	open(unit=100,file='gPath.geom',status='replace')!For Columbus
+	open(unit=99,file='gPathToEvaluate.in',status='replace')
 	    do i=-50,50
 	    	rtemp=r+dble(i)/100d0*g
 			write(99,*)rtemp
-			do j=1,MoleculeDetail.NAtoms
-				write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-			end do
 		end do
-	close(100)
 	close(99)
-	open(unit=99,file='hPathToEvaluate.in',status='replace')!To evaluate
-	open(unit=100,file='hPath.geom',status='replace')!For Columbus
+	open(unit=99,file='hPathToEvaluate.in',status='replace')
 	    do i=-50,50
 	    	rtemp=r+dble(i)/100d0*h
 			write(99,*)rtemp
-			do j=1,MoleculeDetail.NAtoms
-				write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-			end do
 		end do
-	close(100)
 	close(99)
-	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')!To evaluate
+	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
 		do i=-50,50
 			do j=-50,50
 				rtemp=r+dble(i)/100d0*g+dble(j)/100d0*h
@@ -230,6 +220,39 @@ subroutine MexSearch()
 			end do
 		end do
 	close(99)
+	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!Same path for Columbus
+		r=Analyzation_cartgeom(:,1)
+		g=norm2(Analyzation_g)
+		h=norm2(Analyzation_h)
+		open(unit=99,file='gPath.geom',status='replace')
+		    do i=-50,-1
+	        	rtemp=r+dble(i)/100d0*g
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+		    	end do
+			end do
+			do i=1,50
+	        	rtemp=r+dble(i)/100d0*g
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+		    	end do
+		    end do
+		close(99)
+		open(unit=99,file='hPath.geom',status='replace')
+		    do i=-50,-1
+	        	rtemp=r+dble(i)/100d0*h
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+		    	end do
+			end do
+			do i=1,50
+	        	rtemp=r+dble(i)/100d0*h
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
+		    	end do
+		    end do
+		close(99)
+	end if
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim
