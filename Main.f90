@@ -198,7 +198,7 @@ contains
                         HdLSF_pseudolinearFollowFreq,HdLSF_pseudolinearMaxMonotonicalIncrease,&
                         HdLSF_LineSearcher,HdLSF_UseStrongWolfe,HdLSF_LBFGSMemory,HdLSF_ConjugateGradientSolver,&
                     !Analyzation
-                        Analyzation_miu0,&
+                        Analyzation_ghstep,Analyzation_miu0,&
                     !Main
                         GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
                 read(99,nml=AdvancedInput)

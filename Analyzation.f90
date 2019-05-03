@@ -7,7 +7,8 @@ module Analyzation
     implicit none
 
 !Parameter
-	real*8::Analyzation_miu0=1d0!Initial strength of constraint violation penalty
+	real*8::Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point, 10 points each direction
+	        Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 
 !Analyzation module only variable
 	!Input variable
@@ -164,13 +165,13 @@ subroutine MexSearch()
 		h=norm2(Analyzation_h)
 		open(unit=99,file='gPath.geom',status='replace')
 		    do i=-5,-1
-	        	rtemp=r+dble(i)/100d0*g
+	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
 			do i=1,5
-	        	rtemp=r+dble(i)/100d0*g
+	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
@@ -178,13 +179,13 @@ subroutine MexSearch()
 		close(99)
 		open(unit=99,file='hPath.geom',status='replace')
 		    do i=-5,-1
-	        	rtemp=r+dble(i)/100d0*h
+	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
 			do i=1,5
-	        	rtemp=r+dble(i)/100d0*h
+	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
@@ -235,20 +236,20 @@ subroutine MexSearch()
 	h=h/norm2(h)
 	open(unit=99,file='gPathToEvaluate.in',status='replace')
 	    do i=-5,5
-	    	rtemp=r+dble(i)/100d0*g
+	    	rtemp=r+dble(i)*Analyzation_ghstep*g
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='hPathToEvaluate.in',status='replace')
 	    do i=-5,5
-	    	rtemp=r+dble(i)/100d0*h
+	    	rtemp=r+dble(i)*Analyzation_ghstep*h
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
 		do i=-5,5
 			do j=-5,5
-				rtemp=r+dble(i)/100d0*g+dble(j)/100d0*h
+				rtemp=r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h
 			    write(99,*)rtemp
 			end do
 		end do
