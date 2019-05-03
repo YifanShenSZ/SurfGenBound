@@ -158,6 +158,39 @@ subroutine MexSearch()
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
+	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
+		r=Analyzation_cartgeom(:,1)
+		g=norm2(Analyzation_g)
+		h=norm2(Analyzation_h)
+		open(unit=99,file='gPath.geom',status='replace')
+		    do i=-5,-1
+	        	rtemp=r+dble(i)/100d0*g
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+		    	end do
+			end do
+			do i=1,5
+	        	rtemp=r+dble(i)/100d0*g
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+		    	end do
+		    end do
+		close(99)
+		open(unit=99,file='hPath.geom',status='replace')
+		    do i=-5,-1
+	        	rtemp=r+dble(i)/100d0*h
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+		    	end do
+			end do
+			do i=1,5
+	        	rtemp=r+dble(i)/100d0*h
+		    	do j=1,MoleculeDetail.NAtoms
+		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+		    	end do
+		    end do
+		close(99)
+	end if
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
 	if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
@@ -201,58 +234,25 @@ subroutine MexSearch()
 	g=g/norm2(g)
 	h=h/norm2(h)
 	open(unit=99,file='gPathToEvaluate.in',status='replace')
-	    do i=-50,50
+	    do i=-5,5
 	    	rtemp=r+dble(i)/100d0*g
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='hPathToEvaluate.in',status='replace')
-	    do i=-50,50
+	    do i=-5,5
 	    	rtemp=r+dble(i)/100d0*h
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
-		do i=-50,50
-			do j=-50,50
+		do i=-5,5
+			do j=-5,5
 				rtemp=r+dble(i)/100d0*g+dble(j)/100d0*h
 			    write(99,*)rtemp
 			end do
 		end do
 	close(99)
-	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!Same path for Columbus
-		r=Analyzation_cartgeom(:,1)
-		g=norm2(Analyzation_g)
-		h=norm2(Analyzation_h)
-		open(unit=99,file='gPath.geom',status='replace')
-		    do i=-50,-1
-	        	rtemp=r+dble(i)/100d0*g
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-		    	end do
-			end do
-			do i=1,50
-	        	rtemp=r+dble(i)/100d0*g
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-		    	end do
-		    end do
-		close(99)
-		open(unit=99,file='hPath.geom',status='replace')
-		    do i=-50,-1
-	        	rtemp=r+dble(i)/100d0*h
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-		    	end do
-			end do
-			do i=1,50
-	        	rtemp=r+dble(i)/100d0*h
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)
-		    	end do
-		    end do
-		close(99)
-	end if
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim

@@ -16,9 +16,10 @@ Fmat*
 *.CheckPoint
 *.out
 *.txt
+*.geom
 g238
 h238
 g359
 h359
-CheckUp.py
+test*
 *.com

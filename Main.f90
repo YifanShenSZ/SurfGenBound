@@ -178,6 +178,7 @@ contains
             read(99,*)
             do i=1,MoleculeDetail.NAtoms
                 read(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
+                MoleculeDetail.ElementSymbol(i)=trim(adjustl(MoleculeDetail.ElementSymbol(i)))
             end do
             read(99,*)
             do i=1,MoleculeDetail.NAtoms
