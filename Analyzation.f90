@@ -7,7 +7,7 @@ module Analyzation
     implicit none
 
 !Parameter
-	real*8::Analyzation_ghstep=0.15d0,&!Every how much bohr generate a grid point, 10 points each direction
+	real*8::Analyzation_ghstep=0.1d0,&!Every how much bohr generate a grid point, 10 points each direction
 			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 	!Search control
 		character*32::Analyzation_Searcher='ConjugateGradient'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
