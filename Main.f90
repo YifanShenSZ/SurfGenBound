@@ -138,11 +138,11 @@ program main
 !------------- End --------------
 
 contains
-subroutine ReadInput()!Read main input files: input, example.xyz, AdvancedInput (optional)
+subroutine ReadInput()!Read main input files: SurfGenBound.in, .xyz, AdvancedInput (optional)
     character*128::MoleculeDetailFile
     logical::advance
     integer::i
-    open(unit=99,file='input',status='old')!Read main input, write some job comment
+    open(unit=99,file='SurfGenBound.in',status='old')!Read main input, write some job comment
         read(99,*)
         read(99,*)
         read(99,*)
