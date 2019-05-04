@@ -9,7 +9,13 @@ program main
     use HdLeastSquareFit
     use Analyzation
     implicit none
+    !Main only accessed input variable
+        character*32::JobType
+        logical::SameTrainingSet
+        integer::IndexReference
+        character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile
     !Job control
+        
         !Whether perform the fitting procedure gradually:
         !    1. Start from a several data points nearest to the reference point.
         !       The number points is either automatically determined or manually entred,
@@ -138,7 +144,7 @@ program main
 !------------- End --------------
 
 contains
-subroutine ReadInput()!Read main input files: SurfGenBound.in, .xyz, AdvancedInput (optional)
+subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.in (optional)
     character*128::MoleculeDetailFile
     logical::advance
     integer::i

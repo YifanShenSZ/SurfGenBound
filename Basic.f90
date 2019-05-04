@@ -32,15 +32,11 @@ module Basic
         real*8,allocatable,dimension(:)::mass
     end type MoleculeDetails
     
-!Input variable
+!Programwide accessed input variable
     !See input example for the meaning of each variable
-    !Main input
-        character*32::JobType
-        integer::NState
-        logical::SameTrainingSet
-        integer::NPoints,IndexReference
-        character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile
-        integer::NArtifactPoints
+    integer::NState
+    integer::NPoints
+    integer::NArtifactPoints
     type(MoleculeDetails)::MoleculeDetail!Molecule detail input
 
 !Global variable
