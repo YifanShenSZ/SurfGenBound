@@ -10,7 +10,7 @@ module ElectronicStructure
 contains
 !Top level routines, providing standard interface for other modules to call
 
-subroutine ReadElectronicStructureData(point,NPoints)
+subroutine ReadElectronicStructureData(point,NPoints)!Fill in point.geom & energy & dH
     integer,intent(in)::NPoints
     type(Data),dimension(NPoints),intent(inout)::point
     character*1::CharTemp1,CharTemp2
