@@ -182,8 +182,8 @@ subroutine MexSearch()
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
 		r=Analyzation_cartgeom(:,1)
-		g=norm2(Analyzation_g)
-		h=norm2(Analyzation_h)
+		g=Analyzation_g/norm2(Analyzation_g)
+		h=Analyzation_h/norm2(Analyzation_h)
 		open(unit=99,file='gPath.geom',status='replace')
 		    do i=-5,-1
 	        	rtemp=r+dble(i)*Analyzation_ghstep*g

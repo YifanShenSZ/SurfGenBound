@@ -213,8 +213,7 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
     end if
 end subroutine ReadInput
 
-!The initializer for the program
-subroutine Initialize()
+subroutine Initialize()!Program initializer
 	character*128::CharTemp128
 	logical::flag
     integer::istate,jstate,i,j
@@ -327,8 +326,7 @@ subroutine Initialize()
             call InitializeDiabaticHamiltonian(NState,InternalDimension)
     end select
 end subroutine Initialize
-!Support Initialize
-subroutine Initialize_NewTrainingSet()
+subroutine Initialize_NewTrainingSet()!Support Initialize
     character*128::CharTemp128
     logical::degenerate
     integer::index,index2,i,istate,jstate,ip
