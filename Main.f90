@@ -676,7 +676,7 @@ subroutine GenerateNadVibSInput()
     dshift=matmul(transpose(HPrecursor),qSuccessor-qPrecursor)
     Tshift=matmul(transpose(HPrecursor),HSuccessor)
     open(unit=99,file='nadvibs.in',status='replace')
-        write(99,'(A59)')'Angular frequency in atomic unit of each vibrational basis:'
+        write(99,'(A59)')'Angular frequency of each vibrational basis: (In a.u.)'
         write(99,*)freqSuccessor
         do istate=1,NState
             do jstate=istate,NState
@@ -686,7 +686,7 @@ subroutine GenerateNadVibSInput()
                 end do
             end do
         end do
-        write(99,'(A63)')'Angular frequency in atomic unit of each precursor normal mode:'
+        write(99,'(A63)')'Angular frequency of each precursor normal mode: (In a.u.)'
         write(99,*)freqPrecursor
         write(99,'(A13)')'Shift Vector:'
         write(99,*)dshift
