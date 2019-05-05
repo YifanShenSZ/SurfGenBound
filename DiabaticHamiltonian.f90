@@ -512,7 +512,19 @@ end subroutine InitializeDiabaticHamiltonian
         dH=sy3UnitaryTransformation(dH,phi,Hd_intdim,Hd_NState)
     end subroutine AdiabaticEnergy_dH
 
-    !phi harvests adiabatic states in diabatic representation, f harvests expansion basis function values 
+    !phi harvests adiabatic states in diabatic representation
+    subroutine AdiabaticEnergy_dH_State(q,energy,dH)
+        real*8,dimension(Hd_intdim),intent(in)::q
+        real*8,dimension(Hd_NState),intent(out)::energy
+        real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
+        real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
+        phi=Hd(q)
+        call My_dsyev('V',phi,energy,Hd_NState)
+        dH=dHd(q)
+        dH=sy3UnitaryTransformation(dH,phi,Hd_intdim,Hd_NState)
+    end subroutine AdiabaticEnergy_dH_State
+
+    !f harvests expansion basis function values 
     subroutine AdiabaticEnergy_State_f(q,energy,phi,f)
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState),intent(out)::energy
