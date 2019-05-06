@@ -15,7 +15,6 @@ program main
         integer::IndexReference
         character*128::ArtifactGeometryDataFile,ArtifactEnergyDataFile
     !Job control
-        
         !Whether perform the fitting procedure gradually:
         !    1. Start from a several data points nearest to the reference point.
         !       The number points is either automatically determined or manually entred,
