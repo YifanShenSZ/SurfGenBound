@@ -517,7 +517,7 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState),intent(out)::energy
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
-        real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
+        real*8,dimension(Hd_NState,Hd_NState)::phi
         phi=Hd(q)
         call My_dsyev('V',phi,energy,Hd_NState)
         dH=dHd(q)

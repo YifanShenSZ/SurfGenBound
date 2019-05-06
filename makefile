@@ -5,7 +5,7 @@
 ###########################################
 
 compiler = ifort
-MyLibDir = /home-4/yshen57@jhu.edu/Library
+MyLibDir = /home-4/yshen57@jhu.edu/Library/Fortran-Library
 MyLib = $(MyLibDir)/General.f90 $(MyLibDir)/Mathematics.f90 $(MyLibDir)/LinearAlgebra.f90 $(MyLibDir)/MKL_RCI.f90 $(MyLibDir)/NonlinearOptimization.f90 $(MyLibDir)/GeometryTransformation.f90 $(MyLibDir)/Chemistry.f90
 src = DiabaticHamiltonian.f90 Basic.f90 ElectronicStructure.f90 HdLeastSquareFit.f90 Analyzation.f90 Main.f90
 exe = SurfGenBound.exe
