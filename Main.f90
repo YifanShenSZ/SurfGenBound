@@ -174,18 +174,16 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
         read(99,*)advance
     close(99)
     open(unit=99,file=MoleculeDetailFile,status='old')!Read molecule detail
-        read(99,*)
-        read(99,*)
-        read(99,*)
         read(99,*)MoleculeDetail.NAtoms
             allocate(MoleculeDetail.ElementSymbol(MoleculeDetail.NAtoms))
             allocate(MoleculeDetail.RefConfig(3,MoleculeDetail.NAtoms))
             allocate(MoleculeDetail.mass(MoleculeDetail.NAtoms))
         read(99,*)
         do i=1,MoleculeDetail.NAtoms
-            read(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
+            read(99,*)MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
             MoleculeDetail.ElementSymbol(i)=trim(adjustl(MoleculeDetail.ElementSymbol(i)))
         end do
+            MoleculeDetail.RefConfig=MoleculeDetail.RefConfig*AInAU!Convert to atomic unit
         read(99,*)
         do i=1,MoleculeDetail.NAtoms
             read(99,*)MoleculeDetail.mass(i)
