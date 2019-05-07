@@ -26,13 +26,17 @@ contains
 subroutine Analyze()!Top level standard interface for other modules to call
 	character*32::JobType
 	call ReadAnalyzeInput()
-    select case(JobType)
+	select case(JobType)
+	    case('evaluate')
+	    	call evaluate()
         case('min')
             call MinimumSearch()
         case('mex')
             call MexSearch()
-        case('evaluate')
-            call evaluate()
+		case('OriginShift')
+			call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
+			JobType='HdNewOrigin.CheckPoint'
+			call WriteHdExpansionCoefficients(JobType)
         case default!Throw a warning
             write(*,*)'Program abort: unsupported analyzation job type '//trim(adjustl(JobType))
             stop
@@ -107,6 +111,186 @@ subroutine Analyze()!Top level standard interface for other modules to call
 		end if
 	end subroutine ReadAnalyzeInput
 end subroutine Analyze
+
+subroutine Evaluate()
+	integer::i,j,k
+	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
+	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
+    real*8,dimension(NState,NState)::eigvec
+	real*8,dimension(InternalDimension,NState,NState)::dH,dHa
+	if(allocated(Analyzation_cartgeom)) then
+		do i=1,Analyzation_NGeoms!Compute
+            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
+	    	dH=dHd(Analyzation_intgeom(:,i))
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    		dHdNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+	    	end forall
+            eigvec=HdSurface(:,:,i)
+            call My_dsyev('V',eigvec,PES(:,i),NState)
+	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    	    dHaNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dHa(:,j,k)))
+	    	end forall
+	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+		        dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+	    	end forall
+		end do
+	else
+	    do i=1,Analyzation_NGeoms!Compute
+            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
+	    	dH=dHd(Analyzation_intgeom(:,i))
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    		dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
+	    	end forall
+            eigvec=HdSurface(:,:,i)
+            call My_dsyev('V',eigvec,PES(:,i),NState)
+	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+	    	    dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
+	    	end forall
+	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+	    	forall(j=1:NState,k=1:NState,j>=k)
+		        dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
+	    	end forall
+		end do
+	end if
+    !Output
+    open(unit=99,file='PotentialEnergySurface.txt',status='replace')
+        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
+        do i=1,NState-1
+            write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',i,'/cm-1',char(9)
+        end do
+        write(99,'(2x,A6,I2,A5,3x)')'Energy',NState,'/cm-1'
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState-1
+                write(99,'(F18.8,A1)',advance='no')PES(j,i)/cm_1InAU,char(9)
+            end do
+            write(99,'(F18.8)')PES(j,i)/cm_1InAU
+        end do
+    close(99)
+    open(unit=99,file='NondegenerateEigenValue.txt',status='replace')
+        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
+        do i=1,NState-1
+            write(99,'(A10,I2,A5,1x,A1)',advance='no')'Eigenvalue',i,'/a.u.',char(9)
+        end do
+        write(99,'(A10,I2,A5,1x)')'Eigenvalue',i,'/a.u.'
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState-1
+                write(99,'(F18.8,A1)',advance='no')ndSurface(j,i),char(9)
+            end do
+            write(99,'(F18.8)')ndSurface(j,i)
+        end do
+    close(99)
+    open(unit=99,file='Hd.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/cm-1',char(9)
+		end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/cm-1',char(9)
+			end do
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F18.8,A1)',advance='no')HdSurface(j,j,i)/cm_1InAU,char(9)
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')HdSurface(j,k,i)/cm_1InAU,char(9)
+				end do
+			end do
+            write(99,*)
+        end do
+	close(99)
+	open(unit=99,file='HdGradient.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
+		end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
+			end do
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,j,i),char(9)
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,k,i),char(9)
+				end do
+			end do
+            write(99,*)
+        end do
+	close(99)
+	open(unit=99,file='HaGradient.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',i,'/a.u.',char(9)
+		end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',j,'&',i,'/a.u.',char(9)
+			end do
+        end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
+			end do
+		end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,j,i),char(9)
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i),char(9)
+				end do
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i)/dABS(PES(k,i)-PES(j,i)),char(9)
+				end do
+			end do
+            write(99,*)
+        end do
+	close(99)
+	open(unit=99,file='HndGradient.txt',status='replace')
+        write(99,'(A10)',advance='no')'Geometry#'//char(9)
+        do i=1,NState
+            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
+		end do
+		do i=1,NState
+			do j=i+1,NState
+				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
+			end do
+        end do
+        write(99,*)
+        do i=1,Analyzation_NGeoms
+            write(99,'(I9,A1)',advance='no')i,char(9)
+            do j=1,NState
+                write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,j,i),char(9)
+			end do
+			do k=1,NState
+				do j=k+1,NState
+					write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,k,i)/dABS(ndSurface(k,i)-ndSurface(j,i)),char(9)
+				end do
+			end do
+            write(99,*)
+        end do
+	close(99)
+end subroutine Evaluate
 
 subroutine MinimumSearch()
     integer::i,j
@@ -330,186 +514,6 @@ subroutine MexSearch()
             cdd=0!return 0
         end function cdd
 end subroutine MexSearch
-
-subroutine Evaluate()
-	integer::i,j,k
-	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
-	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
-    real*8,dimension(NState,NState)::eigvec
-	real*8,dimension(InternalDimension,NState,NState)::dH,dHa
-	if(allocated(Analyzation_cartgeom)) then
-		do i=1,Analyzation_NGeoms!Compute
-            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
-	    	dH=dHd(Analyzation_intgeom(:,i))
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    		dHdNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
-	    	end forall
-            eigvec=HdSurface(:,:,i)
-            call My_dsyev('V',eigvec,PES(:,i),NState)
-	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    	    dHaNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dHa(:,j,k)))
-	    	end forall
-	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-		        dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
-	    	end forall
-		end do
-	else
-	    do i=1,Analyzation_NGeoms!Compute
-            HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
-	    	dH=dHd(Analyzation_intgeom(:,i))
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    		dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
-	    	end forall
-            eigvec=HdSurface(:,:,i)
-            call My_dsyev('V',eigvec,PES(:,i),NState)
-	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    	    dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
-	    	end forall
-	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-		        dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
-	    	end forall
-		end do
-	end if
-    !Output
-    open(unit=99,file='PotentialEnergySurface.txt',status='replace')
-        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
-        do i=1,NState-1
-            write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',i,'/cm-1',char(9)
-        end do
-        write(99,'(2x,A6,I2,A5,3x)')'Energy',NState,'/cm-1'
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState-1
-                write(99,'(F18.8,A1)',advance='no')PES(j,i)/cm_1InAU,char(9)
-            end do
-            write(99,'(F18.8)')PES(j,i)/cm_1InAU
-        end do
-    close(99)
-    open(unit=99,file='NondegenerateEigenValue.txt',status='replace')
-        write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
-        do i=1,NState-1
-            write(99,'(A10,I2,A5,1x,A1)',advance='no')'Eigenvalue',i,'/a.u.',char(9)
-        end do
-        write(99,'(A10,I2,A5,1x)')'Eigenvalue',i,'/a.u.'
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState-1
-                write(99,'(F18.8,A1)',advance='no')ndSurface(j,i),char(9)
-            end do
-            write(99,'(F18.8)')ndSurface(j,i)
-        end do
-    close(99)
-    open(unit=99,file='Hd.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
-            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/cm-1',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/cm-1',char(9)
-			end do
-        end do
-        write(99,*)
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
-                write(99,'(F18.8,A1)',advance='no')HdSurface(j,j,i)/cm_1InAU,char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')HdSurface(j,k,i)/cm_1InAU,char(9)
-				end do
-			end do
-            write(99,*)
-        end do
-	close(99)
-	open(unit=99,file='HdGradient.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
-            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
-			end do
-        end do
-        write(99,*)
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
-                write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,k,i),char(9)
-				end do
-			end do
-            write(99,*)
-        end do
-	close(99)
-	open(unit=99,file='HaGradient.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
-            write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',j,'&',i,'/a.u.',char(9)
-			end do
-        end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
-			end do
-		end do
-        write(99,*)
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
-                write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i),char(9)
-				end do
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i)/dABS(PES(k,i)-PES(j,i)),char(9)
-				end do
-			end do
-            write(99,*)
-        end do
-	close(99)
-	open(unit=99,file='HndGradient.txt',status='replace')
-        write(99,'(A10)',advance='no')'Geometry#'//char(9)
-        do i=1,NState
-            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
-			end do
-        end do
-        write(99,*)
-        do i=1,Analyzation_NGeoms
-            write(99,'(I9,A1)',advance='no')i,char(9)
-            do j=1,NState
-                write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,k,i)/dABS(ndSurface(k,i)-ndSurface(j,i)),char(9)
-				end do
-			end do
-            write(99,*)
-        end do
-	close(99)
-end subroutine Evaluate
 
 !---------- Auxiliary routine ----------
     !Reformat routine for calling nonlinear optimizers

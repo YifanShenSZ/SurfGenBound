@@ -159,22 +159,27 @@ end subroutine InitializeDiabaticHamiltonian
         integer,allocatable,dimension(:)::indice
         real*8::coeff
         allocate(indice(Hd_EBNR(1).order))
-        do n=1,NHdExpansionBasis
-            coeff=Hd_HdEC(istate,jstate).Array(n)
-            do i=1,Hd_EBNR(n).order
-                indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
-                location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
-                if(location==0) stop 'Program abort: basis space is not closed under origin shift'
-                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
-                    Hd_HdEC(istate,jstate).Array(location)=Hd_HdEC(istate,jstate).Array(location)+coeff
-                end forall
-                coeff=coeff*shift(Hd_EBNR(n).indice(i))
+        do jstate=1,Hd_NState
+            do istate=jstate,Hd_NState
+                do n=1,NHdExpansionBasis
+                    coeff=Hd_HdEC(istate,jstate).Array(n)
+                    do i=1,Hd_EBNR(n).order
+                        indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
+                        location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
+                        if(location==0) stop 'Program abort: basis space is not closed under origin shift'
+                        forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
+                            Hd_HdEC(istate,jstate).Array(location)=Hd_HdEC(istate,jstate).Array(location)+coeff
+                        end forall
+                        coeff=coeff*shift(Hd_EBNR(n).indice(i))
+                    end do
+                end do
             end do
         end do
         deallocate(indice)
     end subroutine OriginShift
 
-    subroutine ReadHdExpansionCoefficients()!Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
+    !Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
+    subroutine ReadHdExpansionCoefficients()
         character*2::char2temp
         character*28::char28temp
         integer::NState,NBasis,NOrder!The old Hd is not necessarily fitted under same condition
@@ -218,9 +223,16 @@ end subroutine InitializeDiabaticHamiltonian
         close(99)
     end subroutine ReadHdExpansionCoefficients
 
-    subroutine WriteHdExpansionCoefficients()!Write current Hd expansion coefficient and expansion basis specification to file Hd.CheckPoint
+    !Write current Hd expansion coefficient and expansion basis specification to file
+    !Optional: FileName: (default = 'Hd.CheckPoint') name of the output file
+    subroutine WriteHdExpansionCoefficients(FileName)
+        character*32,optional,intent(in)::FileName
         integer::istate,jstate,i,j
-        open(unit=99,file='Hd.CheckPoint',status='replace')
+        if(present(FileName)) then
+            open(unit=99,file=FileName,status='replace')
+        else
+            open(unit=99,file='Hd.CheckPoint',status='replace')
+        end if
     		write(99,'(A28,I2)')'Number of electronic states:',Hd_NState
             do istate=1,Hd_NState
                 do jstate=istate,Hd_NState
