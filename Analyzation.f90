@@ -185,13 +185,13 @@ subroutine MexSearch()
 		g=Analyzation_g/norm2(Analyzation_g)
 		h=Analyzation_h/norm2(Analyzation_h)
 		open(unit=99,file='gPath.geom',status='replace')
-		    do i=-5,-1
+		    do i=-10,-1
 	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
-			do i=1,5
+			do i=1,10
 	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
@@ -199,13 +199,13 @@ subroutine MexSearch()
 		    end do
 		close(99)
 		open(unit=99,file='hPath.geom',status='replace')
-		    do i=-5,-1
+		    do i=-10,-1
 	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
-			do i=1,5
+			do i=1,10
 	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
