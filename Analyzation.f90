@@ -87,7 +87,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 				allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
 				allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
 				do i=1,Analyzation_NGeoms
-					call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDImension,CartesianDimension)
+					call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
 					Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
 				end do
 				open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
@@ -301,31 +301,31 @@ subroutine MinimumSearch()
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
 	q=Analyzation_intgeom(:,1)
 	select case(Analyzation_Searcher)
-	case('NewtonRaphson')
-		call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-			fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-			Strong=Analyzation_UseStrongWolfe)
-    case('BFGS')
-        call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-			fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-			Strong=Analyzation_UseStrongWolfe)
-	case('LBFGS')
-		call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-			f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
-	case('ConjugateGradient')
-		call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDImension,&
-			f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,&
-			Method=Analyzation_ConjugateGradientSolver)
-	case default
-		write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
-		stop
+	    case('NewtonRaphson')
+	    	call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+	    		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
+	    		Strong=Analyzation_UseStrongWolfe)
+        case('BFGS')
+            call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+	    		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
+	    		Strong=Analyzation_UseStrongWolfe)
+	    case('LBFGS')
+	    	call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+	    		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+	    case('ConjugateGradient')
+	    	call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+	    		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,&
+	    		Method=Analyzation_ConjugateGradientSolver)
+	    case default
+	    	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+	    	stop
     end select
 	open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
 	close(99)
 	i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
 	q=q+ReferencePoint.geom
-	r=CartesianCoordinater(q,CartesianDimension,InternalDImension,&
+	r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
 		mass=MoleculeDetail.mass,r0=Analyzation_cartgeom(:,1))
 	open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
 		write(99,*)MoleculeDetail.NAtoms
@@ -334,7 +334,7 @@ subroutine MinimumSearch()
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
         end do
     close(99)
-    call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDImension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
     call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='MinimumVibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A14)')'Mode'//char(9)//'Frequency/cm-1'
@@ -400,11 +400,11 @@ subroutine MexSearch()
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
 	if(NState==2) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
-		call AugmentedLagrangian(f,fd,c,cd,q,InternalDImension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
+		call AugmentedLagrangian(f,fd,c,cd,q,InternalDimension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
 		    miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
     else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
 	    call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
-	        q,InternalDImension,1,Precision=1d-8,&!This is Columbus7 energy precision
+	        q,InternalDimension,1,Precision=1d-8,&!This is Columbus7 energy precision
 			fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
 			miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
 	end if
