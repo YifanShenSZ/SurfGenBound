@@ -3,8 +3,8 @@ module Basic
     use General
     use Mathematics
     use LinearAlgebra
-    use GeometryTransformation
     use NonlinearOptimization
+    use GeometryTransformation
     use Chemistry
     use DiabaticHamiltonian
     implicit none
