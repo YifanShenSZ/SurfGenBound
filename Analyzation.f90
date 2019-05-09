@@ -42,74 +42,74 @@ subroutine Analyze()!Top level standard interface for other modules to call
             stop
 	end select
 	contains
-	subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
-		logical::intgeom
-		character*128::GeomFile,RefghFile,DispFile
-		integer::i,j
-		open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
-			read(99,*)
-			read(99,*)
-			read(99,*)
-			read(99,*)JobType
-				write(*,*)'Analyzation job type: '//JobType
-			read(99,*)
-			read(99,*)Analyzation_state
-			read(99,*)
-			read(99,*)GeomFile
-			read(99,*)
-			read(99,*)intgeom
-			read(99,*)
-			read(99,*)RefghFile
-		close(99)
-		open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
-			Analyzation_NGeoms=0!Count number of geometries
-			do
-				read(99,*,iostat=i)
-				if(i/=0) exit
-				Analyzation_NGeoms=Analyzation_NGeoms+1
-			end do
-			if(intgeom) then
-				Analyzation_NGeoms=Analyzation_NGeoms/InternalDimension
-				rewind 99
-				allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
-				do i=1,Analyzation_NGeoms
-					do j=1,InternalDimension
-						read(99,*)Analyzation_intgeom(j,i)
-					end do
-				end do
-			else
-				Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
-				rewind 99
-				allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
-				do i=1,Analyzation_NGeoms
-					read(99,*)Analyzation_cartgeom(:,i)
-				end do
-				allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
-				allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
-				do i=1,Analyzation_NGeoms
-					call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
-					Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
-				end do
-				open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
-					do i=1,Analyzation_NGeoms
-						do j=1,InternalDimension
-							write(100,*)Analyzation_intgeom(j,i)
-						end do
-					end do
-				close(99)
-			end if
-		close(99)
-		if(JobType=='mex') then!Look for reference g & h
-			open(unit=99,file=RefghFile,status='old',iostat=i)
-				if(i==0) then
-					allocate(Analyzation_g(CartesianDimension))
-					allocate(Analyzation_h(CartesianDimension))
-					read(99,*)Analyzation_g
-					read(99,*)Analyzation_h
-				end if
-			close(99)
-		end if
-	end subroutine ReadAnalyzeInput
+	    subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
+	    	logical::intgeom
+	    	character*128::GeomFile,RefghFile,DispFile
+	    	integer::i,j
+	    	open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
+	    		read(99,*)
+	    		read(99,*)
+	    		read(99,*)
+	    		read(99,*)JobType
+	    			write(*,*)'Analyzation job type: '//JobType
+	    		read(99,*)
+	    		read(99,*)Analyzation_state
+	    		read(99,*)
+	    		read(99,*)GeomFile
+	    		read(99,*)
+	    		read(99,*)intgeom
+	    		read(99,*)
+	    		read(99,*)RefghFile
+	    	close(99)
+	    	open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
+	    		Analyzation_NGeoms=0!Count number of geometries
+	    		do
+	    			read(99,*,iostat=i)
+	    			if(i/=0) exit
+	    			Analyzation_NGeoms=Analyzation_NGeoms+1
+	    		end do
+	    		if(intgeom) then
+	    			Analyzation_NGeoms=Analyzation_NGeoms/InternalDimension
+	    			rewind 99
+	    			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
+	    			do i=1,Analyzation_NGeoms
+	    				do j=1,InternalDimension
+	    					read(99,*)Analyzation_intgeom(j,i)
+	    				end do
+	    			end do
+	    		else
+	    			Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
+	    			rewind 99
+	    			allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
+	    			do i=1,Analyzation_NGeoms
+	    				read(99,*)Analyzation_cartgeom(:,i)
+	    			end do
+	    			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
+	    			allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
+	    			do i=1,Analyzation_NGeoms
+	    				call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
+	    				Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
+	    			end do
+	    			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
+	    				do i=1,Analyzation_NGeoms
+	    					do j=1,InternalDimension
+	    						write(100,*)Analyzation_intgeom(j,i)
+	    					end do
+	    				end do
+	    			close(99)
+	    		end if
+	    	close(99)
+	    	if(JobType=='mex') then!Look for reference g & h
+	    		open(unit=99,file=RefghFile,status='old',iostat=i)
+	    			if(i==0) then
+	    				allocate(Analyzation_g(CartesianDimension))
+	    				allocate(Analyzation_h(CartesianDimension))
+	    				read(99,*)Analyzation_g
+	    				read(99,*)Analyzation_h
+	    			end if
+	    		close(99)
+	    	end if
+	    end subroutine ReadAnalyzeInput
 end subroutine Analyze
 
 subroutine Evaluate()

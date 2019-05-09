@@ -155,27 +155,89 @@ end subroutine InitializeDiabaticHamiltonian
 
     subroutine OriginShift(shift)!Transform HdEC according to origin shift from q0 to q1: shift = q1 - q0
         real*8,dimension(Hd_intdim),intent(in)::shift
-        integer::istate,jstate,n,i,location
-        integer,allocatable,dimension(:)::indice
+        integer::nvar,nconst,ivar,iconst,istate,jstate,n,i,j,location
+        integer,allocatable,dimension(:)::usevar,indicevar,indiceconst
         real*8::coeff
-        allocate(indice(Hd_EBNR(1).order))
-        do jstate=1,Hd_NState
-            do istate=jstate,Hd_NState
-                do n=1,NHdExpansionBasis
-                    coeff=Hd_HdEC(istate,jstate).Array(n)
-                    do i=1,Hd_EBNR(n).order
-                        indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
-                        location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
-                        if(location==0) stop 'Program abort: basis space is not closed under origin shift'
-                        forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
-                            Hd_HdEC(istate,jstate).Array(location)=Hd_HdEC(istate,jstate).Array(location)+coeff
-                        end forall
-                        coeff=coeff*shift(Hd_EBNR(n).indice(i))
-                    end do
+        type(d2PArray),allocatable,dimension(:,:)::HdECtemp
+        !Allocate work space
+            allocate(usevar(Hd_EBNR(1).order))
+            allocate(indicevar(Hd_EBNR(1).order))
+            allocate(indiceconst(Hd_EBNR(1).order))
+            allocate(HdECtemp(Hd_NState,Hd_Nstate))
+            do jstate=1,Hd_NState
+                do istate=jstate,Hd_NState
+                    allocate(HdECtemp(istate,jstate).Array(NHdExpansionBasis))
+                    HdECtemp(istate,jstate).Array=0d0
                 end do
             end do
+        !do jstate=1,Hd_NState!Main loop
+        !    do istate=jstate,Hd_NState
+        !        do n=1,NHdExpansionBasis
+        !            coeff=Hd_HdEC(istate,jstate).Array(n)
+        !            do i=1,Hd_EBNR(n).order
+        !                indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
+        !                location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
+        !                if(location==0) stop 'Program abort: basis space is not closed under origin shift'
+        !                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
+        !                    HdECtemp(istate,jstate).Array(location)=HdECtemp(istate,jstate).Array(location)+coeff
+        !                end forall
+        !                coeff=coeff*shift(Hd_EBNR(n).indice(i))
+        !            end do
+        !        end do
+        !        Hd_HdEC(istate,jstate).Array=HdECtemp(istate,jstate).Array
+        !    end do
+        !end do
+        do n=1,NHdExpansionBasis
+            if(Hd_EBNR(n).order>0) then
+                usevar(1:Hd_EBNR(n).order)=0
+                do while(usevar(Hd_EBNR(n).order)<2)
+                    nvar=sum(usevar(1:Hd_EBNR(n).order))
+                    nconst=Hd_EBNR(n).order-nvar
+                    ivar=1
+                    iconst=1
+                    do i=1,Hd_EBNR(n).order
+                        if(usevar(i)==1) then
+                            indicevar(ivar)=Hd_EBNR(n).indice(i)
+                            ivar=ivar+1
+                        else
+                            indiceconst(iconst)=Hd_EBNR(n).indice(i)
+                            iconst=iconst+1
+                        end if
+                    end do
+                    location=WhichExpansionBasis(nvar,indicevar(1:nvar))
+                    if(location==0) stop 'Program abort: basis space is not closed under origin shift'
+                    call coefficient()
+                    forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
+                        HdECtemp(istate,jstate).Array(location)=HdECtemp(istate,jstate).Array(location)+coeff*Hd_HdEC(istate,jstate).Array(n)
+                    end forall
+                    usevar(1)=usevar(1)+1
+                    do i=1,Hd_EBNR(n).order-1
+                        if(usevar(i)==2) then
+                            usevar(i)=0
+                            usevar(i+1)=usevar(i+1)+1
+                        end if
+                    end do
+                end do
+            else
+                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
+                    HdECtemp(istate,jstate).Array(n)=HdECtemp(istate,jstate).Array(n)+Hd_HdEC(istate,jstate).Array(n)
+                end forall
+            end if
         end do
-        deallocate(indice)
+        Hd_HdEC=HdECtemp
+        !Clean up
+            deallocate(usevar)
+            deallocate(indicevar)
+            deallocate(indiceconst)
+            deallocate(HdECtemp)
+        contains
+            subroutine coefficient()
+                integer::i
+                coeff=1d0
+                do i=1,nconst
+                    coeff=coeff*shift(indiceconst(i))
+                end do
+            end subroutine coefficient
     end subroutine OriginShift
 
     !Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
