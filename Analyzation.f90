@@ -10,9 +10,9 @@ module Analyzation
 	real*8::Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point, ±10 points each direction
 			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 	!Search control
-		character*32::Analyzation_Searcher='ConjugateGradient'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
+		character*32::Analyzation_Searcher='BFGS'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
 	    logical::Analyzation_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
-	    character*32::Analyzation_ConjugateGradientSolver='PR'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
+	    character*32::Analyzation_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
 
 !Analyzation module only variable
 	integer::Analyzation_state!Modulewide accessed input variable
