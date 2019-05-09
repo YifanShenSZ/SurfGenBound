@@ -170,24 +170,7 @@ end subroutine InitializeDiabaticHamiltonian
                     HdECtemp(istate,jstate).Array=0d0
                 end do
             end do
-        !do jstate=1,Hd_NState!Main loop
-        !    do istate=jstate,Hd_NState
-        !        do n=1,NHdExpansionBasis
-        !            coeff=Hd_HdEC(istate,jstate).Array(n)
-        !            do i=1,Hd_EBNR(n).order
-        !                indice(1:Hd_EBNR(n).order-i+1)=Hd_EBNR(n).indice(i:Hd_EBNR(n).order)
-        !                location=WhichExpansionBasis(Hd_EBNR(n).order-i+1,indice(1:Hd_EBNR(n).order-i+1))
-        !                if(location==0) stop 'Program abort: basis space is not closed under origin shift'
-        !                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
-        !                    HdECtemp(istate,jstate).Array(location)=HdECtemp(istate,jstate).Array(location)+coeff
-        !                end forall
-        !                coeff=coeff*shift(Hd_EBNR(n).indice(i))
-        !            end do
-        !        end do
-        !        Hd_HdEC(istate,jstate).Array=HdECtemp(istate,jstate).Array
-        !    end do
-        !end do
-        do n=1,NHdExpansionBasis
+        do n=1,NHdExpansionBasis!Main loop
             if(Hd_EBNR(n).order>0) then
                 usevar(1:Hd_EBNR(n).order)=0
                 do while(usevar(Hd_EBNR(n).order)<2)
