@@ -7,7 +7,8 @@ module Analyzation
     implicit none
 
 !Parameter
-	real*8::Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point, ±10 points each direction
+	real*8::Analyzation_NGrid=5,&!Generate how many grid points per direction
+	        Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point
 			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 	!Search control
 		character*32::Analyzation_Searcher='BFGS'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
@@ -118,7 +119,7 @@ subroutine Evaluate()
 	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
     real*8,dimension(NState,NState)::eigvec
 	real*8,dimension(InternalDimension,NState,NState)::dH,dHa
-	if(allocated(Analyzation_cartgeom)) then
+	if(allocated(Analyzation_cartgeom)) then!Return Cartesian gradient
 		do i=1,Analyzation_NGeoms!Compute
             HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
 	    	dH=dHd(Analyzation_intgeom(:,i))
@@ -136,7 +137,7 @@ subroutine Evaluate()
 		        dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
 	    	end forall
 		end do
-	else
+	else!Return internal gradient
 	    do i=1,Analyzation_NGeoms!Compute
             HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
 	    	dH=dHd(Analyzation_intgeom(:,i))
@@ -295,7 +296,7 @@ end subroutine Evaluate
 subroutine MinimumSearch()
     integer::i,j
     real*8,dimension(InternalDimension)::q,freq
-    real*8,dimension(CartesianDimension)::r
+    real*8,dimension(CartesianDimension)::r,rtemp
     real*8,dimension(InternalDimension,CartesianDimension)::B
 	real*8,dimension(InternalDimension,InternalDimension)::Hessian
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
@@ -325,8 +326,10 @@ subroutine MinimumSearch()
 	close(99)
 	i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
 	q=q+ReferencePoint.geom
+	rtemp=Analyzation_cartgeom(:,1)
+	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
 	r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
-		mass=MoleculeDetail.mass,r0=Analyzation_cartgeom(:,1))
+		mass=MoleculeDetail.mass,r0=rtemp)
 	open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
 		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
@@ -369,13 +372,13 @@ subroutine MexSearch()
 		g=Analyzation_g/norm2(Analyzation_g)
 		h=Analyzation_h/norm2(Analyzation_h)
 		open(unit=99,file='gPath.geom',status='replace')
-		    do i=-10,-1
+		    do i=-Analyzation_NGrid,-1
 	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
-			do i=1,10
+			do i=1,Analyzation_NGrid
 	        	rtemp=r+dble(i)*Analyzation_ghstep*g
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
@@ -383,13 +386,13 @@ subroutine MexSearch()
 		    end do
 		close(99)
 		open(unit=99,file='hPath.geom',status='replace')
-		    do i=-10,-1
+		    do i=-Analyzation_NGrid,-1
 	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
 		    	end do
 			end do
-			do i=1,10
+			do i=1,Analyzation_NGrid
 	        	rtemp=r+dble(i)*Analyzation_ghstep*h
 		    	do j=1,MoleculeDetail.NAtoms
 		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
@@ -413,9 +416,11 @@ subroutine MexSearch()
     close(99)
 	intdH=AdiabaticdH(q)
 	q=q+ReferencePoint.geom
+	rtemp=Analyzation_cartgeom(:,1)
+	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
 	call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
 	    intnadgrad=intdH,cartnadgrad=cartdH,&
-		mass=MoleculeDetail.mass,r0=Analyzation_cartgeom(:,1))
+		mass=MoleculeDetail.mass,r0=rtemp)
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
 		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
 			gref=Analyzation_g,href=Analyzation_h)
@@ -440,20 +445,20 @@ subroutine MexSearch()
 	g=g/norm2(g)
 	h=h/norm2(h)
 	open(unit=99,file='gPathToEvaluate.in',status='replace')
-	    do i=-5,5
+	    do i=-Analyzation_NGrid,Analyzation_NGrid
 	    	rtemp=r+dble(i)*Analyzation_ghstep*g
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='hPathToEvaluate.in',status='replace')
-	    do i=-5,5
+	    do i=-Analyzation_NGrid,Analyzation_NGrid
 	    	rtemp=r+dble(i)*Analyzation_ghstep*h
 			write(99,*)rtemp
 		end do
 	close(99)
 	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
-		do i=-5,5
-			do j=-5,5
+		do i=-Analyzation_NGrid,Analyzation_NGrid
+			do j=-Analyzation_NGrid,Analyzation_NGrid
 				rtemp=r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h
 			    write(99,*)rtemp
 			end do
