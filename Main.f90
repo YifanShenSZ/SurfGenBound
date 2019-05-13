@@ -139,6 +139,7 @@ program main
 !------------- End --------------
 
 !---------- Clean up ------------
+    call showtime()
     write(*,*)'Mission complete'
 !------------- End --------------
 
