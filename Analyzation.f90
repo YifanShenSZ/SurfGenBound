@@ -7,7 +7,7 @@ module Analyzation
     implicit none
 
 !Parameter
-	real*8::Analyzation_NGrid=5,&!Generate how many grid points per direction
+	real*8::Analyzation_NGrid=10,&!Generate how many grid points per direction
 	        Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point
 			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 	!Search control
