@@ -20,9 +20,7 @@ Fmat*
 *.out
 *.txt
 *.geom
-g238
-h238
-g359
-h359
+g80
+h80
 test*
 *.com
