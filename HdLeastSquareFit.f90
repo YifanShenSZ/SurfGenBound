@@ -268,7 +268,7 @@ end subroutine L_RMSD
                 L=Lmin
                 indice=0
         !Solve
-        call showtime()
+        call ShowTime()
         write(*,'(1x,A43)')'Explore phase space by pseudolinear hopping'
         do i=1,HdLSF_MaxHopperIteration!Main loop
             Lold=L!Prepare
@@ -594,7 +594,7 @@ end subroutine L_RMSD
                     if(allocated(HdLSF_sdegpJacobian)) deallocate(HdLSF_sdegpJacobian)
                     allocate(HdLSF_sdegpJacobian(DataPerDegeneratePoint,NHdExpansionCoefficients))
         !Solve
-        call showtime()
+        call ShowTime()
         write(*,'(1x,A40)')'Search for local minimum by trust region'
         call TrustRegion(Residue,c,HdLSF_NData+NHdExpansionCoefficients,NHdExpansionCoefficients,Jacobian=Jacobian,&
             MaxIteration=HdLSF_MaxLocalMinimizerIteration)
@@ -788,7 +788,7 @@ end subroutine L_RMSD
             if(allocated(HdLSF_dcdHrep)) deallocate(HdLSF_dcdHrep)
             allocate(HdLSF_dcdHrep(NHdExpansionCoefficients,InternalDimension,NState,NState))
         !Solve
-        call showtime()
+        call ShowTime()
         select case(HdLSF_LineSearcher)
             case('LBFGS')
                 write(*,'(1x,A67)')'Search for local minimum by limited memory BFGS quasi-Newton method'

@@ -36,13 +36,13 @@ program main
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
 		real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
+    call ShowTime()
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput()
     call Initialize()
 !------------- End --------------
 
 !----------- Run job ------------
-    call showtime()
     select case(JobType)
 		case('FitNewDiabaticHamiltonian')
             if(GradualFit) then
@@ -139,7 +139,7 @@ program main
 !------------- End --------------
 
 !---------- Clean up ------------
-    call showtime()
+    call ShowTime()
     write(*,*)'Mission complete'
 !------------- End --------------
 
