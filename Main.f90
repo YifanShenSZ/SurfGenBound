@@ -1,6 +1,7 @@
 !SurfGenBound: surface generation package for bounded system
 !Construct diabatic hamiltonian (Hd) by least square fitting H & ▽H
-!IO & computation unit: atomic unit
+!IO unit: atomic unit unless specified in file
+!Computation unit: atomic unit
 !
 !Level: Main <- Analyze, HdLeastSquareFit <- ElectronicStructure <- Basic <- DiabaticHamiltonian
 program main
