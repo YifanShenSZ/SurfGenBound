@@ -103,6 +103,7 @@ end subroutine InitializeHdLeastSquareFit
 
 subroutine FitHd()!Fit Hd with the designated solver
     integer::istate,jstate
+    real*8::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
     real*8,allocatable,dimension(:)::c
     !Initialize
         HdLSF_NData=DataPerPoint*NPoints+DataPerDegeneratePoint*NDegeneratePoints+NState*NArtifactPoints
@@ -126,6 +127,17 @@ subroutine FitHd()!Fit Hd with the designated solver
             allocate(HdLSF_f(NHdExpansionBasis))
             if(allocated(HdLSF_fd)) deallocate(HdLSF_fd)
             allocate(HdLSF_fd(InternalDimension,NHdExpansionBasis))
+        call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
+        write(*,'(1x,A25)')'Quality of initial guess:'
+        write(*,*)'Lagrangian =',L
+        write(*,*)'RMSD over regular data points:'
+        write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
+        write(*,*)'    dH =',RMSDdH,'a.u.'
+        if(NDegeneratePoints>0) then
+            write(*,*)'RMSD over almost degenerate data points:'
+            write(*,*)'     H =',RMSDDegH/cm_1InAu,'cm-1'
+            write(*,*)'    dH =',RMSDDegdH,'a.u.'
+        end if
     !Fit Hd
     select case(HdLSF_Solver)
         !Single solvers
