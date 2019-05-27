@@ -39,7 +39,7 @@ module HdLeastSquareFit
         !Max ineration control. Hopper = pseudolinear. LocalMinimizer = TrustRegion, LineSearch
         integer::HdLSF_MaxHopperIteration=100,HdLSF_MaxLocalMinimizerIteration=1000,HdLSF_Max2StepIteration=10
     !pseudolinear:
-        integer::HdLSF_pseudolinearFollowFreq=1,&!Every how many steps print fitting progress
+        integer::HdLSF_pseudolinearFollowStep=1,&!Every how many steps print fitting progress
             HdLSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
     !LineSearch:
         character*32::HdLSF_LineSearcher='ConjugateGradient'!Available: LBFGS, ConjugateGradient
@@ -305,7 +305,7 @@ end subroutine L_RMSD
                     write(*,*)'    dH =',RMSDDegdH,'a.u.'
                 end if
                 exit
-            else if(mod(i,HdLSF_pseudolinearFollowFreq)==0) then
+            else if(mod(i,HdLSF_pseudolinearFollowStep)==0) then
                 c=b
                 call LSFMatrices_L_RMSD(A,b,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
                 if(L<Lmin) then
