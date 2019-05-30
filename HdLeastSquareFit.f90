@@ -176,10 +176,10 @@ subroutine FitHd()!Fit Hd with the designated solver
 end subroutine FitHd
 
 !Lagrangian and root mean square deviations are the evaluation standards for the fit
-    !Input:  current c
-    !Output: L harvests Lagrangian,
-    !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
-    !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
+!Input:  current c
+!Output: L harvests Lagrangian,
+!        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
+!        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
 subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
 	real*8,dimension(NHdExpansionCoefficients),intent(in)::c
 	real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
@@ -204,7 +204,7 @@ subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
 	RMSDDegH=0d0
 	RMSDDegdH=0d0
 	do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
-		call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
+		call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
 		call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
 		RMSDDegdH=RMSDDegdH+Ltemp
 		forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (dH has done during fixing)
@@ -424,7 +424,7 @@ end subroutine L_RMSD
                     end do
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
-                    call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Nondegenerate representation
+                    call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !H
                     forall(istate=1:NState,jstate=1:NState,istate>=jstate)
@@ -517,7 +517,7 @@ end subroutine L_RMSD
                 RMSDDegH=0d0
                 RMSDDegdH=0d0
                 do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
-                    call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Nondegenerate representation
+                    call NondegenerateH_dH_State_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     RMSDDegdH=RMSDDegdH+Ltemp
                     !H
@@ -676,7 +676,7 @@ end subroutine L_RMSD
                     indicerow=indicerow+DataPerPoint
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
-                    call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
+                    call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
                     indicesp=1
                     do istate=1,NState!H
@@ -743,7 +743,7 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
-                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
+                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase   
                     !▽_c phi
                     HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NHdExpansionCoefficients,NState),NHdExpansionCoefficients,NState)
@@ -852,7 +852,7 @@ end subroutine L_RMSD
                     L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*dot_product(HdLSF_energy,HdLSF_energy))
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
-                    call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH)!Nondegenerate representation
+                    call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
                     forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (▽H has done during fixing)
                         HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
@@ -903,7 +903,7 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
-                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
+                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
                     HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NHdExpansionCoefficients,NState),NHdExpansionCoefficients,NState)
@@ -980,7 +980,7 @@ end subroutine L_RMSD
                 end do
                 do ip=1,NDegeneratePoints!Almost degenerate data points
                     !In this loop, HdLSF_energy stores the eigenvalues of nondegenerate operator
-                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd)!Nondegenerate representation
+                    call NondegenerateH_dH_eigval_State_dHd_f_fd(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,HdLSF_energy,HdLSF_phi,HdLSF_dHd,HdLSF_f,HdLSF_fd,AlmostDegenerate)!Nondegenerate representation
                     call dFixHPhase_AssignBasisPhaseBydH(HdLSF_H,HdLSF_phi,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Assign basis phase
                     !▽_c phi
                     HdLSF_dcphi=deigvec_ByKnowneigval_dA(HdLSF_energy,sy3UnitaryTransformation(dcAd_ByKnown(dcdHd_ByKnownfdT(transpose(HdLSF_fd)),HdLSF_dHd),HdLSF_phi,NHdExpansionCoefficients,NState),NHdExpansionCoefficients,NState)

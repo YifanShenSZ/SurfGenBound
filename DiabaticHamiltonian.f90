@@ -615,13 +615,14 @@ end subroutine InitializeDiabaticHamiltonian
     !    (▽H)^2 is Hermitian so there exists exactly one (▽H)^2 representation
     !    It reduces to s orthogonal to h for 2-fold degeneracy case, where s is the average force of 2 PESs
     !Note it is only appropriate around conical intersection, because || ▽H || -> 0 at asymptote
+
     !Compute nondegenerate representation quantity from Hd at some coordinate q
+    !Optional: DegenerateThreshold: if present, check whether some eigenvalues closer than DegenerateThreshold
 
     !dim x NState x NState 3-order tensor ▽H
     !Transform ▽H to (▽H)^2 representation
     !eigval harvests eigen values of (▽H)^2
 	!eigvec harvests eigen vectors of (▽H)^2 in representation same to input ▽H
-	!Optional: DegenerateThreshold: if present, check whether some eigenvalues closer than DegenerateThreshold
     subroutine NondegenerateRepresentation(dH,eigval,eigvec,dim,NState,DegenerateThreshold)
         integer,intent(in)::dim,NState
         real*8,dimension(dim,NState,NState),intent(inout)::dH
@@ -634,43 +635,53 @@ end subroutine InitializeDiabaticHamiltonian
 		dH=sy3UnitaryTransformation(dH,eigvec,dim,NState)
 		if(present(DegenerateThreshold)) then
             call CheckDegeneracy(degenerate,DegenerateThreshold,eigval,NState)
-			if(degenerate) write(*,*)'Warning: nondegenerate representation is also almost degenerate'
+			if(degenerate) write(*,*)'Warning: nondegenerate representation has eigenvalues closer than',DegenerateThreshold
 		end if
     end subroutine NondegenerateRepresentation
 
     !H harvests H_nd, dH harvests ▽H_nd
-    subroutine NondegenerateH_dH(q,H,dH)
+    subroutine NondegenerateH_dH(q,H,dH,DegenerateThreshold)
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::H
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
+        real*8,intent(in),optional::DegenerateThreshold
         real*8,dimension(Hd_NState)::eigval
         real*8,dimension(Hd_NState,Hd_NState)::phi
         H=Hd(q)
         dH=dHd(q)
-        call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        if(present(DegenerateThreshold)) then
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
+        else
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        end if
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH
 
     !phi harvests the nondegenerate states in diabatic representation
     !f harvests expansion basis function values
     !fd harvests expansion basis function gradient values, fd(:,i) = the gradient of i-th expansion basis function
-    subroutine NondegenerateH_dH_State_f_fd(q,H,dH,phi,f,fd)
+    subroutine NondegenerateH_dH_State_f_fd(q,H,dH,phi,f,fd,DegenerateThreshold)
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::H
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::phi
         real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
+        real*8,intent(in),optional::DegenerateThreshold
         real*8,dimension(Hd_NState)::eigval
         call Hd_f(H,f,q)
         call dHd_fd(dH,fd,q)
-        call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        if(present(DegenerateThreshold)) then
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
+        else
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        end if
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH_State_f_fd
 
     !eigval harvests the eigenvalues corresponding to phi
     !dHd harvests ▽H_d
-    subroutine NondegenerateH_dH_eigval_State_dHd_f_fd(q,H,dH,eigval,phi,dHd,f,fd)
+    subroutine NondegenerateH_dH_eigval_State_dHd_f_fd(q,H,dH,eigval,phi,dHd,f,fd,DegenerateThreshold)
         real*8,dimension(Hd_intdim),intent(in)::q
         real*8,dimension(Hd_NState,Hd_NState),intent(out)::H
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dH
@@ -679,10 +690,15 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(Hd_intdim,Hd_NState,Hd_NState),intent(out)::dHd
         real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
+        real*8,intent(in),optional::DegenerateThreshold
         call Hd_f(H,f,q)
         call dHd_fd(dHd,fd,q)
         dH=dHd
-        call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        if(present(DegenerateThreshold)) then
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
+        else
+            call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState)
+        end if
         H=matmul(transpose(phi),matmul(H,phi))
     end subroutine NondegenerateH_dH_eigval_State_dHd_f_fd
 !------------------- End --------------------

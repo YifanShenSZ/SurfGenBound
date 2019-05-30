@@ -200,7 +200,7 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
                 !HdLeastSquareFit
                     HdLSF_Regularization,HdLSF_Solver,&
                     HdLSF_MaxHopperIteration,HdLSF_MaxLocalMinimizerIteration,HdLSF_Max2StepIteration,&
-                    HdLSF_pseudolinearFollowFreq,HdLSF_pseudolinearMaxMonotonicalIncrease,&
+                    HdLSF_pseudolinearFollowStep,HdLSF_pseudolinearMaxMonotonicalIncrease,&
                     HdLSF_LineSearcher,HdLSF_UseStrongWolfe,HdLSF_LBFGSMemory,HdLSF_ConjugateGradientSolver,&
                 !Analyzation
                     Analyzation_NGrid,Analyzation_ghstep,Analyzation_miu0,&
