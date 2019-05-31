@@ -181,47 +181,47 @@ end subroutine FitHd
 !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
 !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
 subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
-	real*8,dimension(NHdExpansionCoefficients),intent(in)::c
-	real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
-	integer::ip,istate,jstate
-	real*8::Ltemp,temp
-	!Initialize
-		L=HdLSF_Regularization*dot_product(c,c)!Regularization
-		call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
-	RMSDenergy=0d0
-	RMSDdH=0d0
-	do ip=1,NPoints!Regular data points, compute RMSD
-		call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
-		call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
-		RMSDdH=RMSDdH+Ltemp
-		HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (dH has done during fixing)
-		temp=dot_product(HdLSF_energy,HdLSF_energy)
-		RMSDenergy=RMSDenergy+temp
-		L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-	end do
-	RMSDenergy=dSqrt(RMSDenergy/NState/NPoints)
-	RMSDdH=dSqrt(RMSDdH/(InternalDimension*NState*NState)/NPoints)
-	RMSDDegH=0d0
-	RMSDDegdH=0d0
-	do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
-		call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
-		call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
-		RMSDDegdH=RMSDDegdH+Ltemp
-		forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (dH has done during fixing)
-			HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
-		end forall
-		temp=dsyFrobeniusSquare(HdLSF_H,NState)
-		RMSDDegH=RMSDDegH+temp
-		L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
-	end do
-	RMSDDegH=dSqrt(RMSDDegH/(NState*NState)/NDegeneratePoints)
-	RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NState*NState)/NDegeneratePoints)
-	Ltemp=0d0
-	do ip=1,NArtifactPoints!Unreliable data points, energy only
-		HdLSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
-		Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
-	end do
-	L=L+HdLSF_EnergyScaleSquare*Ltemp
+    real*8,dimension(NHdExpansionCoefficients),intent(in)::c
+    real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
+    integer::ip,istate,jstate
+    real*8::Ltemp,temp
+    !Initialize
+        L=HdLSF_Regularization*dot_product(c,c)!Regularization
+        call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
+    RMSDenergy=0d0
+    RMSDdH=0d0
+    do ip=1,NPoints!Regular data points, compute RMSD
+        call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
+        call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
+        RMSDdH=RMSDdH+Ltemp
+        HdLSF_energy=HdLSF_energy-point(ip).energy!Energy (dH has done during fixing)
+        temp=dot_product(HdLSF_energy,HdLSF_energy)
+        RMSDenergy=RMSDenergy+temp
+        L=L+point(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
+    end do
+    RMSDenergy=dSqrt(RMSDenergy/NState/NPoints)
+    RMSDdH=dSqrt(RMSDdH/(InternalDimension*NState*NState)/NPoints)
+    RMSDDegH=0d0
+    RMSDDegdH=0d0
+    do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
+        call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
+        call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
+        RMSDDegdH=RMSDDegdH+Ltemp
+        forall(istate=1:NState,jstate=1:NState,istate>=jstate)!H (dH has done during fixing)
+            HdLSF_H(istate,jstate)=HdLSF_H(istate,jstate)-DegeneratePoint(ip).H(istate,jstate)
+        end forall
+        temp=dsyFrobeniusSquare(HdLSF_H,NState)
+        RMSDDegH=RMSDDegH+temp
+        L=L+DegeneratePoint(ip).weight*(Ltemp+HdLSF_EnergyScaleSquare*temp)
+    end do
+    RMSDDegH=dSqrt(RMSDDegH/(NState*NState)/NDegeneratePoints)
+    RMSDDegdH=dSqrt(RMSDDegdH/(InternalDimension*NState*NState)/NDegeneratePoints)
+    Ltemp=0d0
+    do ip=1,NArtifactPoints!Unreliable data points, energy only
+        HdLSF_energy=AdiabaticEnergy(ArtifactPoint(ip).geom)-ArtifactPoint(ip).energy
+        Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
+    end do
+    L=L+HdLSF_EnergyScaleSquare*Ltemp
 end subroutine L_RMSD
 
 !--------------- Solvers ---------------
