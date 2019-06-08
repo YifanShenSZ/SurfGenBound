@@ -621,6 +621,7 @@ subroutine GenerateNadVibSInput()
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
     qSuccessor=qSuccessor-ReferencePoint.geom
+    !This is to choose the adiabatic harmonic approximation along each internal coordinate as basis
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
     forall(i=1:MoleculeDetail.NAtoms)
@@ -629,7 +630,7 @@ subroutine GenerateNadVibSInput()
     call syL2U(HSuccessor,InternalDimension)
     HSuccessor=matmul(matmul(Btemp,transpose(BSuccessor)),HSuccessor)
     forall(i=1:InternalDimension)
-        freqSuccessor(i)=HSuccessor(i,i)
+        freqSuccessor(i)=dSqrt(HSuccessor(i,i))
     end forall
     HSuccessor=UnitMatrix(InternalDimension)
     !Reformat Hd expansion coefficient into NadVibS format
