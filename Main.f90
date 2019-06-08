@@ -623,7 +623,6 @@ subroutine GenerateNadVibSInput()
     qSuccessor=qSuccessor-ReferencePoint.geom
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
-
     forall(i=1:MoleculeDetail.NAtoms)
         Btemp(:,3*i-2:3*i)=BSuccessor(:,3*i-2:3*i)/MoleculeDetail.mass(i)
     end forall
@@ -633,10 +632,6 @@ subroutine GenerateNadVibSInput()
         freqSuccessor(i)=HSuccessor(i,i)
     end forall
     HSuccessor=UnitMatrix(InternalDimension)
-
-    !call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    !if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
-
     !Reformat Hd expansion coefficient into NadVibS format
         call OriginShift(qSuccessor)!Shift origin to ground state minimum
         NOrder=0!Determine the highest order used
