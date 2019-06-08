@@ -600,7 +600,7 @@ subroutine GenerateNadVibSInput()
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
-    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
+    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor,Btemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     type(NadVibS_HdEC),dimension(NState,NState)::HdEC
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
@@ -623,8 +623,20 @@ subroutine GenerateNadVibSInput()
     qSuccessor=qSuccessor-ReferencePoint.geom
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
-    call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
+
+    forall(i=1:MoleculeDetail.NAtoms)
+        Btemp(:,3*i-2:3*i)=BSuccessor(:,3*i-2:3*i)/MoleculeDetail.mass(i)
+    end forall
+    call syL2U(HSuccessor,intdim)
+    HSuccessor=matmul(matmul(Btemp,transpose(BSuccessor)),HSuccessor)
+    forall(i=1:InternalDimension)
+        freqSuccessor(i)=HSuccessor(i,i)
+    end forall
+    HSuccessor=UnitMatrix(InternalDimension)
+
+    !call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    !if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
+    
     !Reformat Hd expansion coefficient into NadVibS format
         call OriginShift(qSuccessor)!Shift origin to ground state minimum
         NOrder=0!Determine the highest order used
@@ -678,7 +690,7 @@ subroutine GenerateNadVibSInput()
                 end do
             end do
         end do
-        write(99,'(A63)')'Angular frequency of each precursor normal mode: (In a.u.)'
+        write(99,'(A58)')'Angular frequency of each precursor normal mode: (In a.u.)'
         write(99,*)freqPrecursor
         write(99,'(A13)')'Shift Vector:'
         write(99,*)dshift
