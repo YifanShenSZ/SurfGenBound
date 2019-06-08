@@ -627,7 +627,7 @@ subroutine GenerateNadVibSInput()
     forall(i=1:MoleculeDetail.NAtoms)
         Btemp(:,3*i-2:3*i)=BSuccessor(:,3*i-2:3*i)/MoleculeDetail.mass(i)
     end forall
-    call syL2U(HSuccessor,intdim)
+    call syL2U(HSuccessor,InternalDimension)
     HSuccessor=matmul(matmul(Btemp,transpose(BSuccessor)),HSuccessor)
     forall(i=1:InternalDimension)
         freqSuccessor(i)=HSuccessor(i,i)
@@ -636,7 +636,7 @@ subroutine GenerateNadVibSInput()
 
     !call WilsonGFMethod(freqSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     !if(minval(freqSuccessor)<-1d-14) write(*,*)'Warning: imaginary frequency found for successor'
-    
+
     !Reformat Hd expansion coefficient into NadVibS format
         call OriginShift(qSuccessor)!Shift origin to ground state minimum
         NOrder=0!Determine the highest order used
