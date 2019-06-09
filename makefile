@@ -10,7 +10,7 @@ MyLib = $(MyLibDir)/General.f90 $(MyLibDir)/Mathematics.f90 $(MyLibDir)/LinearAl
 src = DiabaticHamiltonian.f90 Basic.f90 ElectronicStructure.f90 HdLeastSquareFit.f90 Analyzation.f90 Main.f90
 exe = SurfGenBound.exe
 # -static causes strange bug in ifort 2018
-flag = -mkl -m64 -ipo -O3 -no-prec-div -fp-model fast=2 -xCORE-AVX2 -mtune=core-avx2
+flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -mkl -ipo -O3 -no-prec-div -fp-model fast=2
 
 $(exe): $(MyLib) $(src)
 	$(compiler) $(flag) $^ -o $(exe)
