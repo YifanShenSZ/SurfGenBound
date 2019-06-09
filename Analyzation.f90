@@ -340,7 +340,7 @@ subroutine MinimumSearch()
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
     call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='MinimumVibrationalFrequency.txt',status='replace')
-        write(99,'(A4,A1,A14)')'Mode'//char(9)//'Frequency/cm-1'
+        write(99,'(A4,A1,A14)')'Mode',char(9),'Frequency/cm-1'
         do i=1,InternalDimension
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
