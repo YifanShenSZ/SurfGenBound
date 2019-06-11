@@ -11,7 +11,6 @@ module Analyzation
 	        Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point
 			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 	!Search control
-		
 		character*32::Analyzation_Searcher='BFGS'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
 	    logical::Analyzation_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
 	    character*32::Analyzation_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
