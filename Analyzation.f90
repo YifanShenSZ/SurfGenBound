@@ -350,7 +350,11 @@ subroutine MinimumSearch()
 	close(99)
 	i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
 	q=q+ReferencePoint.geom
-	rtemp=Analyzation_cartgeom(:,1)
+	if(allocated(Analyzation_cartgeom)) then
+		rtemp=Analyzation_cartgeom(:,1)
+	else
+		rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
+	end if
 	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
 	r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
 		mass=MoleculeDetail.mass,r0=rtemp)
