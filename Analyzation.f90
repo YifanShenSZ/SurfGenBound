@@ -362,7 +362,7 @@ subroutine MinimumSearch()
 		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
         do i=1,MoleculeDetail.NAtoms
-            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
+            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
@@ -444,7 +444,11 @@ subroutine MexSearch()
     close(99)
 	intdH=AdiabaticdH(q)
 	q=q+ReferencePoint.geom
-	rtemp=Analyzation_cartgeom(:,1)
+	if(allocated(Analyzation_cartgeom)) then
+		rtemp=Analyzation_cartgeom(:,1)
+	else
+		rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
+	end if
 	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
 	call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
 	    intnadgrad=intdH,cartnadgrad=cartdH,&
@@ -461,7 +465,7 @@ subroutine MexSearch()
 		write(99,*)MoleculeDetail.NAtoms
 		write(99,*)
         do i=1,MoleculeDetail.NAtoms
-            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)
+            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
 	close(99)
 	open(unit=99,file='Mexg.out',status='replace')
