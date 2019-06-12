@@ -599,7 +599,7 @@ subroutine GenerateNadVibSInput()
     integer,allocatable,dimension(:)::indice
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor
+    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor,modePrecursor,modeSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor,Btemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     type(NadVibS_HdEC),dimension(NState,NState)::HdEC
@@ -609,8 +609,8 @@ subroutine GenerateNadVibSInput()
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
-    call WilsonGFMethod(freqPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    if(minval(freqPrecursor)<-1d-14) write(*,*)'Warning: imaginary frequency found for precursor'
+    call WilsonGFMethod(freqPrecursor,modePrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    if(minval(freqPrecursor)<-1d-14) write(*,'(1x,A48)')'Warning: imaginary frequency found for precursor'
     !Successor
     open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
     	read(99,*)
@@ -621,18 +621,20 @@ subroutine GenerateNadVibSInput()
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
     qSuccessor=qSuccessor-ReferencePoint.geom
-    !This is to choose the adiabatic harmonic approximation along each internal coordinate as basis
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
+!This version chooses the adiabatic harmonic approximation along each internal coordinate as basis
     forall(i=1:MoleculeDetail.NAtoms)
         Btemp(:,3*i-2:3*i)=BSuccessor(:,3*i-2:3*i)/MoleculeDetail.mass(i)
     end forall
-    call syL2U(HSuccessor,InternalDimension)
-    HSuccessor=matmul(matmul(Btemp,transpose(BSuccessor)),HSuccessor)
+    modeSuccessor=HSuccessor
+    call syL2U(modeSuccessor,InternalDimension)
+    modeSuccessor=matmul(matmul(Btemp,transpose(BSuccessor)),modeSuccessor)
     forall(i=1:InternalDimension)
-        freqSuccessor(i)=dSqrt(HSuccessor(i,i))
+        freqSuccessor(i)=dSqrt(modeSuccessor(i,i))
     end forall
-    HSuccessor=UnitMatrix(InternalDimension)
+    !Store the inverse of modeSuccessor in modeSuccessor
+    modeSuccessor=UnitMatrix(InternalDimension)
     !Reformat Hd expansion coefficient into NadVibS format
         call OriginShift(qSuccessor)!Shift origin to ground state minimum
         NOrder=0!Determine the highest order used
@@ -672,9 +674,10 @@ subroutine GenerateNadVibSInput()
                 end forall
             end do
         end do
+!End of the specific treatment
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
-    dshift=matmul(HPrecursor,qSuccessor-qPrecursor)
-    Tshift=matmul(HPrecursor,HSuccessor)
+    dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
+    Tshift=matmul(modePrecursor,modeSuccessor)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A54)')'Angular frequency of each vibrational basis: (In a.u.)'
         write(99,*)freqSuccessor

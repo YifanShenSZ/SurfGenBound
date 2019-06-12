@@ -302,7 +302,7 @@ subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q,freq
     real*8,dimension(CartesianDimension)::r,rtemp
     real*8,dimension(InternalDimension,CartesianDimension)::B
-	real*8,dimension(InternalDimension,InternalDimension)::Hessian
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
 	q=Analyzation_intgeom(:,1)
 	if(Analyzation_SearchDiabatic) then
@@ -366,7 +366,7 @@ subroutine MinimumSearch()
         end do
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
-    call WilsonGFMethod(freq,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freq,mode,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A14)')'Mode',char(9),'Frequency/cm-1'
         do i=1,InternalDimension
@@ -382,9 +382,9 @@ subroutine MinimumSearch()
 		do i=1,InternalDimension
 			write(99,'(I8,A1)',advance='no')i,char(9)
 			do j=1,InternalDimension-1
-				write(99,'(F18.15,A1)',advance='no')Hessian(j,i),char(9)
+				write(99,'(F18.15,A1)',advance='no')mode(j,i),char(9)
 			end do
-			write(99,'(F18.15)')Hessian(InternalDimension,i)
+			write(99,'(F18.15)')mode(InternalDimension,i)
 		end do
     close(99)
 end subroutine MinimumSearch
