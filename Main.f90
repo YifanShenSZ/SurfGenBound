@@ -566,7 +566,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             allocate(ArtifactPoint(ip).energy(NState))
                 ArtifactPoint(ip).energy=ArtifactPointtemp(ip).energy
             !Artifact points do not have energy gradient and interstate coupling
-			ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPoint(ip).geom,InternalDimension,CartesianDimension)&
+			ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPointtemp(ip).geom,InternalDimension,CartesianDimension)&
 			    -ReferencePoint.geom!This program requires only internal coordinate difference
         end do
     !Clean up

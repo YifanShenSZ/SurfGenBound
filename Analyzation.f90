@@ -45,76 +45,76 @@ subroutine Analyze()!Top level standard interface for other modules to call
             stop
 	end select
 	contains
-	    subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
-	    	logical::intgeom
-	    	character*128::GeomFile,RefghFile,DispFile
-	    	integer::i,j
-	    	open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
-	    		read(99,*)
-	    		read(99,*)
-	    		read(99,*)
-	    		read(99,*)JobType
-	    			write(*,*)'Analyzation job type: '//JobType
-	    		read(99,*)
-	    		read(99,*)Analyzation_state
-	    		read(99,*)
-	    		read(99,*)GeomFile
-	    		read(99,*)
-				read(99,*)intgeom
-				read(99,*)
-	    		read(99,*)Analyzation_SearchDiabatic
-	    		read(99,*)
-	    		read(99,*)RefghFile
-	    	close(99)
-	    	open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
-	    		Analyzation_NGeoms=0!Count number of geometries
-	    		do
-	    			read(99,*,iostat=i)
-	    			if(i/=0) exit
-	    			Analyzation_NGeoms=Analyzation_NGeoms+1
-	    		end do
-	    		if(intgeom) then
-	    			Analyzation_NGeoms=Analyzation_NGeoms/InternalDimension
-	    			rewind 99
-	    			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
-	    			do i=1,Analyzation_NGeoms
-	    				do j=1,InternalDimension
-	    					read(99,*)Analyzation_intgeom(j,i)
-	    				end do
-	    			end do
-	    		else
-	    			Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
-	    			rewind 99
-	    			allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
-	    			do i=1,Analyzation_NGeoms
-	    				read(99,*)Analyzation_cartgeom(:,i)
-	    			end do
-	    			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
-	    			allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
-	    			do i=1,Analyzation_NGeoms
-	    				call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
-	    				Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
-	    			end do
-	    			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
-	    				do i=1,Analyzation_NGeoms
-	    					do j=1,InternalDimension
-	    						write(100,*)Analyzation_intgeom(j,i)
-	    					end do
-	    				end do
-	    			close(99)
-	    		end if
-	    	close(99)
-	    	if(JobType=='mex') then!Look for reference g & h
-	    		open(unit=99,file=RefghFile,status='old',iostat=i)
-	    			if(i==0) then
-	    				allocate(Analyzation_g(CartesianDimension))
-	    				allocate(Analyzation_h(CartesianDimension))
-	    				read(99,*)Analyzation_g
-	    				read(99,*)Analyzation_h
-	    			end if
-	    		close(99)
-	    	end if
-	    end subroutine ReadAnalyzeInput
+	subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
+		logical::intgeom
+		character*128::GeomFile,RefghFile,DispFile
+		integer::i,j
+		open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
+			read(99,*)
+			read(99,*)
+			read(99,*)
+			read(99,*)JobType
+				write(*,*)'Analyzation job type: '//JobType
+			read(99,*)
+			read(99,*)Analyzation_state
+			read(99,*)
+			read(99,*)GeomFile
+			read(99,*)
+			read(99,*)intgeom
+			read(99,*)
+			read(99,*)Analyzation_SearchDiabatic
+			read(99,*)
+			read(99,*)RefghFile
+		close(99)
+		open(unit=99,file=GeomFile,status='old')!Read geometries of interest and convert to internal coordinate
+			Analyzation_NGeoms=0!Count number of geometries
+			do
+				read(99,*,iostat=i)
+				if(i/=0) exit
+				Analyzation_NGeoms=Analyzation_NGeoms+1
+			end do
+			if(intgeom) then
+				Analyzation_NGeoms=Analyzation_NGeoms/InternalDimension
+				rewind 99
+				allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Read geometries
+				do i=1,Analyzation_NGeoms
+					do j=1,InternalDimension
+						read(99,*)Analyzation_intgeom(j,i)
+					end do
+				end do
+			else
+				Analyzation_NGeoms=Analyzation_NGeoms/MoleculeDetail.NAtoms
+				rewind 99
+				allocate(Analyzation_cartgeom(CartesianDimension,Analyzation_NGeoms))!Read geometries
+				do i=1,Analyzation_NGeoms
+					read(99,*)Analyzation_cartgeom(:,i)
+				end do
+				allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
+				allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
+				do i=1,Analyzation_NGeoms
+					call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
+					Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
+				end do
+				open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
+					do i=1,Analyzation_NGeoms
+						do j=1,InternalDimension
+							write(100,*)Analyzation_intgeom(j,i)
+						end do
+					end do
+				close(99)
+			end if
+		close(99)
+		if(JobType=='mex') then!Look for reference g & h
+			open(unit=99,file=RefghFile,status='old',iostat=i)
+				if(i==0) then
+					allocate(Analyzation_g(CartesianDimension))
+					allocate(Analyzation_h(CartesianDimension))
+					read(99,*)Analyzation_g
+					read(99,*)Analyzation_h
+				end if
+			close(99)
+		end if
+	end subroutine ReadAnalyzeInput
 end subroutine Analyze
 
 subroutine Evaluate()
@@ -164,9 +164,9 @@ subroutine Evaluate()
     open(unit=99,file='PotentialEnergySurface.txt',status='replace')
         write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
         do i=1,NState-1
-            write(99,'(2x,A6,I2,A5,3x,A1)',advance='no')'Energy',i,'/cm-1',char(9)
+            write(99,'(2x,A6,I2,A6,3x,A1)',advance='no')'Energy',i,'/cm^-1',char(9)
         end do
-        write(99,'(2x,A6,I2,A5,3x)')'Energy',NState,'/cm-1'
+        write(99,'(2x,A6,I2,A6,3x)')'Energy',NState,'/cm^-1'
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState-1
@@ -192,11 +192,11 @@ subroutine Evaluate()
     open(unit=99,file='Hd.txt',status='replace')
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
         do i=1,NState
-            write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/cm-1',char(9)
+            write(99,'(1x,A8,I2,A6,2x,A1)',advance='no')'Diagonal',i,'/cm^-1',char(9)
 		end do
 		do i=1,NState
 			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/cm-1',char(9)
+				write(99,'(A8,I2,A1,I2,A6,A1)',advance='no')'Coupling',j,'&',i,'/cm^-1',char(9)
 			end do
         end do
         write(99,*)
@@ -368,7 +368,7 @@ subroutine MinimumSearch()
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
     call WilsonGFMethod(freq,mode,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
-        write(99,'(A4,A1,A14)')'Mode',char(9),'Frequency/cm-1'
+        write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
         do i=1,InternalDimension
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
@@ -390,11 +390,13 @@ subroutine MinimumSearch()
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-	integer::i,j
+	integer::i,j,istate
     real*8,dimension(InternalDimension)::q
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
+	!Work space for some basic evaluation
+	real*8,dimension(NState)::energy
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
 		r=Analyzation_cartgeom(:,1)
 		g=Analyzation_g/norm2(Analyzation_g)
@@ -488,13 +490,22 @@ subroutine MexSearch()
 			write(99,*)rtemp
 		end do
 	close(99)
-	open(unit=99,file='DoubleConeToEvaluate.in',status='replace')
-		do i=-Analyzation_NGrid,Analyzation_NGrid
-			do j=-Analyzation_NGrid,Analyzation_NGrid
-				rtemp=r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h
-			    write(99,*)rtemp
-			end do
+	open(unit=99,file='DoubleCone.txt',status='replace')
+	    write(99,'(A19,A1,A19,A1,A12)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy/cm^-1'
+	    do istate=2,NState-1
+	    	write(99,'(A1,A12)',advance='no')char(9),'Energy/cm^-1'
 		end do
+		write(99,'(A1,A12)')char(9),'Energy/cm^-1'
+	    do i=-Analyzation_NGrid,Analyzation_NGrid
+	    	do j=-Analyzation_NGrid,Analyzation_NGrid
+				energy=AdiabaticEnergy(InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension))
+				write(99,'(F6.2,A1,F6.2,A1,F18.8)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
+	    		do istate=2,NState-1
+	    			write(99,'(A1,F18.8)',advance='no')char(9),energy(istate)
+				end do
+				write(99,'(A1,F18.8)')char(9),energy(NState)
+	    	end do
+	    end do
 	close(99)
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
