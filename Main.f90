@@ -9,6 +9,7 @@ program main
     use ElectronicStructure
     use HdLeastSquareFit
     use Analyzation
+    use NadVibSInterface
     implicit none
     !Main only accessed input variable
         character*32::JobType

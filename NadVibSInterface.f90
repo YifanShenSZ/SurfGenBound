@@ -1,27 +1,27 @@
 module NadVibSInterface
-    implicit none
     use Basic
     use ElectronicStructure
+    implicit none
 
 !Derived type
-    !Example: type(NadVibS_HdEC),allocatable,dimension(:,:)::HdEC
-    !         HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
+    !Example: type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
+    !         NVS_HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
     !         in iorder-th order terms for Hd(jstate,istate)
-    type NVS_HdEC!Store Hd expansion coefficient in NadVibS format
+    type NVS_HdExpansionCoefficient!Store Hd expansion coefficient in NadVibS format
         type(d2PArray),allocatable,dimension(:)::Order
-    end type NVS_HdEC
+    end type NVS_HdExpansionCoefficient
 
 !NadVibSInterface module only variable
     integer::NVS_NOrder,NVS_NHdExpansionBasis
     integer,allocatable,dimension(:)::NVS_NumberOfEachOrderTerms
     type(ExpansionBasisNumberingRule),allocatable,dimension(:)::NVS_EBNR
-    type(NVS_HdEC),dimension(NState,NState)::NVS_HdEC
+    type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
 
 contains
 subroutine GenerateNadVibSInput()
     character*2::chartemp
-    integer::i,j,istate,jstate,iorder
-    integer,allocatable,dimension(:)::indice
+    integer::i,j,k
+    real*8::dbletemp
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor,modePrecursor,modeSuccessor
@@ -37,7 +37,7 @@ subroutine GenerateNadVibSInput()
     call WilsonGFMethod(freqPrecursor,modePrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
     !Successor
-!This version chooses the neutral ground state minimum normal mode as basis
+!This version chooses the neutral ground state minimum as origin, corresponding normal mode as basis
     open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
     	read(99,*)
     	read(99,*)
@@ -50,23 +50,34 @@ subroutine GenerateNadVibSInput()
     qSuccessor=qSuccessor-ReferencePoint.geom
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
-    call WilsonGFMethod(freqSuccessor,modeSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for Successor'
-    !Reformat Hd expansion coefficient into NadVibS format
-        call OriginShift(qSuccessor)!Shift origin to ground state minimum
-        
 !End of the specific treatment
+    call WilsonGFMethod(freqSuccessor,modeSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
+    write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
+    dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
+    do i=1,InternalDimension
+        dshift(i)=dshift(i)/(2d0*freqSuccessor(i))
+        do j=3,7,2
+            dbletemp=dFactorial2(j-2)
+            if(dbletemp**(1d0/dble(j-1))>dshift(i)) exit
+        end do
+        if(j==3.and.freqSuccessor(i)/cm_1InAU>3000d0) j=1!Short distance X-H stretching usually can be frozen
+        write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
+    end do
+    call OriginShift(qSuccessor)!Shift origin to ground state minimum
+    call HdEc_Hd2NVS(modeSuccessor)!Reformat Hd expansion coefficient into NadVibS format
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
+    call My_dgetri(modeSuccessor,InternalDimension)
     Tshift=matmul(modePrecursor,modeSuccessor)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A54)')'Angular frequency of each vibrational basis: (In a.u.)'
         write(99,*)freqSuccessor
-        do istate=1,NState
-            do jstate=istate,NState
-                do iorder=0,NVS_NOrder
-                    write(99,'(A2,I2,I2,A15,I2)')'Hd',jstate,istate,'Expansion order',iorder
-                    write(99,*)HdEC(jstate,istate).Order(iorder).Array
+        do i=1,NState
+            do j=i,NState
+                do k=0,NVS_NOrder
+                    write(99,'(A2,I2,I2,A15,I2)')'Hd',j,i,'Expansion order',k
+                    write(99,*)NVS_HdEC(j,i).Order(k).Array
                 end do
             end do
         end do
@@ -119,7 +130,8 @@ subroutine InitializeNadVibSInterface()
             n=n+1
         end do
     end do
-    do j=1,NState!Allocate storage space of NVS_HdEC
+    allocate(NVS_HdEC(NState,NState))!Allocate storage space of NVS_HdEC
+    do j=1,NState
         do i=j,NState
             allocate(NVS_HdEC(i,j).Order(0:NVS_NOrder))
             do iorder=0,NVS_NOrder
@@ -130,46 +142,44 @@ subroutine InitializeNadVibSInterface()
     end do
 end subroutine InitializeNadVibSInterface
 
-subroutine Hd_HdEc2NVS_HdEC()
-    do iorder=0,NVS_NOrder!Fill in the order by order form
-        indice=1
-        i=WhichExpansionBasis(iorder,indice(1:iorder))
-        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-            HdEC(istate,jstate).Order(iorder).Array(1)=Hd_HdEC(istate,jstate).Array(i)
-        end forall
-        do j=2,size(HdEC(1,1).Order(iorder).Array)
-            indice(1)=indice(1)+1
-            do i=1,iorder
-                if(indice(i)>InternalDimension) then
-                    indice(i)=1
-                    indice(i+1)=indice(i+1)+1
-                end if
-            end do
-            do i=iorder-1,1,-1
-                if(indice(i)<indice(i+1)) indice(i)=indice(i+1)
-            end do
-            i=WhichExpansionBasis(iorder,indice(1:iorder))
-            forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-                HdEC(istate,jstate).Order(iorder).Array(j)=Hd_HdEC(istate,jstate).Array(i)
-            end forall
-        end do
-    end do
-end subroutine Hd_HdEc2NVS_HdEC
+subroutine HdEc_Hd2NVS(mode)
+    real*8,dimension(InternalDimension,InternalDimension),intent(in)::mode
+    !do iorder=0,NVS_NOrder!Fill in the order by order form
+    !    indice=1
+    !    i=WhichExpansionBasis(iorder,indice(1:iorder))
+    !    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
+    !        HdEC(istate,jstate).Order(iorder).Array(1)=Hd_HdEC(istate,jstate).Array(i)
+    !    end forall
+    !    do j=2,size(HdEC(1,1).Order(iorder).Array)
+    !        indice(1)=indice(1)+1
+    !        do i=1,iorder
+    !            if(indice(i)>InternalDimension) then
+    !                indice(i)=1
+    !                indice(i+1)=indice(i+1)+1
+    !            end if
+    !        end do
+    !        do i=iorder-1,1,-1
+    !            if(indice(i)<indice(i+1)) indice(i)=indice(i+1)
+    !        end do
+    !        i=WhichExpansionBasis(iorder,indice(1:iorder))
+    !        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
+    !            HdEC(istate,jstate).Order(iorder).Array(j)=Hd_HdEC(istate,jstate).Array(i)
+    !        end forall
+    !    end do
+    !end do
+end subroutine HdEc_Hd2NVS
 
 integer function NVS_WhichExpansionBasis(order,indice)
     integer,intent(in)::order
     integer,dimension(order),intent(inout)::indice
-    logical::done
-    integer::low,up
     integer,dimension(order)::temp
-    done=.false.
+    integer::low,up
     low=0
     do up=0,order-1
         low=low+NVS_NumberOfEachOrderTerms(up)
     end do
     up=low+NVS_NumberOfEachOrderTerms(order)
     low=low+1
-    temp=(/(i,i=1,order)/)
     call iQuickSort(indice,1,order,temp,order)
     call bisect(low,up)
     contains
@@ -204,6 +214,5 @@ integer function NVS_WhichExpansionBasis(order,indice)
         end if
     end subroutine bisect
 end function NVS_WhichExpansionBasis
-
 
 end module NadVibSInterface
