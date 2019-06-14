@@ -500,7 +500,7 @@ subroutine MexSearch()
 			do j=-Analyzation_NGrid,Analyzation_NGrid
 				q=InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension)&
 				 -ReferencePoint.geom!This program requires only internal coordinate difference
-				energy=AdiabaticEnergy(q)
+				energy=AdiabaticEnergy(q)/cm_1InAU
 				write(99,'(F6.2,A1,F6.2,A1,F18.8)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
 	    		do istate=2,NState-1
 	    			write(99,'(A1,F18.8)',advance='no')char(9),energy(istate)
