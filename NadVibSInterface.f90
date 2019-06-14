@@ -142,7 +142,7 @@ subroutine InitializeNadVibSInterface()
     end do
 end subroutine InitializeNadVibSInterface
 
-subroutine HdEc_Hd2NVS(mode)
+subroutine HdEc_Hd2NVS(mode)!Transform from internal coordinate Hd_HdEC to normal mode NVS_HdEC
     real*8,dimension(InternalDimension,InternalDimension),intent(in)::mode
     !do iorder=0,NVS_NOrder!Fill in the order by order form
     !    indice=1
