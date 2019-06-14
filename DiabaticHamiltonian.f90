@@ -91,20 +91,17 @@ end subroutine InitializeDiabaticHamiltonian
     integer function WhichExpansionBasis(order,indice)!Return the location of the specified basis in Hd_EBNR, 0 if not found
         integer,intent(in)::order
         integer,dimension(order),intent(in)::indice
-        logical::done
-        done=.false.
         call bisect(1,NHdExpansionBasis)
         contains
         recursive subroutine bisect(low,up)
             integer,intent(in)::low,up
-            integer::bisection,i,match
+            integer::bisection,i
             if(up-low==1) then
                 if(order==Hd_EBNR(low).order) then
                     do i=order,1,-1
                         if(indice(i)/=Hd_EBNR(low).indice(i)) exit
                     end do
                     if(i<1) then
-                        done=.true.
                         WhichExpansionBasis=low
                         return
                     end if
@@ -114,39 +111,29 @@ end subroutine InitializeDiabaticHamiltonian
                         if(indice(i)/=Hd_EBNR(up).indice(i)) exit
                     end do
                     if(i<1) then
-                        done=.true.
                         WhichExpansionBasis=up
                         return
                     end if
                 end if
-                done=.true.
                 WhichExpansionBasis=0
-                return
             else
                 bisection=(low+up)/2
                 if(order>Hd_EBNR(bisection).order) then
                     call bisect(low,bisection)
-                    if(done) return
                 else if(order<Hd_EBNR(bisection).order) then
                     call bisect(bisection,up)
-                    if(done) return
                 else
-                    match=0
                     do i=order,1,-1
+                        if(indice(i)/=Hd_EBNR(bisection).indice(i)) exit
+                    end do
+                    if(i<1) then
+                        WhichExpansionBasis=bisection
+                    else
                         if(indice(i)>Hd_EBNR(bisection).indice(i)) then
                             call bisect(bisection,up)
-                            if(done) return
-                        else if(indice(i)<Hd_EBNR(bisection).indice(i)) then
-                            call bisect(low,bisection)
-                            if(done) return
                         else
-                            match=match+1
+                            call bisect(low,bisection)
                         end if
-                    end do
-                    if(match==order) then
-                        done=.true.
-                        WhichExpansionBasis=bisection
-                        return
                     end if
                 end if
             end if

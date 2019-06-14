@@ -132,6 +132,7 @@ program main
         case('Analyze')
             call Analyze()
         case('NadVibS')
+            write(*,'(1x,A85)')'This job must be executed after Analyze-min, because the minimum geometry is required'
             call GenerateNadVibSInput()
         case default!Throw a warning
             write(*,*)'Program abort: unsupported job type '//trim(adjustl(JobType))
@@ -184,12 +185,12 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
             read(99,*)MoleculeDetail.ElementSymbol(i),MoleculeDetail.RefConfig(:,i)
             MoleculeDetail.ElementSymbol(i)=trim(adjustl(MoleculeDetail.ElementSymbol(i)))
         end do
-            MoleculeDetail.RefConfig=MoleculeDetail.RefConfig*AInAU!Convert to atomic unit
+        MoleculeDetail.RefConfig=MoleculeDetail.RefConfig*AInAU!Convert to atomic unit
         read(99,*)
         do i=1,MoleculeDetail.NAtoms
             read(99,*)MoleculeDetail.mass(i)
         end do
-            MoleculeDetail.mass=MoleculeDetail.mass*AMUInAU!Convert to atomic unit
+        MoleculeDetail.mass=MoleculeDetail.mass*AMUInAU!Convert to atomic unit
     close(99)
     if(advance) then!If requested, read advanced input
         write(*,*)'Advanced input requested, parameters are set to user specification'
@@ -586,106 +587,5 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
     CharTemp128='ArtifactPoint.CheckPoint'
     call WriteArtifactData(CharTemp128,ArtifactPoint,NArtifactPoints)
 end subroutine Initialize_NewTrainingSet
-
-subroutine GenerateNadVibSInput()
-    !Example: type(NadVibS_HdEC),allocatable,dimension(:,:)::HdEC
-    !         HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
-    !         in iorder-th order terms for Hd(jstate,istate)
-    type NadVibS_HdEC!Store Hd expansion coefficient in NadVibS format
-        type(d2PArray),allocatable,dimension(:)::order
-    end type NadVibS_HdEC
-    character*2::chartemp
-    integer::i,j,istate,jstate,iorder,NOrder
-    integer,allocatable,dimension(:)::indice
-    real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
-    real*8,dimension(CartesianDimension)::rSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor,modePrecursor,modeSuccessor
-    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
-    real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
-    type(NadVibS_HdEC),dimension(NState,NState)::HdEC
-    !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
-    real*8,dimension(InternalDimension)::dshift
-    real*8,dimension(InternalDimension,InternalDimension)::Tshift
-    !Precursor
-    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
-    call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
-    call WilsonGFMethod(freqPrecursor,modePrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    if(minval(freqPrecursor)<-1d-14) write(*,'(1x,A48)')'Warning: imaginary frequency found for precursor'
-    !Successor
-!This version chooses the neutral ground state minimum normal mode as basis
-    open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
-    	read(99,*)
-    	read(99,*)
-        do i=1,MoleculeDetail.NAtoms
-            read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)*AInAU
-        end do
-    close(99)
-    call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
-    qSuccessor=qSuccessor-ReferencePoint.geom
-    Htemp=AdiabaticddH(qSuccessor)
-    HSuccessor=Htemp(:,:,1,1)
-    call WilsonGFMethod(freqSuccessor,modeSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    !Reformat Hd expansion coefficient into NadVibS format
-        call OriginShift(qSuccessor)!Shift origin to ground state minimum
-        NOrder=0!Determine the highest order used
-        do i=1,NHdExpansionBasis
-            if(Hd_EBNR(i).order>NOrder) NOrder=Hd_EBNR(i).order
-        end do
-        allocate(indice(NOrder))
-        do jstate=1,NState!Allocate storage space of HdEC
-            do istate=jstate,NState
-                allocate(HdEC(istate,jstate).Order(0:NOrder))
-                do iorder=0,NOrder
-                    allocate(HdEC(istate,jstate).Order(iorder).Array(iCombination(InternalDimension+iorder-1,iorder)))
-                    HdEC(istate,jstate).Order(iorder).Array=0d0
-                end do
-            end do
-        end do
-        do iorder=0,NOrder!Fill in the order by order form
-            indice=1
-            i=WhichExpansionBasis(iorder,indice(1:iorder))
-            forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-                HdEC(istate,jstate).Order(iorder).Array(1)=Hd_HdEC(istate,jstate).Array(i)
-            end forall
-            do j=2,size(HdEC(1,1).Order(iorder).Array)
-                indice(1)=indice(1)+1
-                do i=1,iorder
-                    if(indice(i)>InternalDimension) then
-                        indice(i)=1
-                        indice(i+1)=indice(i+1)+1
-                    end if
-                end do
-                do i=iorder-1,1,-1
-                    if(indice(i)<indice(i+1)) indice(i)=indice(i+1)
-                end do
-                i=WhichExpansionBasis(iorder,indice(1:iorder))
-                forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-                    HdEC(istate,jstate).Order(iorder).Array(j)=Hd_HdEC(istate,jstate).Array(i)
-                end forall
-            end do
-        end do
-!End of the specific treatment
-    !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
-    dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
-    Tshift=matmul(modePrecursor,modeSuccessor)
-    open(unit=99,file='nadvibs.in',status='replace')
-        write(99,'(A54)')'Angular frequency of each vibrational basis: (In a.u.)'
-        write(99,*)freqSuccessor
-        do istate=1,NState
-            do jstate=istate,NState
-                do iorder=0,NOrder
-                    write(99,'(A2,I2,I2,A15,I2)')'Hd',jstate,istate,'Expansion order',iorder
-                    write(99,*)HdEC(jstate,istate).Order(iorder).Array
-                end do
-            end do
-        end do
-        write(99,'(A58)')'Angular frequency of each precursor normal mode: (In a.u.)'
-        write(99,*)freqPrecursor
-        write(99,'(A13)')'Shift Vector:'
-        write(99,*)dshift
-        write(99,'(A22)')'Transformation Matrix:'
-        write(99,*)Tshift
-    close(99)
-end subroutine GenerateNadVibSInput
 
 end program main
