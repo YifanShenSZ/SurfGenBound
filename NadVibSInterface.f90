@@ -33,6 +33,7 @@ subroutine GenerateNadVibSInput()
     !Work space
     character*2::chartemp
     integer::i,j,k
+    real*8::dbletemp
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
@@ -65,16 +66,16 @@ subroutine GenerateNadVibSInput()
     !    standard deviation > precursor-successor distance
     energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
-    k=1
+    dbletemp=1d0
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
         do j=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1,9!Consider (j-1)-th excited state
             if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
-        k=k*j
+        dbletemp=dbletemp*dble(j)
     end do
-    write(*,'(1x,A28,I10)')'The total number of basis is',k
+    write(*,'(1x,A28,F12.0)')'The total number of basis is',dbletemp
 ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
