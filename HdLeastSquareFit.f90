@@ -1,15 +1,16 @@
 !Fitting Hd is a nonlinear least square fit problem, 2-step method is my favourite:
 !    Step 1: A fast but inexact hopping to explore the phase space
 !        Here we adopt the iterative pseudolinear equations specially designed for SurfGen
-!        At a given geometry, diagonalize the current Hd for adiabatic states {phi_i}
+!        At a given geometry, convert Hd to certain representation and obtain basis {phi_i}
 !        Fix {phi_i}, solve the linear least square fit equations to update Hd
 !    Step 2: A rigorous local minimizer based on the best estimation explored
+!For detailed discussion on solvers, see Parameter section
 !
 !Nomenclature:
 !The Lagrangian is defined as:
 !    L = sum( rho^2 || H_ad^d - H_ad^ab ||_F^2 + || ▽H_ad^d - ▽H_ad^ab ||_F^2, over point)
 !      + sum( rho^2 || H_nd^d - H_nd^ab ||_F^2 + || ▽H_nd^d - ▽H_nd^ab ||_F^2, over DegeneratePoint)
-!      + sum( rho^2 || H_ad^d - H_ad^ab ||_F^2, over ArtifactPoint) + 
+!      + sum( rho^2 || H_ad^d - H_ad^ab ||_F^2, over ArtifactPoint)
 !where rho is the unit converter from energy to energy gradient (HdLSF_EnergyScale),
 !    subscript ad means adiabatic representation, nd means nondegenerate representation, F means Frobenius norm
 !    superscript d means diabatz, ab means ab initio
@@ -18,8 +19,6 @@
 !where tau is the parameterized KKT multiplier (HdLSF_Regularization), c is undetermined parameter vector in Hd
 !
 !Implementation detail:
-!Here we sort y by LSFPoint -> ArtifactPoint, each point provides Hamiltonian column by column first,
-!    then gradients by istate -> jstate ( >= istate ) from 1st direction to the last
 !c is sorted by istate -> jstate ( >= istate ) -> iorder according to module DiabaticHamiltonian
 module HdLeastSquareFit
     use Basic
@@ -31,17 +30,17 @@ module HdLeastSquareFit
         !Available solvers: pseudolinear, TrustRegion, LineSearch
         !Choose the nonlinear optimization solver: a single solver or a 2-step solver
         !    pseudolinear_X combining pseudolinear and another solver X
-        !If you see insufficient memory, use only LineSearch (and LineSearcher = LBFGS or ConjugateGradient)
+        !If you see insufficient memory, use only LineSearch
         !Warning: pseudolinear is a quick hopper by vanishing the linear part of the gradient
         !    However, it is not necessarily able to solve the fitting alone, 
         !    unless the minimum coincidentally also has the nonlinear part of the gradient = 0
         character*32::HdLSF_Solver='pseudolinear_TrustRegion'
         !Max ineration control. Hopper = pseudolinear. LocalMinimizer = TrustRegion, LineSearch
         integer::HdLSF_MaxHopperIteration=100,HdLSF_MaxLocalMinimizerIteration=1000,HdLSF_Max2StepIteration=10
-    !pseudolinear:
+    !Pseudolinear:
         integer::HdLSF_pseudolinearFollowStep=1,&!Every how many steps print fitting progress
             HdLSF_pseudolinearMaxMonotonicalIncrease=10!Terminate after how many monotonically increasing iterations
-    !LineSearch:
+    !LineSearch: (only low memory requirement methods are implemented)
         character*32::HdLSF_LineSearcher='ConjugateGradient'!Available: LBFGS, ConjugateGradient
         logical::HdLSF_UseStrongWolfe=.false.!Whether use strong Wolfe condition instead of Wolfe condition
         !LBFGS:
@@ -387,6 +386,8 @@ end subroutine L_RMSD
             !The general form of weighted linear least square fit with pseudoregularization is:
             !    A c = b, where A = M . W . M^T + tau, b = M . W . y, c & tau have been explained at header,
             !    y is the data vector, M^T . c is the fitting prediction of y, W is the weight
+            !Here we sort y by point -> DegeneratePoint -> ArtifactPoint, each data point provides
+            !    H column by column, then ▽H column by column (each element from 1st direction to the last)
             !To save memory, off-diagonals are treated as twice weighed
             !Input:  b = current c
             !Output: A harvests A, b harvests b, L harvests Lagrangian
@@ -647,6 +648,8 @@ end subroutine L_RMSD
         call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
         call WriteHdExpansionCoefficients()
         contains
+            !Here we sort residue by point -> DegeneratePoint -> ArtifactPoint, each data point provides
+            !    H column by column, then ▽H column by column (each element from 1st direction to the last)
             !To save memory, off-diagonals are treated as twice weighed
             subroutine Residue(r,c,M,N)
                 integer,intent(in)::M,N

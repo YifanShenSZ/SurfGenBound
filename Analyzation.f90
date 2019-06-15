@@ -1,7 +1,7 @@
 !Provide analyzation of the fitted potential energy surface:
-!    Minimum search and vibration analysis of specified adiabatic state
-!    Mex search and gh orthogonalization along conical intersection seam between specified adiabatic states
-!    Compute H & ▽H in diabatic & adiabatic & nondegenerate representation on specified geometries
+!    Evaluate H & ▽H in diabatic & adiabatic & nondegenerate representation on specified geometries
+!    Search minimum on specified adiabatic or diabatic state, then analyze vibration
+!    Search mex between specified adiabatic states, then orthogonalize gh & prepare input along gh to evaluate & draw double cone
 module Analyzation
     use Basic
     implicit none
@@ -299,7 +299,7 @@ end subroutine Evaluate
 
 subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q
-	!Work space for some basic evaluation: minimum energy, vibration
+	!Work space for: minimum energy, vibration
 	integer::i,j
 	real*8,dimension(NState)::energy
 	real*8,dimension(InternalDimension)::freq
@@ -395,13 +395,13 @@ subroutine MinimumSearch()
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-	integer::i,j,istate
     real*8,dimension(InternalDimension)::q
+	!Work space for: mex energy, orthogonalize gh, gh path, double cone
+	integer::i,j,istate
+	real*8,dimension(NState)::energy
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
-	!Work space for some basic evaluation: double cone
-	real*8,dimension(NState)::energy
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
 		r=Analyzation_cartgeom(:,1)
 		g=Analyzation_g/norm2(Analyzation_g)
@@ -461,8 +461,7 @@ subroutine MexSearch()
 	end if
 	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
 	call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
-	    intnadgrad=intdH,cartnadgrad=cartdH,&
-		mass=MoleculeDetail.mass,r0=rtemp)
+	    intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
 		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
 			gref=Analyzation_g,href=Analyzation_h)
