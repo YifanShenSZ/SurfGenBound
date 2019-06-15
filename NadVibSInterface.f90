@@ -62,7 +62,7 @@ subroutine GenerateNadVibSInput()
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
     write(*,'(1x,A64)')'Suggestion on number of basis by distance and energy estimation:'
     !largest standard deviation > precursor-successor distance
-    !2nd highest energy < precursor-successor ground state energy difference
+    !2nd highest energy < precursor-successor ground state energy difference < highest
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
     energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dbletemp1=1d0
@@ -75,7 +75,7 @@ subroutine GenerateNadVibSInput()
         k=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1
         write(*,'(5x,A4,I3,A19,I2,A3,I2)')'Mode',i,', Basis number from',j,' to',k
         dbletemp1=dbletemp1*dble(j)
-        dbletemp2=dbletemp2*dble(k)
+        dbletemp2=dbletemp2*dble(max(j,k))
     end do
     write(*,*)'The total number of smallest basis is',dbletemp1
     if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31 - 1'
