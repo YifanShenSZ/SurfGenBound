@@ -33,7 +33,7 @@ subroutine GenerateNadVibSInput()
     !Work space
     character*2::chartemp
     integer::i,j,k
-    real*8::dbletemp
+    real*8::dbletemp1,dbletemp2
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
@@ -60,23 +60,27 @@ subroutine GenerateNadVibSInput()
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A72)')'Suggestion on minimum number of basis by energy and distance estimation:'
-    !Find the lowest harmonic oscillator excited state satisfying:
-    !     excitation energy > precursor-successor ground state energy difference
-    !    standard deviation > precursor-successor distance
+    write(*,'(1x,A72)')'Suggestion on number of basis by energy and distance estimation:'
+    !2nd highest energy < precursor-successor ground state energy difference
+    !largest standard deviation > precursor-successor distance
     energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
-    dbletemp=1d0
+    dbletemp1=1d0
+    dbletemp2=1d0
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1,9!Consider (j-1)-th excited state
+        do j=1,9!Consider (j-1)-th excited state standard deviation
             if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
-        write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
-        dbletemp=dbletemp*dble(j)
+        k=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1
+        write(*,'(5x,A4,I3,A19,I2,A3,I2)')'Mode',i,', Basis number from',j,' to',k
+        dbletemp1=dbletemp1*dble(j)
+        dbletemp2=dbletemp2*dble(k)
     end do
-    write(*,*)'The total number of basis is',dbletemp
-    if(dbletemp>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp/(2d0**31d0-1d0),'times larger than 2^31 -1'
+    write(*,*)'The total number of smallest basis is',dbletemp1
+    if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31 - 1'
+    write(*,*)'The total number of  largest basis is',dbletemp2
+    if(dbletemp2>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31 - 1'
 ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
