@@ -1,3 +1,12 @@
+!Generate nadvibs.in for NadVibS
+!The main procedure is:
+!    1, read in the precursor geometry (through MoleculeDetail.RefConfig), compute normal mode
+!    2, select a geometry as origin and define the coordinate
+!       This version use ground state minimum and corresponding normal mode
+!       In literature there is also mex + normal mode of mean field
+!    3, shift from old reference to the selected origin, then transform from
+!       the internal coordinate used in fitting to the new coordinate
+!An estimation of number of basis to use in NadVibS is also provided
 module NadVibSInterface
     use Basic
     use ElectronicStructure
@@ -81,14 +90,8 @@ subroutine GenerateNadVibSInput()
     if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31 - 1'
     write(*,*)'The total number of  largest basis is',dbletemp2
     if(dbletemp2>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31 - 1'
-ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
-WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
-ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
-WRITE(*,*)ENERGY
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
-ENERGY=NVS_AdiabaticEnergy(matmul(modeSuccessor,qPrecursor-qSuccessor))
-WRITE(*,*)ENERGY
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
     Tshift=matmul(modePrecursor,LSuccessor)
@@ -111,36 +114,6 @@ WRITE(*,*)ENERGY
         write(99,*)Tshift
     close(99)
 end subroutine GenerateNadVibSInput
-
-FUNCTION NVS_ADIABATICENERGY(Q)
-    real*8,dimension(InternalDimension),INTENT(IN)::q
-    real*8,dimension(NState)::NVS_ADIABATICENERGY
-    integer::i,j,k,iorder
-    real*8::dbletemp
-    real*8,dimension(NState,NSTATE)::H
-    forall(i=1:NState,j=1:NState,i>=j)
-        H(i,j)=NVS_HdEC(i,j).Order(0).Array(1)
-    end forall
-    do iorder=1,NVS_NOrder
-        do k=1,NVS_NumberOfEachOrderTerms(iorder)
-            dbletemp=NVS_ExpansionBasis(q,iorder,k)
-            forall(i=1:NState,j=1:NState,i>=j)
-                H(i,j)=H(i,j)+NVS_HdEC(i,j).Order(iorder).Array(k)*dbletemp
-            end forall
-        end do
-    end do
-    call My_dsyev('N',H,NVS_ADIABATICENERGY,NState)
-    contains
-    real*8 function NVS_ExpansionBasis(q,order,n)
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer,intent(in)::order,n
-        integer::i
-        NVS_ExpansionBasis=1d0
-        do i=1,order
-            NVS_ExpansionBasis=NVS_ExpansionBasis*q(NVS_EBNR(order).Number(n).Array(i))
-        end do
-    end function NVS_ExpansionBasis
-END FUNCTION NVS_ADIABATICENERGY
 
 subroutine InitializeNadVibSInterface()
     integer::i,j,iorder
