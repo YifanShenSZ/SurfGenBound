@@ -55,8 +55,8 @@ subroutine GenerateNadVibSInput()
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
     qtemp=qSuccessor-ReferencePoint.geom
-!    Htemp=AdiabaticddH(qtemp)
-!    HSuccessor=Htemp(:,:,1,1)
+    Htemp=AdiabaticddH(qtemp)
+    HSuccessor=Htemp(:,:,1,1)
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
@@ -86,7 +86,6 @@ WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
 ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
 WRITE(*,*)ENERGY
-LSuccessor=UnitMatrix(InternalDimension)
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
 ENERGY=NVS_AdiabaticEnergy(matmul(modeSuccessor,qPrecursor-qSuccessor))
 WRITE(*,*)ENERGY
