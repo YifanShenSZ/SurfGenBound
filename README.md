@@ -10,9 +10,9 @@ Utilities:
 * Energy, energy gradient, interstate coupling are adopted
 * Various optimization technique is provided. The default choice is a good starting point, although you may want to try out other recipes to polish your surface
 2. Analyze the fitted surface
-* Evaluate the surface on several input geometries, including energy, energy gradient, nonadiabatic coupling, diabatic Hamiltonian matrix, etc
-* Search for minimum on specified adiabatic surface
-* Search for minimum energy crossing point between specified adiabatic states
+* Evaluate H & ▽H in diabatic & adiabatic & nondegenerate representation on specified geometries
+* Search for minimum on specified adiabatic or diabatic state, then analyze vibration
+* Search for mex between specified adiabatic states, then orthogonalize gh & prepare input along gh to evaluate & draw double cone
 * Shift origin
 3. Generate input file for NadVibS, a nonadiabatic vibrational spectrum simulation package
 

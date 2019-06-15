@@ -1,7 +1,8 @@
 !Provide analyzation of the fitted potential energy surface:
 !    Evaluate H & ▽H in diabatic & adiabatic & nondegenerate representation on specified geometries
-!    Search minimum on specified adiabatic or diabatic state, then analyze vibration
-!    Search mex between specified adiabatic states, then orthogonalize gh & prepare input along gh to evaluate & draw double cone
+!    Search for minimum on specified adiabatic or diabatic state, then analyze vibration
+!    Search for mex between specified adiabatic states, then orthogonalize gh & prepare input along gh to evaluate & draw double cone
+!    Shift origin
 module Analyzation
     use Basic
     implicit none
@@ -39,6 +40,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 		case('OriginShift')
 			call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
 			JobType='HdNewOrigin.CheckPoint'
+			write(*,'(1x,A77)')'Hd expansion coefficient under new origin is stored in HdNewOrigin.CheckPoint'
 			call WriteHdExpansionCoefficients(JobType)
         case default!Throw a warning
             write(*,*)'Program abort: unsupported analyzation job type '//trim(adjustl(JobType))
@@ -117,7 +119,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 	end subroutine ReadAnalyzeInput
 end subroutine Analyze
 
-subroutine Evaluate()
+subroutine evaluate()
 	integer::i,j,k
 	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
 	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
@@ -295,7 +297,7 @@ subroutine Evaluate()
             write(99,*)
         end do
 	close(99)
-end subroutine Evaluate
+end subroutine evaluate
 
 subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q
