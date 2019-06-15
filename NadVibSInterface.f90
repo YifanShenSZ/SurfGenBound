@@ -35,6 +35,7 @@ subroutine GenerateNadVibSInput()
     integer::i,j,k
     real*8::dbtemp
     real*8,dimension(NState)::energy
+    real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     call InitializeNadVibSInterface()
     !Precursor
@@ -53,8 +54,8 @@ subroutine GenerateNadVibSInput()
         rSuccesor=rSuccesor*AInAU!Convert to atomic unit
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
-    qSuccessor=qSuccessor-ReferencePoint.geom
-    Htemp=AdiabaticddH(qSuccessor)
+    qtemp=qSuccessor-ReferencePoint.geom
+    Htemp=AdiabaticddH(qtemp)
     HSuccessor=Htemp(:,:,1,1)
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
@@ -63,7 +64,7 @@ subroutine GenerateNadVibSInput()
     !Find the lowest harmonic oscillator excited state satisfying 1 of following conditions:
     !     excitation energy > precursor-successor ground state energy difference
     !    standard deviation > precursor-successor distance
-    energy=AdiabaticEnergy(qPrecursor)-AdiabaticEnergy(qSuccessor)
+    energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
     dbtemp=1d0
     do i=1,InternalDimension
@@ -77,9 +78,9 @@ subroutine GenerateNadVibSInput()
     end do
     write(*,'(1x,A28,F20.0)')'The total number of basis is',dbtemp
     if(dbtemp>2147483647) write(*,'(1x,A16,F4.0,A27)')'Warning: this is',dbtemp/dble(2147483647),' times larger than 2^31 - 1'
-ENERGY=AdiabaticEnergy(qPrecursor)
+ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
-    call OriginShift(qSuccessor)!Shift origin to ground state minimum
+    call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
 ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
 WRITE(*,*)ENERGY   
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
