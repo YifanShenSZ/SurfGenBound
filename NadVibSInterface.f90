@@ -31,7 +31,6 @@ subroutine GenerateNadVibSInput()
     real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
-    !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
     call InitializeNadVibSInterface()
@@ -60,12 +59,11 @@ subroutine GenerateNadVibSInput()
     write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
     dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
     do i=1,InternalDimension
-        dshift(i)=dshift(i)/(2d0*freqSuccessor(i))
-        do j=3,7,2
-            dbletemp=dFactorial2(j-2)
-            if(dbletemp**(1d0/dble(j-1))>dshift(i)) exit
+        dshift(i)=dshift(i)*2d0*freqSuccessor(i)
+        do j=1,9!Coverage of (j-1)-th harmonic oscillator excited state
+            dbletemp=dFactorial2(2*j-3)
+            if(dbletemp**(1d0/dble(2*j-2))>dshift(i)) exit
         end do
-        if(j==3.and.freqSuccessor(i)/cm_1InAU>3000d0) j=1!Short distance X-H stretching usually can be frozen
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
     end do
     call OriginShift(qSuccessor)!Shift origin to ground state minimum
