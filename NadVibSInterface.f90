@@ -68,7 +68,7 @@ subroutine GenerateNadVibSInput()
     k=1
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=ceiling(energy(1)/freqSuccessor(i))+1,9!Consider (j-1)-th excited state
+        do j=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1,9!Consider (j-1)-th excited state
             if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
