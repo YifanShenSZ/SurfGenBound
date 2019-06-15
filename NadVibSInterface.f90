@@ -227,7 +227,9 @@ integer function NVS_WhichExpansionBasis(order,indice)
     integer,intent(in)::order
     integer,dimension(order),intent(inout)::indice
     integer,dimension(order)::temp
-    call iQuickSort(indice,1,order,temp,order)
+    indice=-indice
+    call iQuickSort(indice,1,order,temp,order)!I only coded ascending sort
+    indice=-indice
     call bisect(1,NVS_NumberOfEachOrderTerms(order))
     contains
     recursive subroutine bisect(low,up)
