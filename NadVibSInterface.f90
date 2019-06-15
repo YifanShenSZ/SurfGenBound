@@ -141,27 +141,32 @@ subroutine HdEC_Hd2NVS(L)!Transform from internal coordinate Hd_HdEC to normal m
     real*8::coeff
     do n=1,NHdExpansionBasis!Main loop
         order=Hd_EBNR(n).order
-        Hdindice(1:order)=Hd_EBNR(n).indice
-        !Go through all combination in a InternalDimension+1 counter manner
-        indice(1:order)=1!indice(i)=j means using j-th mode at i-th position in multiplication
-        do while(indice(order)<=InternalDimension)!Done when the counter overflows
-            coeff=1d0
-            do i=1,order
-                coeff=coeff*L(Hdindice(i),indice(i))
-            end do
-            location=NVS_WhichExpansionBasis(order,indice(1:order))
+        if(order==0) then!Const term will not change under any transformation
             forall(i=1:NState,j=1:NState,i>=j)
-                NVS_HdEC(i,j).Order(order).Array(location)=NVS_HdEC(i,j).Order(order).Array(location)&
-                    +coeff*Hd_HdEC(i,j).Array(n)
+                NVS_HdEC(i,j).Order(0).Array(1)=NVS_HdEC(i,j).Order(0).Array(1)+Hd_HdEC(i,j).Array(n)
             end forall
-            indice(1)=indice(1)+1!Add 1 to the InternalDimension+1 counter
-            do i=1,order-1
-                if(indice(i)>InternalDimension) then!Carry
-                    indice(i)=1
-                    indice(i+1)=indice(i+1)+1
-                end if
+        else!Go through all combination in a InternalDimension+1 counter manner
+            Hdindice(1:order)=Hd_EBNR(n).indice
+            indice(1:order)=1!indice(i)=j means using j-th mode at i-th position in multiplication
+            do while(indice(order)<=InternalDimension)!Done when the counter overflows
+                coeff=1d0
+                do i=1,order
+                    coeff=coeff*L(Hdindice(i),indice(i))
+                end do
+                location=NVS_WhichExpansionBasis(order,indice(1:order))
+                forall(i=1:NState,j=1:NState,i>=j)
+                    NVS_HdEC(i,j).Order(order).Array(location)=NVS_HdEC(i,j).Order(order).Array(location)&
+                        +coeff*Hd_HdEC(i,j).Array(n)
+                end forall
+                indice(1)=indice(1)+1!Add 1 to the InternalDimension+1 counter
+                do i=1,order-1
+                    if(indice(i)>InternalDimension) then!Carry
+                        indice(i)=1
+                        indice(i+1)=indice(i+1)+1
+                    end if
+                end do
             end do
-        end do
+        end if
     end do
 end subroutine HdEC_Hd2NVS
 
