@@ -60,7 +60,7 @@ subroutine GenerateNadVibSInput()
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freq(i))
         do j=1,9!Standard deviation of (j-1)-th harmonic oscillator excited state
-            if(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
+            if(dFactorial2(2*j-1)/2d0**j>dshift(i)) exit
         end do
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
     end do
