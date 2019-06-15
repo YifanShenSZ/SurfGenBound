@@ -25,7 +25,6 @@ contains
 subroutine GenerateNadVibSInput()
     character*2::chartemp
     integer::i,j,k
-    real*8::dbletemp
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
@@ -59,10 +58,9 @@ subroutine GenerateNadVibSInput()
     write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
     dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
     do i=1,InternalDimension
-        dshift(i)=dshift(i)*2d0*freqSuccessor(i)
-        do j=1,9!Coverage of (j-1)-th harmonic oscillator excited state
-            dbletemp=dFactorial2(2*j-3)
-            if(dbletemp**(1d0/dble(2*j-2))>dshift(i)) exit
+        dshift(i)=dshift(i)*dSqrt(freq(i))
+        do j=1,9!Standard deviation of (j-1)-th harmonic oscillator excited state
+            if(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
     end do
