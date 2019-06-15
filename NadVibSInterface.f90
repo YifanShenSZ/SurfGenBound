@@ -33,7 +33,6 @@ subroutine GenerateNadVibSInput()
     !Work space
     character*2::chartemp
     integer::i,j,k
-    real*8::dbtemp
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
@@ -60,24 +59,22 @@ subroutine GenerateNadVibSInput()
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A64)')'Suggestion on number of basis by energy and distance estimation:'
-    !Find the lowest harmonic oscillator excited state satisfying 1 of following conditions:
+    write(*,'(1x,A72)')'Suggestion on minimum number of basis by energy and distance estimation:'
+    !Find the lowest harmonic oscillator excited state satisfying:
     !     excitation energy > precursor-successor ground state energy difference
     !    standard deviation > precursor-successor distance
     energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
-    dbtemp=1d0
+    k=1
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=ceiling(energy(1)/freqSuccessor(i))+1,1,-1!Consider (j-1)-th excited state
-            if(dSqrt(dFactorial2(2*j-1)/2d0**j)<dshift(i)) exit
+        do j=ceiling(energy(1)/freqSuccessor(i))+1,9!Consider (j-1)-th excited state
+            if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
-        j=j+1
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
-        dbtemp=dbtemp*dble(j)
+        k=k*j
     end do
-    write(*,'(1x,A28,F20.0)')'The total number of basis is',dbtemp
-    if(dbtemp>2147483647) write(*,'(1x,A16,F4.0,A27)')'Warning: this is',dbtemp/dble(2147483647),' times larger than 2^31 - 1'
+    write(*,'(1x,A28,I10)')'The total number of basis is',k
 ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
@@ -114,6 +111,15 @@ FUNCTION NVS_ADIABATICENERGY(Q)
     REAL*8,DIMENSION(NSTATE)::NVS_ADIABATICENERGY
     REAL*8,DIMENSION(NSTATE,NSTATE)::H
     NVS_ADIABATICENERGY=1d0
+    !real*8 function NVS_ExpansionBasis(q,n)
+    !    real*8,dimension(Hd_intdim),intent(in)::q
+    !    integer,intent(in)::n
+    !    integer::i
+    !    NVS_ExpansionBasis=1d0
+    !    do i=1,NVS_EBNR(n).order
+    !        NVS_ExpansionBasis=NVS_ExpansionBasis*q(Hd_EBNR(n).indice(i))
+    !    end do
+    !end function NVS_ExpansionBasis
 END FUNCTION NVS_ADIABATICENERGY
 
 subroutine InitializeNadVibSInterface()

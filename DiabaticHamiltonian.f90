@@ -279,8 +279,7 @@ end subroutine InitializeDiabaticHamiltonian
     end subroutine WriteHdExpansionCoefficients
 
     !The value of n-th expansion basis function at some coordinate q
-    function ExpansionBasis(q,n)
-        real*8::ExpansionBasis
+    real*8 function ExpansionBasis(q,n)
         real*8,dimension(Hd_intdim),intent(in)::q
         integer,intent(in)::n
         integer::i
