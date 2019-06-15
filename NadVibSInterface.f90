@@ -55,8 +55,8 @@ subroutine GenerateNadVibSInput()
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
     qtemp=qSuccessor-ReferencePoint.geom
-    Htemp=AdiabaticddH(qtemp)
-    HSuccessor=Htemp(:,:,1,1)
+!    Htemp=AdiabaticddH(qtemp)
+!    HSuccessor=Htemp(:,:,1,1)
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
@@ -85,7 +85,8 @@ ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
 ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
-WRITE(*,*)ENERGY   
+WRITE(*,*)ENERGY
+LSuccessor=UnitMatrix(InternalDimension)
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
 ENERGY=NVS_AdiabaticEnergy(matmul(modeSuccessor,qPrecursor-qSuccessor))
 WRITE(*,*)ENERGY
@@ -206,11 +207,13 @@ subroutine HdEC_Hd2NVS(L)!Transform from internal coordinate Hd_HdEC to normal m
                 do i=1,order
                     coeff=coeff*L(Hdindice(i),indice(i))
                 end do
-                location=NVS_WhichExpansionBasis(order,indice(1:order))
-                forall(i=1:NState,j=1:NState,i>=j)
-                    NVS_HdEC(i,j).Order(order).Array(location)=NVS_HdEC(i,j).Order(order).Array(location)&
-                        +coeff*Hd_HdEC(i,j).Array(n)
-                end forall
+                if(coeff/=0d0) then
+                    location=NVS_WhichExpansionBasis(order,indice(1:order))
+                    forall(i=1:NState,j=1:NState,i>=j)
+                        NVS_HdEC(i,j).Order(order).Array(location)=NVS_HdEC(i,j).Order(order).Array(location)&
+                            +coeff*Hd_HdEC(i,j).Array(n)
+                    end forall
+                end if
                 indice(1)=indice(1)+1!Add 1 to the InternalDimension+1 counter
                 do i=1,order-1
                     if(indice(i)>InternalDimension) then!Carry
@@ -223,11 +226,11 @@ subroutine HdEC_Hd2NVS(L)!Transform from internal coordinate Hd_HdEC to normal m
     end do
 end subroutine HdEC_Hd2NVS
 
-integer function NVS_WhichExpansionBasis(order,indice)
+integer function NVS_WhichExpansionBasis(order,indiceinput)
     integer,intent(in)::order
-    integer,dimension(order),intent(inout)::indice
-    integer,dimension(order)::temp
-    indice=-indice
+    integer,dimension(order),intent(in)::indiceinput
+    integer,dimension(order)::indice,temp
+    indice=-indiceinput
     call iQuickSort(indice,1,order,temp,order)!I only coded ascending sort
     indice=-indice
     call bisect(1,NVS_NumberOfEachOrderTerms(order))
