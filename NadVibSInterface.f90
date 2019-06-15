@@ -75,7 +75,8 @@ subroutine GenerateNadVibSInput()
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
         dbletemp=dbletemp*dble(j)
     end do
-    write(*,'(1x,A28,F12.0)')'The total number of basis is',dbletemp
+    write(*,*)'The total number of basis is',dbletemp
+    if(dbletemp>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp/(2d0**31d0-1d0),'times larger than 2^31 -1'
 ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
 WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
