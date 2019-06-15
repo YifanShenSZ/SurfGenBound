@@ -58,7 +58,7 @@ subroutine GenerateNadVibSInput()
     write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
     dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
     do i=1,InternalDimension
-        dshift(i)=dshift(i)*dSqrt(freq(i))
+        dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
         do j=1,9!Standard deviation of (j-1)-th harmonic oscillator excited state
             if(dFactorial2(2*j-1)/2d0**j>dshift(i)) exit
         end do
