@@ -141,26 +141,31 @@ end subroutine InitializeDiabaticHamiltonian
     end function WhichExpansionBasis
 
     subroutine OriginShift(shift)!Transform HdEC according to origin shift from q0 to q1: shift = q1 - q0
+        !This is done by:
+        !    1, select an Hd expansion basis (Hd_HdEC)
+        !    2, under translation, the terms making up the multiplication become var + const, so
+        !       we go through all combination of var & const and add the contribution to HdECtemp
+        !    3, go to 1 until all Hd_HdEC are done
+        !    4, copy HdECtemp to Hd_HdEC
         real*8,dimension(Hd_intdim),intent(in)::shift
-        integer::nvar,nconst,ivar,iconst,istate,jstate,n,i,j,location
-        integer,allocatable,dimension(:)::usevar,indicevar,indiceconst
+        integer::location,nvar,nconst,ivar,iconst,n,i,j
+        integer,dimension(Hd_EBNR(1).order)::usevar,indicevar,indiceconst
         real*8::coeff
-        type(d2PArray),allocatable,dimension(:,:)::HdECtemp
-        !Allocate work space
-            allocate(usevar(Hd_EBNR(1).order))
-            allocate(indicevar(Hd_EBNR(1).order))
-            allocate(indiceconst(Hd_EBNR(1).order))
-            allocate(HdECtemp(Hd_NState,Hd_Nstate))
-            do jstate=1,Hd_NState
-                do istate=jstate,Hd_NState
-                    allocate(HdECtemp(istate,jstate).Array(NHdExpansionBasis))
-                    HdECtemp(istate,jstate).Array=0d0
-                end do
+        type(d2PArray),dimension(Hd_NState,Hd_Nstate)::HdECtemp
+        do j=1,Hd_NState!Allocate work space
+            do i=j,Hd_NState
+                if(.not.allocated(HdECtemp(i,j).Array)) allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
+                HdECtemp(i,j).Array=0d0
             end do
+        end do
         do n=1,NHdExpansionBasis!Main loop
-            if(Hd_EBNR(n).order>0) then
-                usevar(1:Hd_EBNR(n).order)=0
-                do while(usevar(Hd_EBNR(n).order)<2)
+            if(Hd_EBNR(n).order==0) then!Const term will not change under any transformation
+                forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+                    HdECtemp(i,j).Array(n)=HdECtemp(i,j).Array(n)+Hd_HdEC(i,j).Array(n)
+                end forall
+            else!Go through all combination in a binary counter manner
+                usevar(1:Hd_EBNR(n).order)=0!usevar(i)=1 means using const at i-th position in multiplication
+                do while(usevar(Hd_EBNR(n).order)<2)!Done when the counter overflows
                     nvar=sum(usevar(1:Hd_EBNR(n).order))
                     nconst=Hd_EBNR(n).order-nvar
                     ivar=1
@@ -176,38 +181,25 @@ end subroutine InitializeDiabaticHamiltonian
                     end do
                     location=WhichExpansionBasis(nvar,indicevar(1:nvar))
                     if(location==0) stop 'Program abort: basis space is not closed under origin shift'
-                    call coefficient()
-                    forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
-                        HdECtemp(istate,jstate).Array(location)=HdECtemp(istate,jstate).Array(location)+coeff*Hd_HdEC(istate,jstate).Array(n)
+                    coeff=1d0
+                    do i=1,nconst
+                        coeff=coeff*shift(indiceconst(i))
+                    end do
+                    forall(i=1:Hd_NState,j=1:Hd_NState,i>=j)
+                        HdECtemp(i,j).Array(location)=HdECtemp(i,j).Array(location)+coeff*Hd_HdEC(i,j).Array(n)
                     end forall
-                    usevar(1)=usevar(1)+1
+                    usevar(1)=usevar(1)+1!Add 1 to the binary counter
                     do i=1,Hd_EBNR(n).order-1
-                        if(usevar(i)==2) then
+                        if(usevar(i)==2) then!Carry
                             usevar(i)=0
                             usevar(i+1)=usevar(i+1)+1
                         end if
                     end do
                 end do
-            else
-                forall(istate=1:Hd_NState,jstate=1:Hd_NState,istate>=jstate)
-                    HdECtemp(istate,jstate).Array(n)=HdECtemp(istate,jstate).Array(n)+Hd_HdEC(istate,jstate).Array(n)
-                end forall
             end if
         end do
         Hd_HdEC=HdECtemp
-        !Clean up
-            deallocate(usevar)
-            deallocate(indicevar)
-            deallocate(indiceconst)
-            deallocate(HdECtemp)
         contains
-            subroutine coefficient()
-                integer::i
-                coeff=1d0
-                do i=1,nconst
-                    coeff=coeff*shift(indiceconst(i))
-                end do
-            end subroutine coefficient
     end subroutine OriginShift
 
     !Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC

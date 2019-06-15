@@ -11,10 +11,14 @@ module NadVibSInterface
         type(d2PArray),allocatable,dimension(:)::Order
     end type NVS_HdExpansionCoefficient
 
+    type NVS_ExpansionBasisNumberingRule
+        type(i2PArray),allocatable,dimension(:)::Number
+    end type NVS_ExpansionBasisNumberingRule
+
 !NadVibSInterface module only variable
-    integer::NVS_NOrder,NVS_NHdExpansionBasis
+    integer::NVS_NOrder
     integer,allocatable,dimension(:)::NVS_NumberOfEachOrderTerms
-    type(ExpansionBasisNumberingRule),allocatable,dimension(:)::NVS_EBNR
+    type(NVS_ExpansionBasisNumberingRule),allocatable,dimension(:)::NVS_EBNR
     type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
 
 contains
@@ -24,7 +28,7 @@ subroutine GenerateNadVibSInput()
     real*8::dbletemp
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,HSuccessor,modePrecursor,modeSuccessor
+    real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
@@ -34,7 +38,7 @@ subroutine GenerateNadVibSInput()
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
-    call WilsonGFMethod(freqPrecursor,modePrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freqPrecursor,modePrecursor,LPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
     !Successor
 !This version chooses the neutral ground state minimum as origin, corresponding normal mode as basis
@@ -51,7 +55,7 @@ subroutine GenerateNadVibSInput()
     Htemp=AdiabaticddH(qSuccessor)
     HSuccessor=Htemp(:,:,1,1)
 !End of the specific treatment
-    call WilsonGFMethod(freqSuccessor,modeSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
     write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
     dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
@@ -65,11 +69,10 @@ subroutine GenerateNadVibSInput()
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
     end do
     call OriginShift(qSuccessor)!Shift origin to ground state minimum
-    call HdEc_Hd2NVS(modeSuccessor)!Reformat Hd expansion coefficient into NadVibS format
+    call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
-    call My_dgetri(modeSuccessor,InternalDimension)
-    Tshift=matmul(modePrecursor,modeSuccessor)
+    Tshift=matmul(modePrecursor,LSuccessor)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A54)')'Angular frequency of each vibrational basis: (In a.u.)'
         write(99,*)freqSuccessor
@@ -91,43 +94,31 @@ subroutine GenerateNadVibSInput()
 end subroutine GenerateNadVibSInput
 
 subroutine InitializeNadVibSInterface()
-    integer::i,j,iorder,n
+    integer::i,j,iorder
     NVS_NOrder=Hd_EBNR(1).order!Determine the highest order used
-    NVS_NHdExpansionBasis=0!Count the number of the expansion basis functions
     allocate(NVS_NumberOfEachOrderTerms(0:NVS_NOrder))
+    allocate(NVS_EBNR(0:NVS_NOrder))
     do iorder=0,NVS_NOrder
         NVS_NumberOfEachOrderTerms(iorder)=iCombination(InternalDimension+iorder-1,iorder)
-        NVS_NHdExpansionBasis=NVS_NHdExpansionBasis+NVS_NumberOfEachOrderTerms(iorder)
-    end do
-    allocate(NVS_EBNR(NVS_NHdExpansionBasis))!Generate expansion basis numbering mapping (NVS_EBNR)
-    n=1!The serial number of the expansion basis function
-    do iorder=0,NVS_NOrder
-        NVS_EBNR(n).order=iorder!The 1st one in each order
-        allocate(NVS_EBNR(n).indice(iorder))
-        NVS_EBNR(n).indice=1
-        n=n+1
-        !This is a pseudo counter, we add 1 to the 1st digit then carry to latter digits
-        !but it should satisfy NVS_EBNR(n).indice(i)>=NVS_EBNR(n).indice(i+1)
+        allocate(NVS_EBNR(iorder).Number(NVS_NumberOfEachOrderTerms(iorder)))
+        !Generate expansion basis numbering mapping for iorder-th order (NVS_EBNR(iorder))
+        allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
+        NVS_EBNR(iorder).Number(1).Array=1
+        !This is a pseudo InternalDimension+1 counter, former digit >= latter digit
         do j=2,NVS_NumberOfEachOrderTerms(iorder)
-            NVS_EBNR(n).order=iorder
-            allocate(NVS_EBNR(n).indice(iorder))
-            NVS_EBNR(n).indice=NVS_EBNR(n-1).indice
-            !Add 1 to the 1st digit
-            NVS_EBNR(n).indice(1)=NVS_EBNR(n).indice(1)+1
-            !Carry to latter digits
-            do i=1,iorder
-                if(NVS_EBNR(n).indice(i)>InternalDimension) then
-                    NVS_EBNR(n).indice(i)=1
-                    NVS_EBNR(n).indice(i+1)=NVS_EBNR(n).indice(i+1)+1
+            allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
+            NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
+            NVS_EBNR(iorder).Number(j).Array(1)=NVS_EBNR(iorder).Number(j).Array(1)+1!Add 1 to the 1st digit
+            do i=1,iorder-1!Carry to latter digits
+                if(NVS_EBNR(iorder).Number(j).Array(i)>InternalDimension) then
+                    NVS_EBNR(iorder).Number(j).Array(i)=1
+                    NVS_EBNR(iorder).Number(j).Array(i+1)=NVS_EBNR(iorder).Number(j).Array(i+1)+1
                 end if
             end do
-            !Modify to satisfy NVS_EBNR(n).indice(i)>=NVS_EBNR(n).indice(i+1)
-            do i=iorder-1,1,-1
-                if(NVS_EBNR(n).indice(i)<NVS_EBNR(n).indice(i+1)) then
-                    NVS_EBNR(n).indice(i)=NVS_EBNR(n).indice(i+1)
-                end if
+            do i=iorder-1,1,-1!Modify to satisfy former digit >= latter digit
+                if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i+1)) &
+                    NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i+1)
             end do
-            n=n+1
         end do
     end do
     allocate(NVS_HdEC(NState,NState))!Allocate storage space of NVS_HdEC
@@ -142,46 +133,48 @@ subroutine InitializeNadVibSInterface()
     end do
 end subroutine InitializeNadVibSInterface
 
-subroutine HdEc_Hd2NVS(mode)!Transform from internal coordinate Hd_HdEC to normal mode NVS_HdEC
-    real*8,dimension(InternalDimension,InternalDimension),intent(in)::mode
-    !do iorder=0,NVS_NOrder!Fill in the order by order form
-    !    indice=1
-    !    i=WhichExpansionBasis(iorder,indice(1:iorder))
-    !    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-    !        HdEC(istate,jstate).Order(iorder).Array(1)=Hd_HdEC(istate,jstate).Array(i)
-    !    end forall
-    !    do j=2,size(HdEC(1,1).Order(iorder).Array)
-    !        indice(1)=indice(1)+1
-    !        do i=1,iorder
-    !            if(indice(i)>InternalDimension) then
-    !                indice(i)=1
-    !                indice(i+1)=indice(i+1)+1
-    !            end if
-    !        end do
-    !        do i=iorder-1,1,-1
-    !            if(indice(i)<indice(i+1)) indice(i)=indice(i+1)
-    !        end do
-    !        i=WhichExpansionBasis(iorder,indice(1:iorder))
-    !        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-    !            HdEC(istate,jstate).Order(iorder).Array(j)=Hd_HdEC(istate,jstate).Array(i)
-    !        end forall
-    !    end do
-    !end do
-end subroutine HdEc_Hd2NVS
+subroutine HdEC_Hd2NVS(L)!Transform from internal coordinate Hd_HdEC to normal mode NVS_HdEC
+    !This is done by:
+    !    1, select an Hd_HdEC term
+    !    2, under rotation, the terms making up the multiplication become the linear combination of every mode,
+    !       i.e. q = L . Q, so we go through all combination and add the contribution to NVS_HdEC
+    !    3, go to 1 until all Hd_HdEC are done
+    real*8,dimension(InternalDimension,InternalDimension),intent(in)::L
+    integer::order,location,n,i,j
+    integer,dimension(NVS_NOrder)::indice,Hdindice
+    real*8::coeff
+    do n=1,NHdExpansionBasis!Main loop
+        order=Hd_EBNR(n).order
+        Hdindice(1:order)=Hd_EBNR(n).indice
+        !Go through all combination in a InternalDimension+1 counter manner
+        indice(1:order)=1!indice(i)=j means using j-th mode at i-th position in multiplication
+        do while(indice(order)<=InternalDimension)!Done when the counter overflows
+            coeff=1d0
+            do i=1,order
+                coeff=coeff*L(Hdindice(i),indice(i))
+            end do
+            location=NVS_WhichExpansionBasis(order,indice(1:order))
+            forall(i=1:NState,j=1:NState,i>=j)
+                NVS_HdEC(i,j).Order(order).Array(location)=NVS_HdEC(i,j).Order(order).Array(location)&
+                    +coeff*Hd_HdEC(i,j).Array(n)
+            end forall
+            indice(1)=indice(1)+1!Add 1 to the InternalDimension+1 counter
+            do i=1,order-1
+                if(indice(i)>InternalDimension) then!Carry
+                    indice(i)=1
+                    indice(i+1)=indice(i+1)+1
+                end if
+            end do
+        end do
+    end do
+end subroutine HdEC_Hd2NVS
 
 integer function NVS_WhichExpansionBasis(order,indice)
     integer,intent(in)::order
     integer,dimension(order),intent(inout)::indice
     integer,dimension(order)::temp
-    integer::low,up
-    low=0
-    do up=0,order-1
-        low=low+NVS_NumberOfEachOrderTerms(up)
-    end do
-    up=low+NVS_NumberOfEachOrderTerms(order)
-    low=low+1
     call iQuickSort(indice,1,order,temp,order)
-    call bisect(low,up)
+    call bisect(1,NVS_NumberOfEachOrderTerms(order))
     contains
     recursive subroutine bisect(low,up)
         integer,intent(in)::low,up
@@ -190,7 +183,7 @@ integer function NVS_WhichExpansionBasis(order,indice)
             NVS_WhichExpansionBasis=low
         else if(up-low==1) then
             do i=order,1,-1
-                if(indice(i)/=NVS_EBNR(low).indice(i)) exit
+                if(indice(i)/=NVS_EBNR(order).Number(low).Array(i)) exit
             end do
             if(i<1) then
                 NVS_WhichExpansionBasis=low
@@ -200,12 +193,12 @@ integer function NVS_WhichExpansionBasis(order,indice)
         else
             bisection=(low+up)/2
             do i=order,1,-1
-                if(indice(i)/=NVS_EBNR(bisection).indice(i)) exit
+                if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
             end do
             if(i<1) then
                 NVS_WhichExpansionBasis=bisection
             else
-                if(indice(i)>NVS_EBNR(bisection).indice(i)) then
+                if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
                     call bisect(bisection,up)
                 else
                     call bisect(low,bisection)

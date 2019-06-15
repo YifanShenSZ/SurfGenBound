@@ -302,7 +302,7 @@ subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q,freq
     real*8,dimension(CartesianDimension)::r,rtemp
     real*8,dimension(InternalDimension,CartesianDimension)::B
-	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
 	q=Analyzation_intgeom(:,1)
 	if(Analyzation_SearchDiabatic) then
@@ -366,7 +366,7 @@ subroutine MinimumSearch()
         end do
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
-    call WilsonGFMethod(freq,mode,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freq,mode,L,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
         do i=1,InternalDimension
@@ -491,11 +491,11 @@ subroutine MexSearch()
 		end do
 	close(99)
 	open(unit=99,file='DoubleCone.txt',status='replace')
-	    write(99,'(A19,A1,A19,A1,A12)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy/cm^-1'
+	    write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
 	    do istate=2,NState-1
-	    	write(99,'(A1,A12)',advance='no')char(9),'Energy/cm^-1'
+	    	write(99,'(A1,A6,I2,A6)',advance='no')char(9),'Energy',istate,'/cm^-1'
 		end do
-		write(99,'(A1,A12)')char(9),'Energy/cm^-1'
+		write(99,'(A1,A6,I2,A6)')char(9),'Energy',NState,'/cm^-1'
 	    do i=-Analyzation_NGrid,Analyzation_NGrid
 			do j=-Analyzation_NGrid,Analyzation_NGrid
 				q=InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension)&
