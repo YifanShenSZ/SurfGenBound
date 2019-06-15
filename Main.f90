@@ -2,8 +2,11 @@
 !Construct diabatic hamiltonian (Hd) by least square fitting H & ▽H
 !IO unit: atomic unit unless specified in file
 !Computation unit: atomic unit
-!
-!Level: Main <- Analyze, HdLeastSquareFit <- ElectronicStructure <- Basic <- DiabaticHamiltonian
+!              |- ElectronicStructure <-|
+!              |          \|/           |
+!Level: Main <-|-   NadVibSInterface  <-|- Basic <- DiabaticHamiltonian
+!              |-     Analyzation     <-|
+!              |-   HdLeastSquareFit  <-|
 program main
     use Basic
     use ElectronicStructure
