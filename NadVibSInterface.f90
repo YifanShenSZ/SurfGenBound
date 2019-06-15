@@ -23,15 +23,18 @@ module NadVibSInterface
 
 contains
 subroutine GenerateNadVibSInput()
-    character*2::chartemp
-    integer::i,j,k
+    !Everything required for nadvibs.in
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
-    real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
+    !Work space
+    character*2::chartemp
+    integer::i,j,k
+    real*8,dimension(NState)::energy
+    real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     call InitializeNadVibSInterface()
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
@@ -55,13 +58,18 @@ subroutine GenerateNadVibSInput()
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A53)')'Suggestion on number of basis by distance estimation:'
+    write(*,'(1x,A64)')'Suggestion on number of basis by energy and distance estimation:'
+    !Find the lowest harmonic oscillator excited state satisfying 1 of following conditions:
+    !     excitation energy > precursor-successor ground state energy difference
+    !    standard deviation > precursor-successor distance
+    energy=AdiabaticEnergy(qPrecursor)-AdiabaticEnergy(qSuccessor)
     dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=1,9!Standard deviation of (j-1)-th harmonic oscillator excited state
-            if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
+        do j=ceiling(energy(1)/freq(i))+1,1,-1!Consider (j-1)-th excited state
+            if(dSqrt(dFactorial2(2*j-1)/2d0**j)<dshift(i)) exit
         end do
+        j=j+1
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
     end do
     call OriginShift(qSuccessor)!Shift origin to ground state minimum
