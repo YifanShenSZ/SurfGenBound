@@ -33,6 +33,7 @@ subroutine GenerateNadVibSInput()
     !Work space
     character*2::chartemp
     integer::i,j,k
+    real*8::dbtemp
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     call InitializeNadVibSInterface()
@@ -63,17 +64,27 @@ subroutine GenerateNadVibSInput()
     !     excitation energy > precursor-successor ground state energy difference
     !    standard deviation > precursor-successor distance
     energy=AdiabaticEnergy(qPrecursor)-AdiabaticEnergy(qSuccessor)
-    dshift=dAbs(matmul(modeSuccessor,qSuccessor-qPrecursor))
+    dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
+    dbtemp=1d0
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=ceiling(energy(1)/freq(i))+1,1,-1!Consider (j-1)-th excited state
+        do j=ceiling(energy(1)/freqSuccessor(i))+1,1,-1!Consider (j-1)-th excited state
             if(dSqrt(dFactorial2(2*j-1)/2d0**j)<dshift(i)) exit
         end do
         j=j+1
         write(*,'(5x,A4,I3,A14,I2)')'Mode',i,', Basis number',j
+        dbtemp=dbtemp*dble(j)
     end do
+    write(*,'(1x,A28,F20.0)')'The total number of basis is',dbtemp
+    if(dbtemp>2147483647) write(*,'(1x,A16,F4.0,A27)')'Warning: this is',dbtemp/dble(2147483647),' times larger than 2^31 - 1'
+ENERGY=AdiabaticEnergy(qPrecursor)
+WRITE(*,*)ENERGY
     call OriginShift(qSuccessor)!Shift origin to ground state minimum
+ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
+WRITE(*,*)ENERGY   
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
+ENERGY=NVS_AdiabaticEnergy(matmul(modeSuccessor,qPrecursor-qSuccessor))
+WRITE(*,*)ENERGY
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
     Tshift=matmul(modePrecursor,LSuccessor)
@@ -96,6 +107,13 @@ subroutine GenerateNadVibSInput()
         write(99,*)Tshift
     close(99)
 end subroutine GenerateNadVibSInput
+
+FUNCTION NVS_ADIABATICENERGY(Q)
+    REAL*8,DIMENSION(INTERNALDIMENSION),INTENT(IN)::Q
+    REAL*8,DIMENSION(NSTATE)::NVS_ADIABATICENERGY
+    REAL*8,DIMENSION(NSTATE,NSTATE)::H
+    NVS_ADIABATICENERGY=1d0
+END FUNCTION NVS_ADIABATICENERGY
 
 subroutine InitializeNadVibSInterface()
     integer::i,j,iorder
