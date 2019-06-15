@@ -60,11 +60,11 @@ subroutine GenerateNadVibSInput()
 !End of the specific treatment
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A72)')'Suggestion on number of basis by energy and distance estimation:'
-    !2nd highest energy < precursor-successor ground state energy difference
+    write(*,'(1x,A64)')'Suggestion on number of basis by distance and energy estimation:'
     !largest standard deviation > precursor-successor distance
-    energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
+    !2nd highest energy < precursor-successor ground state energy difference
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
+    energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
     dbletemp1=1d0
     dbletemp2=1d0
     do i=1,InternalDimension
@@ -113,19 +113,33 @@ WRITE(*,*)ENERGY
 end subroutine GenerateNadVibSInput
 
 FUNCTION NVS_ADIABATICENERGY(Q)
-    REAL*8,DIMENSION(INTERNALDIMENSION),INTENT(IN)::Q
-    REAL*8,DIMENSION(NSTATE)::NVS_ADIABATICENERGY
-    REAL*8,DIMENSION(NSTATE,NSTATE)::H
-    NVS_ADIABATICENERGY=1d0
-    !real*8 function NVS_ExpansionBasis(q,n)
-    !    real*8,dimension(Hd_intdim),intent(in)::q
-    !    integer,intent(in)::n
-    !    integer::i
-    !    NVS_ExpansionBasis=1d0
-    !    do i=1,NVS_EBNR(n).order
-    !        NVS_ExpansionBasis=NVS_ExpansionBasis*q(Hd_EBNR(n).indice(i))
-    !    end do
-    !end function NVS_ExpansionBasis
+    real*8,dimension(InternalDimension),INTENT(IN)::q
+    real*8,dimension(NState)::NVS_ADIABATICENERGY
+    integer::i,j,k,iorder
+    real*8::dbletemp
+    real*8,dimension(NState,NSTATE)::H
+    forall(i=1:NState,j=1:NState,i>=j)
+        H(i,j)=NVS_HdEC(i,j).Order(0).Array(1)
+    end forall
+    do iorder=1,NVS_NOrder
+        do k=1,NVS_NumberOfEachOrderTerms(iorder)
+            dbletemp=NVS_ExpansionBasis(q,iorder,k)
+            forall(i=1:NState,j=1:NState,i>=j)
+                H(i,j)=H(i,j)+NVS_HdEC(i,j).Order(iorder).Array(k)*dbletemp
+            end forall
+        end do
+    end do
+    call My_dsyev('N',H,NVS_ADIABATICENERGY,NState)
+    contains
+    real*8 function NVS_ExpansionBasis(q,order,n)
+        real*8,dimension(InternalDimension),intent(in)::q
+        integer,intent(in)::order,n
+        integer::i
+        NVS_ExpansionBasis=1d0
+        do i=1,order
+            NVS_ExpansionBasis=NVS_ExpansionBasis*q(NVS_EBNR(order).Number(n).Array(i))
+        end do
+    end function NVS_ExpansionBasis
 END FUNCTION NVS_ADIABATICENERGY
 
 subroutine InitializeNadVibSInterface()
