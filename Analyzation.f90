@@ -298,11 +298,14 @@ subroutine Evaluate()
 end subroutine Evaluate
 
 subroutine MinimumSearch()
-    integer::i,j
-    real*8,dimension(InternalDimension)::q,freq
-    real*8,dimension(CartesianDimension)::r,rtemp
-    real*8,dimension(InternalDimension,CartesianDimension)::B
+    real*8,dimension(InternalDimension)::q
+	!Work space for some basic evaluation: minimum energy, vibration
+	integer::i,j
+	real*8,dimension(NState)::energy
+	real*8,dimension(InternalDimension)::freq
+	real*8,dimension(CartesianDimension)::r,rtemp
 	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
+	real*8,dimension(InternalDimension,CartesianDimension)::B
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
 	q=Analyzation_intgeom(:,1)
 	if(Analyzation_SearchDiabatic) then
@@ -345,6 +348,8 @@ subroutine MinimumSearch()
 	        	stop
 		end select
 	end if
+	energy=AdiabaticEnergy(q)
+	write(*,*)'Energy of the minimum is:',energy/cm_1InAU
 	open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
 	close(99)
@@ -395,7 +400,7 @@ subroutine MexSearch()
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
-	!Work space for some basic evaluation
+	!Work space for some basic evaluation: double cone
 	real*8,dimension(NState)::energy
 	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
 		r=Analyzation_cartgeom(:,1)
@@ -429,6 +434,7 @@ subroutine MexSearch()
 		    	end do
 		    end do
 		close(99)
+		write(*,'(1x,A58)')'You may want to run Columbus7 on gPath.geom and hPath.geom'
 	end if
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
@@ -441,6 +447,8 @@ subroutine MexSearch()
 			fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
 			miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
 	end if
+	energy=AdiabaticEnergy(q)
+	write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
 	open(unit=99,file='MexInternalGeometry.out',status='replace')
         write(99,*)q
     close(99)
@@ -478,18 +486,19 @@ subroutine MexSearch()
 	close(99)
 	g=g/norm2(g)
 	h=h/norm2(h)
-	open(unit=99,file='gPathToEvaluate.in',status='replace')
+	open(unit=99,file='gPath.in',status='replace')
 	    do i=-Analyzation_NGrid,Analyzation_NGrid
 	    	rtemp=r+dble(i)*Analyzation_ghstep*g
 			write(99,*)rtemp
 		end do
 	close(99)
-	open(unit=99,file='hPathToEvaluate.in',status='replace')
+	open(unit=99,file='hPath.in',status='replace')
 	    do i=-Analyzation_NGrid,Analyzation_NGrid
 	    	rtemp=r+dble(i)*Analyzation_ghstep*h
 			write(99,*)rtemp
 		end do
 	close(99)
+	write(*,'(1x,A61)')'You may want to run Analyze-evaluate on gPath.in and hPath.in'
 	open(unit=99,file='DoubleCone.txt',status='replace')
 	    write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
 	    do istate=2,NState-1
@@ -509,6 +518,7 @@ subroutine MexSearch()
 	    	end do
 	    end do
 	close(99)
+	write(*,'(1x,A57)')'DoubleCone.txt is directly pastable to origin for 3D plot'
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim
