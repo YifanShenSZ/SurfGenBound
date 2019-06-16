@@ -32,16 +32,18 @@ module NadVibSInterface
 
 contains
 subroutine GenerateNadVibSInput()
-    !Everything required for nadvibs.in
+    !Vibration information of precursor and successor
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(CartesianDimension)::rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
+    !Origin shift in nadvibs.in
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
     !Work space
     character*2::chartemp
     integer::i,j,k
+    integer,dimension(2)::indice
     real*8::dbletemp1,dbletemp2
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension)::qtemp
@@ -90,14 +92,15 @@ subroutine GenerateNadVibSInput()
     if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31 - 1'
     write(*,*)'The total number of  largest basis is',dbletemp2
     if(dbletemp2>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31 - 1'
-ENERGY=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)
-WRITE(*,*)ENERGY
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
-ENERGY=AdiabaticEnergy(qPrecursor-qSuccessor)
-WRITE(*,*)ENERGY
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
-ENERGY=NVS_ADIABATICENERGY(MATMUL(modeSuccessor,qPrecursor-qSuccessor))
-WRITE(*,*)ENERGY
+    do i=1,InternalDimension!Subtract the harmonic oscillator potential term
+        indice=i
+        j=NVS_WhichExpansionBasis(2,indice)
+        forall(k=1:NState)
+            NVS_HdEC(k,k).Order(2).Array(j)=NVS_HdEC(k,k).Order(2).Array(j)-0.5d0*freqSuccessor(i)*freqSuccessor(i)
+        end forall
+    end do
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
     dshift=matmul(modePrecursor,qSuccessor-qPrecursor)
     Tshift=matmul(modePrecursor,LSuccessor)
@@ -132,39 +135,38 @@ subroutine InitializeNadVibSInterface()
     !Generate expansion basis numbering mapping for iorder-th order (NVS_EBNR(iorder))
     !My preference is to use pseudo InternalDimension+1 counter satisfying former digit >= latter digit,
     !corresponding to the direct sum of an NVS_NOrder-th order tensor's 1st dimension vector
-        !allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
-        !NVS_EBNR(iorder).Number(1).Array=1
-        !do j=2,NVS_NumberOfEachOrderTerms(iorder)
-        !    allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
-        !    NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
-        !    NVS_EBNR(iorder).Number(j).Array(1)=NVS_EBNR(iorder).Number(j).Array(1)+1!Add 1 to the 1st digit
-        !    do i=1,iorder-1!Carry to latter digits
-        !        if(NVS_EBNR(iorder).Number(j).Array(i)>InternalDimension) then
-        !            NVS_EBNR(iorder).Number(j).Array(i)=1
-        !            NVS_EBNR(iorder).Number(j).Array(i+1)=NVS_EBNR(iorder).Number(j).Array(i+1)+1
-        !        end if
-        !    end do
-        !    do i=iorder-1,1,-1!Modify to satisfy former digit >= latter digit
-        !        if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i+1)) &
-        !            NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i+1)
-        !    end do
-        !end do
-    !Fuck, shitslide: Michael Schuurman's Hd term counting seems to suit only his specific definition
-    !Michael Schuurman's way
         allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
         NVS_EBNR(iorder).Number(1).Array=1
         do j=2,NVS_NumberOfEachOrderTerms(iorder)
             allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
             NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
-            i=iorder
-            do
-                if(i==1) exit
-                if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i-1)) exit
-                NVS_EBNR(iorder).Number(j).Array(i)=1
-                i=i-1
+            NVS_EBNR(iorder).Number(j).Array(1)=NVS_EBNR(iorder).Number(j).Array(1)+1!Add 1 to the 1st digit
+            do i=1,iorder-1!Carry to latter digits
+                if(NVS_EBNR(iorder).Number(j).Array(i)>InternalDimension) then
+                    NVS_EBNR(iorder).Number(j).Array(i)=1
+                    NVS_EBNR(iorder).Number(j).Array(i+1)=NVS_EBNR(iorder).Number(j).Array(i+1)+1
+                end if
             end do
-            NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i)+1
+            do i=iorder-1,1,-1!Modify to satisfy former digit >= latter digit
+                if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i+1)) &
+                    NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i+1)
+            end do
         end do
+    !Michael Schuurman's way
+        !allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
+        !NVS_EBNR(iorder).Number(1).Array=1
+        !do j=2,NVS_NumberOfEachOrderTerms(iorder)
+        !    allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
+        !    NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
+        !    i=iorder
+        !    do
+        !        if(i==1) exit
+        !        if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i-1)) exit
+        !        NVS_EBNR(iorder).Number(j).Array(i)=1
+        !        i=i-1
+        !    end do
+        !    NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i)+1
+        !end do
     end do
     allocate(NVS_HdEC(NState,NState))!Allocate storage space of NVS_HdEC
     do j=1,NState
@@ -247,23 +249,10 @@ integer function NVS_WhichExpansionBasis(order,indiceinput)
         else
             bisection=(low+up)/2
             !According to my pseudo InternalDimension+1 counter definition
-            !do i=order,1,-1
-            !    if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
-            !end do
-            !if(i<1) then
-            !    NVS_WhichExpansionBasis=bisection
-            !else
-            !    if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
-            !        call bisect(bisection,up)
-            !    else
-            !        call bisect(low,bisection)
-            !    end if
-            !end if
-            !According to Michael Schuurman's definition
-            do i=1,order
+            do i=order,1,-1
                 if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
             end do
-            if(i>order) then
+            if(i<1) then
                 NVS_WhichExpansionBasis=bisection
             else
                 if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
@@ -272,38 +261,21 @@ integer function NVS_WhichExpansionBasis(order,indiceinput)
                     call bisect(low,bisection)
                 end if
             end if
+            !According to Michael Schuurman's definition
+            !do i=1,order
+            !    if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
+            !end do
+            !if(i>order) then
+            !    NVS_WhichExpansionBasis=bisection
+            !else
+            !    if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
+            !        call bisect(bisection,up)
+            !    else
+            !        call bisect(low,bisection)
+            !    end if
+            !end if
         end if
     end subroutine bisect
 end function NVS_WhichExpansionBasis
-
-FUNCTION NVS_ADIABATICENERGY(Q)!DEBUGGER
-    real*8,dimension(InternalDimension),INTENT(IN)::q
-    real*8,dimension(NState)::NVS_ADIABATICENERGY
-    integer::i,j,k,iorder
-    real*8::dbletemp
-    real*8,dimension(NState,NSTATE)::H
-    forall(i=1:NState,j=1:NState,i>=j)
-        H(i,j)=NVS_HdEC(i,j).Order(0).Array(1)
-    end forall
-    do iorder=1,NVS_NOrder
-        do k=1,NVS_NumberOfEachOrderTerms(iorder)
-            dbletemp=NVS_ExpansionBasis(q,iorder,k)
-            forall(i=1:NState,j=1:NState,i>=j)
-                H(i,j)=H(i,j)+NVS_HdEC(i,j).Order(iorder).Array(k)*dbletemp
-            end forall
-        end do
-    end do
-    call My_dsyev('N',H,NVS_ADIABATICENERGY,NState)
-    contains
-    real*8 function NVS_ExpansionBasis(q,order,n)
-        real*8,dimension(InternalDimension),intent(in)::q
-        integer,intent(in)::order,n
-        integer::i
-        NVS_ExpansionBasis=1d0
-        do i=1,order
-            NVS_ExpansionBasis=NVS_ExpansionBasis*q(NVS_EBNR(order).Number(n).Array(i))
-        end do
-    end function NVS_ExpansionBasis
-END FUNCTION NVS_ADIABATICENERGY
 
 end module NadVibSInterface
