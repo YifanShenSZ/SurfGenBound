@@ -34,7 +34,7 @@ module HdLeastSquareFit
         !Warning: pseudolinear is a quick hopper by vanishing the linear part of the gradient
         !    However, it is not necessarily able to solve the fitting alone, 
         !    unless the minimum coincidentally also has the nonlinear part of the gradient = 0
-        character*32::HdLSF_Solver='pseudolinear_TrustRegion'
+        character*32::HdLSF_Solver='TrustRegion'
         !Max ineration control. Hopper = pseudolinear. LocalMinimizer = TrustRegion, LineSearch
         integer::HdLSF_MaxHopperIteration=100,HdLSF_MaxLocalMinimizerIteration=1000,HdLSF_Max2StepIteration=10
     !Pseudolinear:
