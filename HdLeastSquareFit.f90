@@ -1,10 +1,4 @@
-!Fitting Hd is a nonlinear least square fit problem, 2-step method is my favourite:
-!    Step 1: A fast but inexact hopping to explore the phase space
-!        Here we adopt the iterative pseudolinear equations specially designed for SurfGen
-!        At a given geometry, convert Hd to certain representation and obtain basis {phi_i}
-!        Fix {phi_i}, solve the linear least square fit equations to update Hd
-!    Step 2: A rigorous local minimizer based on the best estimation explored
-!For detailed discussion on solvers, see Parameter section
+!Various solvers to least square fit the diabatic Hamiltonian (Hd)
 !
 !Nomenclature:
 !The Lagrangian is defined as:
@@ -224,6 +218,9 @@ subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
 end subroutine L_RMSD
 
 !--------------- Solvers ---------------
+    !This is a fast but inexact hopping to explore the phase space:
+    !    At a given geometry, convert Hd to certain representation and obtain basis {phi_i}
+    !    Fix {phi_i}, solve the linear least square fit equations to update Hd
     subroutine pseudolinear(cmin)!Fit Hd by pseudolinear method
         real*8,dimension(NHdExpansionCoefficients),intent(inout)::cmin
         integer::indice,ip,i
