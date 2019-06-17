@@ -83,15 +83,18 @@ subroutine GenerateNadVibSInput()
         do j=1,9!Consider (j-1)-th excited state standard deviation
             if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
         end do
-        k=ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1
+        k=max(j,ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1)
         write(*,'(5x,A4,I3,A19,I2,A3,I2)')'Mode',i,', Basis number from',j,' to',k
         dbletemp1=dbletemp1*dble(j)
-        dbletemp2=dbletemp2*dble(max(j,k))
+        dbletemp2=dbletemp2*dble(k)
     end do
     write(*,*)'The total number of smallest basis is',dbletemp1
-    if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31 - 1'
+    if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31'
     write(*,*)'The total number of  largest basis is',dbletemp2
-    if(dbletemp2>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31 - 1'
+    if(dbletemp2>2d0**31d0-1d0) then
+        write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31'
+        write(*,'(1x,A85)')'Please note that NadVibS takes 24h to generate initial Lanczos vector on a 2^31 basis'
+    end if
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
     do i=1,InternalDimension!Subtract the harmonic oscillator potential term
@@ -132,40 +135,25 @@ subroutine InitializeNadVibSInterface()
     do iorder=0,NVS_NOrder
         NVS_NumberOfEachOrderTerms(iorder)=iCombination(InternalDimension+iorder-1,iorder)
         allocate(NVS_EBNR(iorder).Number(NVS_NumberOfEachOrderTerms(iorder)))
-    !Generate expansion basis numbering mapping for iorder-th order (NVS_EBNR(iorder))
-    !My preference is to use pseudo InternalDimension+1 counter satisfying former digit >= latter digit,
-    !corresponding to the direct sum of an NVS_NOrder-th order tensor's 1st dimension vector
-        !allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
-        !NVS_EBNR(iorder).Number(1).Array=1
-        !do j=2,NVS_NumberOfEachOrderTerms(iorder)
-        !    allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
-        !    NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
-        !    NVS_EBNR(iorder).Number(j).Array(1)=NVS_EBNR(iorder).Number(j).Array(1)+1!Add 1 to the 1st digit
-        !    do i=1,iorder-1!Carry to latter digits
-        !        if(NVS_EBNR(iorder).Number(j).Array(i)>InternalDimension) then
-        !            NVS_EBNR(iorder).Number(j).Array(i)=1
-        !            NVS_EBNR(iorder).Number(j).Array(i+1)=NVS_EBNR(iorder).Number(j).Array(i+1)+1
-        !        end if
-        !    end do
-        !    do i=iorder-1,1,-1!Modify to satisfy former digit >= latter digit
-        !        if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i+1)) &
-        !            NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i+1)
-        !    end do
-        !end do
-    !Michael Schuurman's way
+        !Generate expansion basis numbering mapping for iorder-th order (NVS_EBNR(iorder))
+        !My preference is to use pseudo InternalDimension+1 counter satisfying former digit >= latter digit,
+        !corresponding to the direct sum of an NVS_NOrder-th order tensor's 1st dimension vector
         allocate(NVS_EBNR(iorder).Number(1).Array(iorder))
         NVS_EBNR(iorder).Number(1).Array=1
         do j=2,NVS_NumberOfEachOrderTerms(iorder)
             allocate(NVS_EBNR(iorder).Number(j).Array(iorder))
             NVS_EBNR(iorder).Number(j).Array=NVS_EBNR(iorder).Number(j-1).Array
-            i=iorder
-            do
-                if(i==1) exit
-                if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i-1)) exit
-                NVS_EBNR(iorder).Number(j).Array(i)=1
-                i=i-1
+            NVS_EBNR(iorder).Number(j).Array(1)=NVS_EBNR(iorder).Number(j).Array(1)+1!Add 1 to the 1st digit
+            do i=1,iorder-1!Carry to latter digits
+                if(NVS_EBNR(iorder).Number(j).Array(i)>InternalDimension) then
+                    NVS_EBNR(iorder).Number(j).Array(i)=1
+                    NVS_EBNR(iorder).Number(j).Array(i+1)=NVS_EBNR(iorder).Number(j).Array(i+1)+1
+                end if
             end do
-            NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i)+1
+            do i=iorder-1,1,-1!Modify to satisfy former digit >= latter digit
+                if(NVS_EBNR(iorder).Number(j).Array(i)<NVS_EBNR(iorder).Number(j).Array(i+1)) &
+                    NVS_EBNR(iorder).Number(j).Array(i)=NVS_EBNR(iorder).Number(j).Array(i+1)
+            end do
         end do
     end do
     allocate(NVS_HdEC(NState,NState))!Allocate storage space of NVS_HdEC
@@ -248,24 +236,11 @@ integer function NVS_WhichExpansionBasis(order,indiceinput)
             end if
         else
             bisection=(low+up)/2
-            !According to my pseudo InternalDimension+1 counter definition
-            !do i=order,1,-1
-            !    if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
-            !end do
-            !if(i<1) then
-            !    NVS_WhichExpansionBasis=bisection
-            !else
-            !    if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
-            !        call bisect(bisection,up)
-            !    else
-            !        call bisect(low,bisection)
-            !    end if
-            !end if
-            !According to Michael Schuurman's definition
-            do i=1,order
+            !Binary search according to my pseudo InternalDimension+1 counter expansion basis numbering rule
+            do i=order,1,-1
                 if(indice(i)/=NVS_EBNR(order).Number(bisection).Array(i)) exit
             end do
-            if(i>order) then
+            if(i<1) then
                 NVS_WhichExpansionBasis=bisection
             else
                 if(indice(i)>NVS_EBNR(order).Number(bisection).Array(i)) then
