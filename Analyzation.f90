@@ -8,13 +8,15 @@ module Analyzation
     implicit none
 
 !Parameter
+	!mex
 	real*8::Analyzation_NGrid=10,&!Generate how many grid points per direction
-	        Analyzation_ghstep=0.01d0,&!Every how much bohr generate a grid point
-			Analyzation_miu0=1d0!Initial strength of constraint violation penalty
-	!Search control
-		character*32::Analyzation_Searcher='BFGS'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
-	    logical::Analyzation_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
-	    character*32::Analyzation_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
+	        Analyzation_ghstep=0.01d0!Every how much bohr generate a grid point
+	logical::Analyzation_mexTailCorrection=.true.!Perform a tail correction to improve the degenecy
+	!Searcher control
+	character*32::Analyzation_Searcher='BFGS'!Available: NewtonRaphson, BFGS, LBFGS, ConjugateGradient
+	logical::Analyzation_UseStrongWolfe=.true.!Whether use strong Wolfe condition instead of Wolfe condition
+	character*32::Analyzation_ConjugateGradientSolver='DY'!Available: DY (Dai-Yun), PR (Polak-Ribiere+)
+	real*8::Analyzation_miu0=1d0!Initial strength of constraint violation penalty
 
 !Analyzation module only variable
 	!Modulewide accessed input variable
@@ -311,6 +313,7 @@ subroutine MinimumSearch()
 	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
 	q=Analyzation_intgeom(:,1)
 	if(Analyzation_SearchDiabatic) then
+		write(*,'(1x,A62)')'Here a diabatic surface is defined as a diagonal element of Hd'
 	    select case(Analyzation_Searcher)
         	case('NewtonRaphson')
         		call NewtonRaphson(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
@@ -332,19 +335,16 @@ subroutine MinimumSearch()
 	    select case(Analyzation_Searcher)
 	        case('NewtonRaphson')
 	        	call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-	        		Strong=Analyzation_UseStrongWolfe)
+	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('BFGS')
                 call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-	        		Strong=Analyzation_UseStrongWolfe)
+	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
 	        case('LBFGS')
 	        	call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
 	        		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
 	        case('ConjugateGradient')
 	        	call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,&
-	        		Method=Analyzation_ConjugateGradientSolver)
+	        		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
 	        case default!Throw a warning
 	        	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
 	        	stop
@@ -397,9 +397,10 @@ subroutine MinimumSearch()
 end subroutine MinimumSearch
 
 subroutine MexSearch()
-    real*8,dimension(InternalDimension)::q
+    real*8,dimension(InternalDimension)::q,qtail
 	!Work space for: mex energy, orthogonalize gh, gh path, double cone
 	integer::i,j,istate
+	real*8::dbletemp
 	real*8,dimension(NState)::energy
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
@@ -449,6 +450,31 @@ subroutine MexSearch()
 			fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
 			miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
 	end if
+	if(Analyzation_mexTailCorrection) then!Perform a minimum search on upper adiabatic surface
+		energy=AdiabaticEnergy(q)
+		dbletemp=energy(Analyzation_state+1)-energy(Analyzation_state)!Save degeneracy
+		Analyzation_state=Analyzation_state+1
+		qtail=q
+        select case(Analyzation_Searcher)!
+            case('NewtonRaphson')
+            	call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+            		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+            case('BFGS')
+            	call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+            		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+            case('LBFGS')
+            	call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+            		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+            case('ConjugateGradient')
+            	call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+            		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
+            case default!Throw a warning
+            	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+            	stop
+		end select
+		energy=AdiabaticEnergy(q)
+		if(energy(Analyzation_state)-energy(Analyzation_state-1)<dbletemp) q=qtail!Accept if degeneracy improved
+    end if
 	energy=AdiabaticEnergy(q)
 	write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
 	open(unit=99,file='MexInternalGeometry.out',status='replace')
