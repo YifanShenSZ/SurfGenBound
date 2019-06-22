@@ -389,9 +389,9 @@ subroutine MinimumSearch()
 		do i=1,InternalDimension
 			write(99,'(I8,A1)',advance='no')i,char(9)
 			do j=1,InternalDimension-1
-				write(99,'(F18.15,A1)',advance='no')mode(j,i),char(9)
+				write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
 			end do
-			write(99,'(F18.15)')mode(InternalDimension,i)
+			write(99,'(F18.8)')mode(InternalDimension,i)
 		end do
     close(99)
 end subroutine MinimumSearch
