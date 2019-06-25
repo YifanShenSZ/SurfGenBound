@@ -1,11 +1,8 @@
 !Library interface, global parameter & derived type & data storage, basic routine
 module Basic
-    use General
-    use Mathematics
-    use LinearAlgebra
-    use NonlinearOptimization
+    use General; use Mathematics; use LinearAlgebra
+    use NonlinearOptimization; use Chemistry
     use GeometryTransformation
-    use Chemistry
     use DiabaticHamiltonian
     implicit none
 
