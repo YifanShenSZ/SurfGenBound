@@ -9,9 +9,7 @@
 !              |-   HdLeastSquareFit  <-|
 program main
     use Basic
-    use ElectronicStructure
-    use HdLeastSquareFit
-    use Analyzation
+    use ElectronicStructure; use HdLeastSquareFit; use Analyzation
     use NadVibSInterface
     implicit none
     !Main only accessed input variable

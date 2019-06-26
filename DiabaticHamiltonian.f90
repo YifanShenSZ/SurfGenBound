@@ -1,9 +1,7 @@
 !Diabatic Hamiltonian (Hd) and related quantities
 !EBNR and routines in Hd definition section are the only things to modify for basis change
 module DiabaticHamiltonian
-    use General
-    use Mathematics
-	use LinearAlgebra
+    use General; use Mathematics; use LinearAlgebra
 	use Chemistry
     implicit none
 
