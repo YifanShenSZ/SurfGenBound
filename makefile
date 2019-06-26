@@ -18,5 +18,4 @@ $(exe): $(MyLib) $(src)
 	$(compiler) $(flag) $^ -o $(exe)
 
 clean:
-	rm $(exe)
 	rm *.mod
