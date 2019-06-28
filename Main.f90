@@ -2,14 +2,12 @@
 !Construct diabatic hamiltonian (Hd) by least square fitting H & ▽H
 !IO unit: atomic unit unless specified in file
 !Computation unit: atomic unit
-!              |- ElectronicStructure <-|
-!              |          \|/           |
-!Level: Main <-|-   NadVibSInterface  <-|- Basic <- DiabaticHamiltonian
-!              |-     Analyzation     <-|
-!              |-   HdLeastSquareFit  <-|
+!              |- NadVibSInterface <-|<-     Analyzation     <-|
+!Level: Main <-|-                    |<- ElectronicStructure <-|- Basic <- DiabaticHamiltonian
+!              |-              HdLeastSquareFit              <-|
 program main
     use Basic
-    use ElectronicStructure; use HdLeastSquareFit; use Analyzation
+    use HdLeastSquareFit; use ElectronicStructure; use Analyzation
     use NadVibSInterface
     implicit none
     !Main only accessed input variable
@@ -41,8 +39,7 @@ program main
 !---------- Initialize ----------
     call ShowTime()
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
-    call ReadInput()
-    call Initialize()
+    call ReadInput(); call Initialize()
 !------------- End --------------
 
 !----------- Run job ------------
@@ -134,7 +131,6 @@ program main
         case('Analyze')
             call Analyze()
         case('NadVibS')
-            write(*,'(1x,A85)')'This job must be executed after Analyze-min, because the minimum geometry is required'
             call GenerateNadVibSInput()
         case default!Throw a warning
             write(*,*)'Program abort: unsupported job type '//trim(adjustl(JobType))
@@ -143,8 +139,7 @@ program main
 !------------- End --------------
 
 !---------- Clean up ------------
-    call ShowTime()
-    write(*,*)'Mission complete'
+    call ShowTime(); write(*,*)'Mission complete'
 !------------- End --------------
 
 contains
@@ -153,29 +148,16 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
     logical::advance
     integer::i
     open(unit=99,file='SurfGenBound.in',status='old')!Read main input, write some job comment
-        read(99,*)
-        read(99,*)
-        read(99,*)
-        read(99,*)JobType
-            write(*,*)'Job type: '//JobType
-        read(99,*)
-        read(99,*)MoleculeDetailFile
-        read(99,*)
-        read(99,*)NState
-        read(99,*)
-        read(99,*)SameTrainingSet
-        read(99,*)
-        read(99,*)NPoints
-        read(99,*)
-        read(99,*)IndexReference
-        read(99,*)
-        read(99,*)ArtifactGeometryDataFile
-        read(99,*)
-        read(99,*)ArtifactEnergyDataFile
-        read(99,*)
-        read(99,*)NArtifactPoints
-        read(99,*)
-        read(99,*)advance
+        read(99,*); read(99,*); read(99,*); read(99,*)JobType; write(*,*)'Job type: '//JobType
+        read(99,*); read(99,*)MoleculeDetailFile
+        read(99,*); read(99,*)NState
+        read(99,*); read(99,*)SameTrainingSet
+        read(99,*); read(99,*)NPoints
+        read(99,*); read(99,*)IndexReference
+        read(99,*); read(99,*)ArtifactGeometryDataFile
+        read(99,*); read(99,*)ArtifactEnergyDataFile
+        read(99,*); read(99,*)NArtifactPoints
+        read(99,*); read(99,*)advance
     close(99)
     open(unit=99,file=MoleculeDetailFile,status='old')!Read molecule detail
         read(99,*)MoleculeDetail.NAtoms

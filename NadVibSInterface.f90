@@ -1,15 +1,18 @@
 !Generate nadvibs.in for NadVibS
 !The main procedure is:
-!    1, read in the precursor geometry (through MoleculeDetail.RefConfig), compute normal mode
-!    2, select a geometry as origin and define the coordinate
-!       This version use ground state minimum and corresponding normal mode
-!       In literature there is also mex + normal mode of mean field
+!    1, read in the precursor information:
+!           geometry through MoleculeDetail.RefConfig
+!            Hessian through ReadElectronicStructureHessian
+!       then compute precursor vibration
+!    2, select a geometry as origin and define the normal mode
+!           when executing after Analyze-min, use that minimum and corresponding normal mode
+!           when executing after Analyze-mex, use that mex and the normal mode of mean field
 !    3, shift from old reference to the selected origin, then transform from
-!       the internal coordinate used in fitting to the new coordinate
+!       the internal coordinate adopted in fitting to normal mode
 !An estimation of number of basis to use in NadVibS is also provided
 module NadVibSInterface
     use Basic
-    use ElectronicStructure
+    use ElectronicStructure; use Analyzation
     implicit none
 
 !Derived type
@@ -48,27 +51,42 @@ subroutine GenerateNadVibSInput()
     real*8,dimension(NState)::energy
     real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
-    call InitializeNadVibSInterface()
+    call ReadAnalyzeInput(); call InitializeNadVibSInterface()
     !Precursor
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(freqPrecursor,modePrecursor,LPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
     !Successor
-!This version chooses the neutral ground state minimum as origin, corresponding normal mode as basis
-    open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
-    	read(99,*)
-    	read(99,*)
-        do i=1,MoleculeDetail.NAtoms
-            read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
-        end do
-        rSuccesor=rSuccesor*AInAU!Convert to atomic unit
-    close(99)
-    call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
-    qtemp=qSuccessor-ReferencePoint.geom
-    Htemp=AdiabaticddH(qtemp)
-    HSuccessor=Htemp(:,:,1,1)
-!End of the specific treatment
+    if(Analyzation_JobType=='min') then!Use the obtained minimum and corresponding normal mode
+        open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
+        	read(99,*); read(99,*)
+            do i=1,MoleculeDetail.NAtoms
+                read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
+            end do
+            rSuccesor=rSuccesor*AInAU!Convert to atomic unit
+        close(99)
+        call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
+        qtemp=qSuccessor-ReferencePoint.geom
+        if(Analyzation_SearchDiabatic) then!Diabatic surface
+            Htemp=ddHd(qtemp)
+        else!Adiabatic surface
+            Htemp=AdiabaticddH(qtemp)
+        end if
+        HSuccessor=Htemp(:,:,Analyzation_state,Analyzation_state)
+    else!Use the obtained mex and the normal mode of mean field
+        open(unit=99,file='MexCartesianGeometry.xyz',status='old')
+        	read(99,*); read(99,*)
+            do i=1,MoleculeDetail.NAtoms
+                read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
+            end do
+            rSuccesor=rSuccesor*AInAU!Convert to atomic unit
+        close(99)
+        call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
+        qtemp=qSuccessor-ReferencePoint.geom
+        Htemp=ddHd(qtemp)
+        HSuccessor=(Htemp(:,:,Analyzation_state,Analyzation_state)+Htemp(:,:,Analyzation_state+1,Analyzation_state+1))/2d0
+    end if
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
     write(*,'(1x,A64)')'Suggestion on number of basis by distance and energy estimation:'
@@ -76,8 +94,7 @@ subroutine GenerateNadVibSInput()
     !2nd highest energy < precursor-successor ground state energy difference < highest
     dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
     energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
-    dbletemp1=1d0
-    dbletemp2=1d0
+    dbletemp1=1d0; dbletemp2=1d0
     do i=1,InternalDimension
         dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
         do j=1,9!Consider (j-1)-th excited state standard deviation
@@ -85,8 +102,7 @@ subroutine GenerateNadVibSInput()
         end do
         k=max(j,ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1)
         write(*,'(5x,A4,I3,A19,I2,A3,I2)')'Mode',i,', Basis number from',j,' to',k
-        dbletemp1=dbletemp1*dble(j)
-        dbletemp2=dbletemp2*dble(k)
+        dbletemp1=dbletemp1*dble(j); dbletemp2=dbletemp2*dble(k)
     end do
     write(*,*)'The total number of smallest basis is',dbletemp1
     if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31'
