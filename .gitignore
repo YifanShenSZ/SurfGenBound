@@ -1,6 +1,7 @@
 SurfGenBound.exe
 *.mod
 *.obj
+avx/*.f90
 My Advisor Results - SurfGenBound/
 x64/
 *.u2d
