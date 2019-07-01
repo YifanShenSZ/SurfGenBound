@@ -355,7 +355,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         ReferencePointtemp=pointtemp(IndexReference)
     do ip=1,NPoints!Modify points
         pointtemp(ip).energy=pointtemp(ip).energy-ReferencePointtemp.energy(1)
-        if(pointtemp(ip).energy(1)>HighEnergy) pointtemp(ip).weight=HighEnergy/pointtemp(ip).energy(1)
+        if(pointtemp(ip).energy(1)>HighEnergy) pointtemp(ip).weight=(HighEnergy/pointtemp(ip).energy(1))**2
 	end do
 	!Provide a human readable version of training set
 		open(unit=99,file='TrainingEnergy.txt',status='replace')
@@ -426,7 +426,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
 		close(99)
     do ip=1,NArtifactPoints!Modify artifact points
         ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePointtemp.energy(1)
-        if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=HighEnergy/ArtifactPointtemp(ip).energy(1)
+        if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=(HighEnergy/ArtifactPointtemp(ip).energy(1))**2
     end do
     !If want to perform the fitting procedure gradually, we will require:
     !    All geometries aligned

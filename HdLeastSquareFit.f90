@@ -71,14 +71,12 @@ module HdLeastSquareFit
 
 contains
 subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
-    integer::ip,istate,jstate
-    real*8::MaxEnergy,MaxGrad,temp
+    integer::ip,istate,jstate; real*8::MaxEnergy,MaxGrad,temp
     !A data point provides NState adiabatic energies, InternalDimension x NState x NState ▽H
     DataPerPoint=NState+NState*(NState+1)/2*InternalDimension!Upper triangle is redundant
     !A degenerate data point provides NState order H, InternalDimension x NState x NState ▽H
     DataPerDegeneratePoint=NState*(NState+1)/2*(InternalDimension+1)!Upper triangle is redundant
-    MaxEnergy=0d0
-    MaxGrad=0d0
+    MaxEnergy=0d0; MaxGrad=0d0
     do ip=1,NPoints
         temp=maxval(Abs(point(ip).energy))
         if(temp>MaxEnergy) MaxEnergy=temp
@@ -90,6 +88,7 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
         end do
     end do
     HdLSF_EnergyScale=MaxGrad/MaxEnergy
+    write(*,*)'The typical work length of this system =',1d0/HdLSF_EnergyScale,' a.u.'
     HdLSF_EnergyScaleSquare=HdLSF_EnergyScale*HdLSF_EnergyScale
     HdLSF_SqrtRegularization=dSqrt(HdLSF_Regularization)
 end subroutine InitializeHdLeastSquareFit

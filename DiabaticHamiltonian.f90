@@ -39,8 +39,7 @@ subroutine InitializeDiabaticHamiltonian(NState,intdim,NewHd)
     integer,intent(in)::NState,intdim
     logical,intent(in),optional::NewHd
     integer::istate,jstate,iorder,i,n
-    Hd_NState=NState
-    Hd_intdim=intdim
+    Hd_NState=NState; Hd_intdim=intdim
     call InitializeExpansionBasisNumberingRule()!NHdExpansionBasis, EBNR
     NHdExpansionCoefficients=Hd_NState*(Hd_NState+1)/2*NHdExpansionBasis!Multiply the number of independent Hd elements
 	allocate(Hd_HdEC(Hd_NState,Hd_NState))!HdEC
@@ -65,8 +64,7 @@ end subroutine InitializeDiabaticHamiltonian
         NHdExpansionBasis=0
         open(unit=99,file='basis.in',status='old')
             do!Count how many expansion basis functions there are
-                read(99,*,iostat=i)
-                if(i/=0) exit
+                read(99,*,iostat=i); if(i/=0) exit
                 NHdExpansionBasis=NHdExpansionBasis+1
             end do
             rewind 99
@@ -202,16 +200,15 @@ end subroutine InitializeDiabaticHamiltonian
 
     !Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
     subroutine ReadHdExpansionCoefficients()
-        character*2::char2temp
-        character*28::char28temp
+        character*2::char2temp; character*28::char28temp
         integer::NState,NBasis,NOrder!The old Hd is not necessarily fitted under same condition
         integer::istate,jstate,i,j,order,location
         integer,allocatable,dimension(:)::indice
-        real*8::dbtemp
+        real*8::dbletemp
         open(unit=99,file='Hd.CheckPoint',status='old')
             read(99,'(A28,I2)')char28temp,NState!Get old Hd fitting condition
             read(99,*)
-            read(99,*)dbtemp
+            read(99,*)dbletemp
             read(99,'(I5)')NOrder
             allocate(indice(NOrder))
             NBasis=2
@@ -227,7 +224,7 @@ end subroutine InitializeDiabaticHamiltonian
                 do jstate=istate,NState
                     read(99,*)
                     do i=1,NBasis
-                        read(99,*)dbtemp
+                        read(99,*)dbletemp
                         read(99,'(I5)',advance='no')order
                         if(order>0) then
                             do j=1,order-1
@@ -238,7 +235,7 @@ end subroutine InitializeDiabaticHamiltonian
                             read(99,*)
                         end if
                         location=WhichExpansionBasis(order,indice(1:order))
-                        if(location>0) Hd_HdEC(jstate,istate).Array(location)=dbtemp
+                        if(location>0) Hd_HdEC(jstate,istate).Array(location)=dbletemp
                     end do
                 end do
             end do
@@ -329,8 +326,7 @@ end subroutine InitializeDiabaticHamiltonian
                 ExpansionBasisHessian(m1,m1)=0d0
             end if
             do m2=m1+1,Hd_intdim!Off-diagonal
-                OrderCount1=0
-                OrderCount2=0
+                OrderCount1=0; OrderCount2=0
                 do i=1,Hd_EBNR(n).order
                     if(Hd_EBNR(n).indice(i)==m1) OrderCount1=OrderCount1+1
                     if(Hd_EBNR(n).indice(i)==m2) OrderCount2=OrderCount2+1
