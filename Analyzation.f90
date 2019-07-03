@@ -377,111 +377,107 @@ subroutine MexSearch()
 	end if
 	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
-	if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
-		call AugmentedLagrangian(f,fd,c,cd,q,InternalDimension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
-		    miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
+    if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
+        call AugmentedLagrangian(f,fd,c,cd,q,InternalDimension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
+            miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
     else!In general case we have to search for minimum on potential energy surface of interest subject to degeneracy constaint
-	    call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
-	        q,InternalDimension,1,Precision=1d-8,&!This is Columbus7 energy precision
-			fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
-			miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
-	end if
-	if(Analyzation_mexTailCorrection) then!Perform a minimum search on upper adiabatic surface
-		energy=AdiabaticEnergy(q)
-		dbletemp=energy(Analyzation_state+1)-energy(Analyzation_state)!Save degeneracy
-		Analyzation_state=Analyzation_state+1
-		qtail=q
+        call AugmentedLagrangian(AdiabaticEnergyInterface,AdiabaticGradientInterface,AdiabaticGapInterface,AdiabaticGapGradientInterface,&
+            q,InternalDimension,1,Precision=1d-8,&!This is Columbus7 energy precision
+            fdd=AdiabaticHessianInterface,cdd=AdiabaticGapHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,&
+            miu0=Analyzation_miu0,UnconstrainedSolver=Analyzation_Searcher,Method=Analyzation_ConjugateGradientSolver)
+    end if
+    if(Analyzation_mexTailCorrection) then!Perform a minimum search on upper adiabatic surface
+        energy=AdiabaticEnergy(q)
+        dbletemp=energy(Analyzation_state+1)-energy(Analyzation_state)!Save degeneracy
+        Analyzation_state=Analyzation_state+1
+        qtail=q
         select case(Analyzation_Searcher)!
             case('NewtonRaphson')
-            	call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
-            		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+                call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+                    fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('BFGS')
-            	call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
-            		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+                call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+                    fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('LBFGS')
-            	call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
-            		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+                call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+                    f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('ConjugateGradient')
-            	call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
-            		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
+                call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,qtail,InternalDimension,&
+                    f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
             case default!Throw a warning
-            	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
-            	stop
-		end select
-		energy=AdiabaticEnergy(q)
-		if(energy(Analyzation_state)-energy(Analyzation_state-1)<dbletemp) q=qtail!Accept if degeneracy improved
+                write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+                stop
+        end select
+        energy=AdiabaticEnergy(q); Analyzation_state=Analyzation_state-1
+        if(energy(Analyzation_state+1)-energy(Analyzation_state)<dbletemp) q=qtail!Accept if degeneracy improved
     end if
-	energy=AdiabaticEnergy(q)
-	write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
-	open(unit=99,file='MexInternalGeometry.out',status='replace')
+    energy=AdiabaticEnergy(q)
+    write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
+    open(unit=99,file='MexInternalGeometry.out',status='replace')
         write(99,*)q
     close(99)
-	intdH=AdiabaticdH(q)
-	q=q+ReferencePoint.geom
-	if(allocated(Analyzation_cartgeom)) then
-		rtemp=Analyzation_cartgeom(:,1)
-	else
-		rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
-	end if
-	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
-	call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
-	    intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
-	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
-		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
-			gref=Analyzation_g,href=Analyzation_h)
-	else
-		call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension)
-	end if
-	g=(cartdH(:,Analyzation_state+1,Analyzation_state+1)-cartdH(:,Analyzation_state,Analyzation_state))/2d0
-	h=cartdH(:,Analyzation_state+1,Analyzation_state)
-	open(unit=99,file='MexCartesianGeometry.xyz',status='replace')
-		write(99,*)MoleculeDetail.NAtoms
-		write(99,'(A43,I2,A4,I2)')'Minimum energy crossing point between state',Analyzation_state,' and',Analyzation_state+1
+    intdH=AdiabaticdH(q); q=q+ReferencePoint.geom
+    if(allocated(Analyzation_cartgeom)) then
+        rtemp=Analyzation_cartgeom(:,1)
+    else
+        rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
+    end if
+    call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
+    call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
+        intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
+    if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
+        call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
+            gref=Analyzation_g,href=Analyzation_h)
+    else
+        call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension)
+    end if
+    g=(cartdH(:,Analyzation_state+1,Analyzation_state+1)-cartdH(:,Analyzation_state,Analyzation_state))/2d0
+    h=cartdH(:,Analyzation_state+1,Analyzation_state)
+    open(unit=99,file='MexCartesianGeometry.xyz',status='replace')
+        write(99,*)MoleculeDetail.NAtoms
+        write(99,'(A43,I2,A4,I2)')'Minimum energy crossing point between state',Analyzation_state,' and',Analyzation_state+1
         do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
-	close(99)
-	open(unit=99,file='Mexg.out',status='replace')
-	    write(99,*)g
+        close(99)
+    open(unit=99,file='Mexg.out',status='replace')
+        write(99,*)g
     close(99)
-	open(unit=99,file='Mexh.out',status='replace')
-	    write(99,*)h
-	close(99)
-	g=g/norm2(g)
-	h=h/norm2(h)
-	open(unit=99,file='gPath.in',status='replace')
-	    do i=-Analyzation_NGrid,Analyzation_NGrid
-	    	rtemp=r+dble(i)*Analyzation_ghstep*g
-			write(99,*)rtemp
-		end do
-	close(99)
-	open(unit=99,file='hPath.in',status='replace')
-	    do i=-Analyzation_NGrid,Analyzation_NGrid
-	    	rtemp=r+dble(i)*Analyzation_ghstep*h
-			write(99,*)rtemp
-		end do
-	close(99)
-	write(*,'(1x,A61)')'You may want to run Analyze-evaluate on gPath.in and hPath.in'
-	open(unit=99,file='DoubleCone.txt',status='replace')
-	    write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
-	    do istate=2,NState-1
-	    	write(99,'(A1,A6,I2,A6)',advance='no')char(9),'Energy',istate,'/cm^-1'
-		end do
-		write(99,'(A1,A6,I2,A6)')char(9),'Energy',NState,'/cm^-1'
-	    do i=-Analyzation_NGrid,Analyzation_NGrid
-			do j=-Analyzation_NGrid,Analyzation_NGrid
-				q=InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension)&
-				 -ReferencePoint.geom!This program requires only internal coordinate difference
-				energy=AdiabaticEnergy(q)/cm_1InAU
-				write(99,'(F6.2,A1,F6.2,A1,F18.8)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
-	    		do istate=2,NState-1
-	    			write(99,'(A1,F18.8)',advance='no')char(9),energy(istate)
-				end do
-				write(99,'(A1,F18.8)')char(9),energy(NState)
-	    	end do
-	    end do
-	close(99)
-	write(*,'(1x,A57)')'DoubleCone.txt is directly pastable to origin for 3D plot'
+    open(unit=99,file='Mexh.out',status='replace')
+        write(99,*)h
+    close(99)
+    g=g/norm2(g); h=h/norm2(h)
+    open(unit=99,file='gPath.in',status='replace')
+        do i=-Analyzation_NGrid,Analyzation_NGrid
+            rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
+        end do
+    close(99)
+    open(unit=99,file='hPath.in',status='replace')
+        do i=-Analyzation_NGrid,Analyzation_NGrid
+            rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
+        end do
+    close(99)
+    write(*,'(1x,A61)')'You may want to run Analyze-evaluate on gPath.in and hPath.in'
+    open(unit=99,file='DoubleCone.txt',status='replace')
+        write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
+        do istate=2,NState-1
+            write(99,'(A1,A6,I2,A6)',advance='no')char(9),'Energy',istate,'/cm^-1'
+        end do
+        write(99,'(A1,A6,I2,A6)')char(9),'Energy',NState,'/cm^-1'
+        do i=-Analyzation_NGrid,Analyzation_NGrid
+            do j=-Analyzation_NGrid,Analyzation_NGrid
+                q=InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension)&
+                    -ReferencePoint.geom!This program requires only internal coordinate difference
+                energy=AdiabaticEnergy(q)/cm_1InAU
+                write(99,'(F6.2,A1,F6.2,A1,F18.8)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
+                do istate=2,NState-1
+                    write(99,'(A1,F18.8)',advance='no')char(9),energy(istate)
+                end do
+                write(99,'(A1,F18.8)')char(9),energy(NState)
+            end do
+        end do
+    close(99)
+    write(*,'(1x,A57)')'DoubleCone.txt is directly pastable to origin for 3D plot'
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim
