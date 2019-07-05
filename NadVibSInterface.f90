@@ -109,7 +109,7 @@ subroutine GenerateNadVibSInput()
     write(*,*)'The total number of  largest basis is',dbletemp2
     if(dbletemp2>2d0**31d0-1d0) then
         write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31'
-        write(*,'(1x,A85)')'Please note that NadVibS takes 24h to generate initial Lanczos vector on a 2^31 basis'
+        write(*,'(1x,A74)')'Please note that 2^31 basis is the largest NadVibS can handle within 3days'
     end if
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
