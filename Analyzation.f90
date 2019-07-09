@@ -233,39 +233,41 @@ end subroutine evaluate
 
 subroutine MinimumSearch()
     real*8,dimension(InternalDimension)::q
-	!Work space for: minimum energy, vibration
-	integer::i,j
-	real*8,dimension(NState)::energy
+    !Work space for: minimum energy, vibration
+    integer::i,j
+	real*8,dimension(NState)::energy; real*8,dimension(NState,NState)::H
 	real*8,dimension(InternalDimension)::freq
 	real*8,dimension(CartesianDimension)::r,rtemp
 	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
 	real*8,dimension(InternalDimension,CartesianDimension)::B
-	write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
-	q=Analyzation_intgeom(:,1)
-	if(Analyzation_SearchDiabatic) then
-		write(*,'(1x,A62)')'Here a diabatic surface is defined as a diagonal element of Hd'
-	    select case(Analyzation_Searcher)
-        	case('NewtonRaphson')
-        		call NewtonRaphson(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
-        			fdd=DiabaticHessianInterface,Strong=Analyzation_UseStrongWolfe)
-        	case('BFGS')
-        		call BFGS(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
-        			fdd=DiabaticHessianInterface,Strong=Analyzation_UseStrongWolfe)
-        	case('LBFGS')
-        		call LBFGS(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
-        			Strong=Analyzation_UseStrongWolfe)
-        	case('ConjugateGradient')
-        		call ConjugateGradient(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
-        			Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
-        	case default!Throw a warning
-        		write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
-        		stop
+    write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
+    q=Analyzation_intgeom(:,1)
+    if(Analyzation_SearchDiabatic) then
+        write(*,'(1x,A62)')'Here a diabatic surface is defined as a diagonal element of Hd'
+        select case(Analyzation_Searcher)
+            case('NewtonRaphson')
+                call NewtonRaphson(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
+                    fdd=DiabaticHessianInterface,Strong=Analyzation_UseStrongWolfe)
+            case('BFGS')
+                call BFGS(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
+                    fdd=DiabaticHessianInterface,Strong=Analyzation_UseStrongWolfe)
+            case('LBFGS')
+                call LBFGS(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
+                    Strong=Analyzation_UseStrongWolfe)
+            case('ConjugateGradient')
+                call ConjugateGradient(DiabaticEnergyInterface,DiabaticGradientInterface,q,InternalDimension,&
+                    Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
+            case default!Throw a warning
+                write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+                stop
         end select
-	else
-	    select case(Analyzation_Searcher)
-	        case('NewtonRaphson')
-	        	call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+        H=Hd(q); forall(i=1:NState); energy(i)=H(i,i); end forall
+        i=DiabaticHessianInterface(Hessian,q,InternalDimension)
+    else
+        select case(Analyzation_Searcher)
+            case('NewtonRaphson')
+                call NewtonRaphson(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+                    fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('BFGS')
                 call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
 	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
@@ -279,13 +281,13 @@ subroutine MinimumSearch()
 	        	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
 	        	stop
 		end select
+		energy=AdiabaticEnergy(q)
+		i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
 	end if
-	energy=AdiabaticEnergy(q)
 	write(*,*)'Energy of the minimum is:',energy/cm_1InAU
 	open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
 	close(99)
-	i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
 	q=q+ReferencePoint.geom
 	if(allocated(Analyzation_cartgeom)) then
 		rtemp=Analyzation_cartgeom(:,1)
