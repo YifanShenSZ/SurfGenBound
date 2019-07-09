@@ -48,52 +48,52 @@ subroutine Analyze()!Top level standard interface for other modules to call
         case default!Throw a warning
             write(*,*)'Program abort: unsupported analyzation job type '//trim(adjustl(Analyzation_JobType))
             stop
-	end select
+    end select
 end subroutine Analyze
 
 subroutine evaluate()
-	integer::i,j,k
+    integer::i,j,k
 	real*8,dimension(NState,Analyzation_NGeoms)::PES,ndSurface
 	real*8,dimension(NState,NState,Analyzation_NGeoms)::HdSurface,dHdNormSurface,dHaNormSurface,dHndNormSurface
     real*8,dimension(NState,NState)::eigvec
 	real*8,dimension(InternalDimension,NState,NState)::dH,dHa
-	if(allocated(Analyzation_cartgeom)) then!Return Cartesian gradient
-		do i=1,Analyzation_NGeoms!Compute
+    if(allocated(Analyzation_cartgeom)) then!Return Cartesian gradient
+        do i=1,Analyzation_NGeoms!Compute
             HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
-	    	dH=dHd(Analyzation_intgeom(:,i))
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    		dHdNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
-	    	end forall
+            dH=dHd(Analyzation_intgeom(:,i))
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHdNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+            end forall
             eigvec=HdSurface(:,:,i)
             call My_dsyev('V',eigvec,PES(:,i),NState)
-	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    	    dHaNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dHa(:,j,k)))
-	    	end forall
-	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-		        dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
-	    	end forall
-		end do
-	else!Return internal gradient
-	    do i=1,Analyzation_NGeoms!Compute
+            dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHaNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dHa(:,j,k)))
+            end forall
+            call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHndNormSurface(j,k,i)=norm2(matmul(transpose(Analyzation_B(:,:,i)),dH(:,j,k)))
+            end forall
+        end do
+    else!Return internal gradient
+        do i=1,Analyzation_NGeoms!Compute
             HdSurface(:,:,i)=Hd(Analyzation_intgeom(:,i))
-	    	dH=dHd(Analyzation_intgeom(:,i))
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    		dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
-	    	end forall
+            dH=dHd(Analyzation_intgeom(:,i))
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHdNormSurface(j,k,i)=norm2(dH(:,j,k))
+            end forall
             eigvec=HdSurface(:,:,i)
             call My_dsyev('V',eigvec,PES(:,i),NState)
-	    	dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-	    	    dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
-	    	end forall
-	    	call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-	    	forall(j=1:NState,k=1:NState,j>=k)
-		        dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
-	    	end forall
-		end do
-	end if
+            dHa=sy3UnitaryTransformation(dH,eigvec,InternalDimension,NState)
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHaNormSurface(j,k,i)=norm2(dHa(:,j,k))
+            end forall
+            call NondegenerateRepresentation(dH,ndSurface(:,i),eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+            forall(j=1:NState,k=1:NState,j>=k)
+                dHndNormSurface(j,k,i)=norm2(dH(:,j,k))
+            end forall
+        end do
+    end if
     !Output
     open(unit=99,file='PotentialEnergySurface.txt',status='replace')
         write(99,'(A9,A1)',advance='no')'Geometry#',char(9)
@@ -127,108 +127,108 @@ subroutine evaluate()
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
         do i=1,NState
             write(99,'(1x,A8,I2,A6,2x,A1)',advance='no')'Diagonal',i,'/cm^-1',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A6,A1)',advance='no')'Coupling',j,'&',i,'/cm^-1',char(9)
-			end do
+        end do
+        do i=1,NState
+            do j=i+1,NState
+                write(99,'(A8,I2,A1,I2,A6,A1)',advance='no')'Coupling',j,'&',i,'/cm^-1',char(9)
+            end do
         end do
         write(99,*)
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState
                 write(99,'(F18.8,A1)',advance='no')HdSurface(j,j,i)/cm_1InAU,char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')HdSurface(j,k,i)/cm_1InAU,char(9)
-				end do
-			end do
+            end do
+            do k=1,NState
+                do j=k+1,NState
+                    write(99,'(F18.8,A1)',advance='no')HdSurface(j,k,i)/cm_1InAU,char(9)
+                end do
+            end do
             write(99,*)
         end do
-	close(99)
-	open(unit=99,file='HdGradient.txt',status='replace')
+    close(99)
+    open(unit=99,file='HdGradient.txt',status='replace')
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
         do i=1,NState
             write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
-			end do
+        end do
+        do i=1,NState
+            do j=i+1,NState
+                write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
+            end do
         end do
         write(99,*)
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState
                 write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,k,i),char(9)
-				end do
-			end do
+            end do
+        do k=1,NState
+            do j=k+1,NState
+                write(99,'(F18.8,A1)',advance='no')dHdNormSurface(j,k,i),char(9)
+            end do
+        end do
             write(99,*)
         end do
-	close(99)
-	open(unit=99,file='HaGradient.txt',status='replace')
+    close(99)
+    open(unit=99,file='HaGradient.txt',status='replace')
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
         do i=1,NState
             write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',j,'&',i,'/a.u.',char(9)
-			end do
         end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
-			end do
-		end do
+        do i=1,NState
+            do j=i+1,NState
+                write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',j,'&',i,'/a.u.',char(9)
+            end do
+        end do
+        do i=1,NState
+            do j=i+1,NState
+                write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',j,'&',i,'/a.u.',char(9)
+            end do
+        end do
         write(99,*)
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState
                 write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i),char(9)
-				end do
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i)/dABS(PES(k,i)-PES(j,i)),char(9)
-				end do
-			end do
+            end do
+            do k=1,NState
+                do j=k+1,NState
+                    write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i),char(9)
+                end do
+            end do
+            do k=1,NState
+                do j=k+1,NState
+                    write(99,'(F18.8,A1)',advance='no')dHaNormSurface(j,k,i)/dABS(PES(k,i)-PES(j,i)),char(9)
+                end do
+            end do
             write(99,*)
         end do
-	close(99)
-	open(unit=99,file='HndGradient.txt',status='replace')
+    close(99)
+    open(unit=99,file='HndGradient.txt',status='replace')
         write(99,'(A10)',advance='no')'Geometry#'//char(9)
         do i=1,NState
             write(99,'(1x,A8,I2,A5,2x,A1)',advance='no')'Diagonal',i,'/a.u.',char(9)
-		end do
-		do i=1,NState
-			do j=i+1,NState
-				write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
-			end do
+        end do
+        do i=1,NState
+            do j=i+1,NState
+                write(99,'(A8,I2,A1,I2,A5,A1)',advance='no')'Coupling',j,'&',i,'/a.u.',char(9)
+            end do
         end do
         write(99,*)
         do i=1,Analyzation_NGeoms
             write(99,'(I9,A1)',advance='no')i,char(9)
             do j=1,NState
                 write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,j,i),char(9)
-			end do
-			do k=1,NState
-				do j=k+1,NState
-					write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,k,i)/dABS(ndSurface(k,i)-ndSurface(j,i)),char(9)
-				end do
-			end do
+            end do
+            do k=1,NState
+                do j=k+1,NState
+                    write(99,'(F18.8,A1)',advance='no')dHndNormSurface(j,k,i)/dABS(ndSurface(k,i)-ndSurface(j,i)),char(9)
+                end do
+            end do
             write(99,*)
         end do
-	close(99)
+    close(99)
 end subroutine evaluate
 
 subroutine MinimumSearch()
@@ -270,42 +270,42 @@ subroutine MinimumSearch()
                     fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
             case('BFGS')
                 call BFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
-	        case('LBFGS')
-	        	call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
-	        case('ConjugateGradient')
-	        	call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
-	        		f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
-	        case default!Throw a warning
-	        	write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
-	        	stop
-		end select
-		energy=AdiabaticEnergy(q)
-		i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
-	end if
-	write(*,*)'Energy of the minimum is:',energy/cm_1InAU
-	open(unit=99,file='MinimumInternalGeometry.out',status='replace')
+                    fdd=AdiabaticHessianInterface,f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+            case('LBFGS')
+                call LBFGS(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+                    f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe)
+            case('ConjugateGradient')
+                call ConjugateGradient(AdiabaticEnergyInterface,AdiabaticGradientInterface,q,InternalDimension,&
+                    f_fd=AdiabaticEnergy_GradientInterface,Strong=Analyzation_UseStrongWolfe,Method=Analyzation_ConjugateGradientSolver)
+            case default!Throw a warning
+                write(*,*)'Program abort: unsupported searcher '//trim(adjustl(Analyzation_Searcher))
+                stop
+        end select
+        energy=AdiabaticEnergy(q)
+        i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
+    end if
+    write(*,*)'Energy of the minimum is:',energy/cm_1InAU
+    open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
-	close(99)
-	q=q+ReferencePoint.geom
-	if(allocated(Analyzation_cartgeom)) then
-		rtemp=Analyzation_cartgeom(:,1)
-	else
-		rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
-	end if
-	call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
-	r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
-		mass=MoleculeDetail.mass,r0=rtemp)
-	open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
-		write(99,*)MoleculeDetail.NAtoms
-		write(99,'(A11)',advance='no')'Minimum on '
-		if(Analyzation_SearchDiabatic) then
-			write(99,'(A16)',advance='no')'diabatic surface'
-		else
-			write(99,'(A17)',advance='no')'adiabatic surface'
-		end if
-		write(99,*)Analyzation_state
+    close(99)
+    q=q+ReferencePoint.geom
+    if(allocated(Analyzation_cartgeom)) then
+        rtemp=Analyzation_cartgeom(:,1)
+    else
+        rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
+    end if
+    call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
+    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
+      mass=MoleculeDetail.mass,r0=rtemp)
+    open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
+        write(99,*)MoleculeDetail.NAtoms
+        write(99,'(A11)',advance='no')'Minimum on '
+        if(Analyzation_SearchDiabatic) then
+            write(99,'(A16)',advance='no')'diabatic surface'
+        else
+            write(99,'(A17)',advance='no')'adiabatic surface'
+        end if
+        write(99,*)Analyzation_state
         do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
@@ -318,66 +318,66 @@ subroutine MinimumSearch()
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-	open(unit=99,file='NormalMode.txt',status='replace')
-	    write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
-		do i=1,InternalDimension-1
-			write(99,'(I6,A1)',advance='no')i,char(9)
-		end do
-		write(99,'(I6)')InternalDimension
-		do i=1,InternalDimension
-			write(99,'(I8,A1)',advance='no')i,char(9)
-			do j=1,InternalDimension-1
-				write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
-			end do
-			write(99,'(F18.8)')mode(InternalDimension,i)
-		end do
+    open(unit=99,file='NormalMode.txt',status='replace')
+        write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
+        do i=1,InternalDimension-1
+            write(99,'(I6,A1)',advance='no')i,char(9)
+        end do
+        write(99,'(I6)')InternalDimension
+        do i=1,InternalDimension
+            write(99,'(I8,A1)',advance='no')i,char(9)
+            do j=1,InternalDimension-1
+                write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
+            end do
+            write(99,'(F18.8)')mode(InternalDimension,i)
+        end do
     close(99)
 end subroutine MinimumSearch
 
 subroutine MexSearch()
     real*8,dimension(InternalDimension)::q,qtail
-	!Work space for: mex energy, orthogonalize gh, gh path, double cone
-	integer::i,j,istate
+    !Work space for: mex energy, orthogonalize gh, gh path, double cone
+        integer::i,j,istate
 	real*8::dbletemp
 	real*8,dimension(NState)::energy
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
-	if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
-		r=Analyzation_cartgeom(:,1)
-		g=Analyzation_g/norm2(Analyzation_g)
-		h=Analyzation_h/norm2(Analyzation_h)
-		open(unit=99,file='gPath.geom',status='replace')
-		    do i=-Analyzation_NGrid,-1
-	        	rtemp=r+dble(i)*Analyzation_ghstep*g
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-		    	end do
-			end do
-			do i=1,Analyzation_NGrid
-	        	rtemp=r+dble(i)*Analyzation_ghstep*g
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-		    	end do
-		    end do
-		close(99)
-		open(unit=99,file='hPath.geom',status='replace')
-		    do i=-Analyzation_NGrid,-1
-	        	rtemp=r+dble(i)*Analyzation_ghstep*h
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-		    	end do
-			end do
-			do i=1,Analyzation_NGrid
-	        	rtemp=r+dble(i)*Analyzation_ghstep*h
-		    	do j=1,MoleculeDetail.NAtoms
-		    		write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-		    	end do
-		    end do
-		close(99)
-		write(*,'(1x,A58)')'You may want to run Columbus7 on gPath.geom and hPath.geom'
-	end if
-	write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
+    if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
+        r=Analyzation_cartgeom(:,1)
+        g=Analyzation_g/norm2(Analyzation_g)
+        h=Analyzation_h/norm2(Analyzation_h)
+        open(unit=99,file='gPath.geom',status='replace')
+            do i=-Analyzation_NGrid,-1
+                rtemp=r+dble(i)*Analyzation_ghstep*g
+                do j=1,MoleculeDetail.NAtoms
+                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                end do
+            end do
+            do i=1,Analyzation_NGrid
+                rtemp=r+dble(i)*Analyzation_ghstep*g
+                do j=1,MoleculeDetail.NAtoms
+                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                end do
+            end do
+        close(99)
+        open(unit=99,file='hPath.geom',status='replace')
+            do i=-Analyzation_NGrid,-1
+                rtemp=r+dble(i)*Analyzation_ghstep*h
+                do j=1,MoleculeDetail.NAtoms
+                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                end do
+            end do
+            do i=1,Analyzation_NGrid
+                rtemp=r+dble(i)*Analyzation_ghstep*h
+                do j=1,MoleculeDetail.NAtoms
+                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                end do
+            end do
+        close(99)
+        write(*,'(1x,A58)')'You may want to run Columbus7 on gPath.geom and hPath.geom'
+    end if
+    write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
     if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
         call AugmentedLagrangian(f,fd,c,cd,q,InternalDimension,2,fdd=fdd,cdd=cdd,Precision=1d-8,&!This is Columbus7 energy precision
