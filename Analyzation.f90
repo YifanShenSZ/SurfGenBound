@@ -288,15 +288,14 @@ subroutine MinimumSearch()
     open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         write(99,*)q
     close(99)
-    q=q+ReferencePoint.geom
     if(allocated(Analyzation_cartgeom)) then
         rtemp=Analyzation_cartgeom(:,1)
     else
         rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
     end if
     call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
-    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,&
-      mass=MoleculeDetail.mass,r0=rtemp)
+    q=q+ReferencePoint.geom
+    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,mass=MoleculeDetail.mass,r0=rtemp)
     open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
         write(99,*)MoleculeDetail.NAtoms
         write(99,'(A11)',advance='no')'Minimum on '
