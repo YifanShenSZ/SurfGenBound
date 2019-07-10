@@ -198,12 +198,9 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
 end subroutine ReadInput
 
 subroutine Initialize()!Program initializer
-	character*128::CharTemp128
-	logical::flag
-    integer::istate,jstate,i,j
-    integer,dimension(1)::indice
-    real*8::absdev
-    real*8,allocatable,dimension(:)::OldRefGeom
+	character*128::CharTemp128; logical::flag
+    integer::istate,jstate,i,j; integer,dimension(1)::indice; real*8::dbletemp
+    real*8,allocatable,dimension(:)::OldRefGeom,OldRefEnergy
     !General initialize
         call BetterRandomSeed()
         call InitializeBasic()
@@ -218,11 +215,11 @@ subroutine Initialize()!Program initializer
                 i=WhichExpansionBasis(0,indice(1:0))
                 if(i>0) then
                     if(flag) then
-                        forall(istate=1:NState,jstate=1:Hd_NState,istate>=jstate)
+                        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
                             Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.H(istate,jstate)
                         end forall
                     else
-                        forall(istate=2:Hd_NState)
+                        forall(istate=2:NState)
                             Hd_HdEC(istate,istate).Array(i)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
                         end forall
                     end if
@@ -280,20 +277,28 @@ subroutine Initialize()!Program initializer
             else!Read training set then rearrange it, and check whether reference point has changed
                 call Initialize_NewTrainingSet()
                 !Check whether the reference point has been changed
-                allocate(OldRefGeom(InternalDimension))
+                allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
                 open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-                    read(99,*)OldRefGeom
+                    read(99,*)OldRefGeom; read(99,*)OldRefEnergy
                 close(99)
                 flag=.false.
                 do i=1,InternalDimension
-                    absdev=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
-                    if(absdev>1d-14.and.absdev/Abs(OldRefGeom(i))>1d-14) then
-                        flag=.true.
-                        exit
+                    dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
+                    if(dbletemp>1d-14.and.dbletemp/Abs(OldRefGeom(i))>1d-14) then
+                        flag=.true.; exit
                     end if
                 end do
                 call InitializeDiabaticHamiltonian(NState,InternalDimension)
-				if(flag) call OriginShift(ReferencePoint.geom-OldRefGeom)
+                if(flag) then
+                    call OriginShift(ReferencePoint.geom-OldRefGeom)
+                    i=WhichExpansionBasis(0,indice(1:0))
+                    if(i>0) then!Const term shift takes care of the energy zero point shift
+                        dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
+                        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
+                            Hd_HdEC(istate,jstate).Array(i)=Hd_HdEC(istate,jstate).Array(i)+dbletemp
+                        end forall
+                    end if
+                end if
             end if
             call InitializeHdLeastSquareFit()
 		case default
