@@ -286,7 +286,9 @@ subroutine MinimumSearch()
     end if
     write(*,*)'Energy of the minimum is:',energy/cm_1InAU
     open(unit=99,file='MinimumInternalGeometry.out',status='replace')
-        write(99,*)q
+        do i=1,InternalDimension
+            write(99,*)q(i)
+        end do
     close(99)
     if(allocated(Analyzation_cartgeom)) then
         rtemp=Analyzation_cartgeom(:,1)
@@ -335,9 +337,7 @@ end subroutine MinimumSearch
 
 subroutine MexSearch()
     real*8,dimension(InternalDimension)::q,qtail
-    !Work space for: mex energy, orthogonalize gh, gh path, double cone
-        integer::i,j,istate
-	real*8::dbletemp
+    integer::i,j,istate; real*8::dbletemp
 	real*8,dimension(NState)::energy
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
@@ -415,7 +415,9 @@ subroutine MexSearch()
     energy=AdiabaticEnergy(q)
     write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
     open(unit=99,file='MexInternalGeometry.out',status='replace')
-        write(99,*)q
+        do i=1,InternalDimension
+            write(99,*)q(i)
+        end do
     close(99)
     intdH=AdiabaticdH(q); q=q+ReferencePoint.geom
     if(allocated(Analyzation_cartgeom)) then
