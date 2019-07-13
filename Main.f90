@@ -316,13 +316,11 @@ subroutine Initialize()!Program initializer
     end select
 end subroutine Initialize
 subroutine Initialize_NewTrainingSet()!Support Initialize
-    character*128::CharTemp128
-    logical::degenerate
+    character*128::CharTemp128; logical::degenerate
     integer::index,index2,i,istate,jstate,ip
     integer,allocatable,dimension(:)::indices
     real*8,allocatable,dimension(:)::differencetemp
-    real*8,dimension(NState)::eigval
-	real*8,dimension(NState,NState)::eigvec
+    real*8,dimension(NState)::eigval; real*8,dimension(NState,NState)::eigvec
 	real*8,dimension(CartesianDimension)::grad1,grad2,g,h
     type(Data)::ReferencePointtemp
     type(Data),allocatable,dimension(:)::pointtemp,pointswap,ArtifactPointtemp
@@ -361,7 +359,49 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
     do ip=1,NPoints!Modify points
         pointtemp(ip).energy=pointtemp(ip).energy-ReferencePointtemp.energy(1)
         if(pointtemp(ip).energy(1)>HighEnergy) pointtemp(ip).weight=(HighEnergy/pointtemp(ip).energy(1))**2
-	end do
+    end do
+    !If want to perform the fitting procedure gradually, we will require:
+    !    All geometries aligned
+    !    The Cartesian distances to the reference geometry
+    !    All data points sorted according to the Cartesian distance to the reference geometry in ascending order
+    if(GradualFit) then
+        allocate(GeomDifference(NPoints))
+        if(Unaligned) then!Align all geometries and calculate Cartesian distances to the reference geometry
+            call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
+                nadgrad=ReferencePointtemp.dH)
+            do ip=1,NPoints
+                call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
+                    nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
+            end do
+        else!Directly calculate the Cartesian distances
+            do ip=1,NPoints
+                GeomDifference(ip)=dot_product(pointtemp(ip).geom-ReferencePointtemp.geom,pointtemp(ip).geom-ReferencePointtemp.geom)
+            end do
+        end if
+        if(Unsorted) then!Sort all data points according to the Cartesian distance ascendingly
+            !Allocate work space
+                allocate(indices(NPoints)); forall(i=1:NPoints); indices(i)=i; end forall
+                allocate(pointswap(NPoints))
+                do ip=1,NPoints
+                    allocate(pointswap(ip).geom(CartesianDimension))
+                    allocate(pointswap(ip).energy(NState))
+                    allocate(pointswap(ip).dH(CartesianDimension,NState,NState))
+                end do
+            call dQuickSort(GeomDifference,1,NPoints,indices,NPoints)
+            do ip=1,NPoints; pointswap(ip)=pointtemp(indices(ip)); end do; pointtemp=pointswap
+            deallocate(indices); deallocate(pointswap)!Clean up
+        end if
+        open(unit=99,file='GeomDifference.CheckPoint',status='replace')!Save the Cartesian distances
+            do ip=1,NPoints; write(99,*)GeomDifference(ip); end do
+        close(99)
+    else if(Unaligned) then!Also align all geometries for future Cartesian coordinate analysis
+        call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
+            nadgrad=ReferencePointtemp.dH)
+        do ip=1,NPoints
+            call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
+                nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom)
+        end do
+    end if
 	!Provide a human readable version of training set
 		open(unit=99,file='TrainingEnergy.txt',status='replace')
 		    write(99,'(A10)',advance='no')'Geometry#'//char(9)
@@ -379,15 +419,15 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
 		close(99)
 		open(unit=99,file='TrainingGradient.txt',status='replace')
             write(99,'(A10)',advance='no')'Geometry#'//char(9)
-            do istate=1,NState
+            do istate=1,NState!Energy gradient label
                 write(99,'(A11,I2,A5,A1)',advance='no')'Energy grad',istate,'/a.u.',char(9)
 			end do
-			do istate=1,NState
+			do istate=1,NState!Interstate coupling label
         		do jstate=istate+1,NState
         			write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'ISC',jstate,'&',istate,'/a.u.',char(9)
         		end do
             end do
-        	do istate=1,NState
+        	do istate=1,NState!Nonadiabatic coupling label
         		do jstate=istate+1,NState
         			write(99,'(2x,A3,I2,A1,I2,A5,3x,A1)',advance='no')'NAC',jstate,'&',istate,'/a.u.',char(9)
         		end do
@@ -396,7 +436,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             do ip=1,NPoints
                 call CheckDegeneracy(degenerate,1d-8,pointtemp(ip).energy,NState)
 			    if(degenerate) then!gh orthogonalization for conical intersection
-			    	do istate=1,NState-1
+			    	do istate=1,NState-1!Identify the degenerate states
 			    		if(pointtemp(ip).energy(istate+1)-pointtemp(ip).energy(istate)<1d-8) exit
 			    	end do
 			    	grad1=pointtemp(ip).dH(:,istate,istate)
@@ -413,15 +453,15 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
 			    	close(100)
 			    end if
                 write(99,'(I9,A1)',advance='no')ip,char(9)
-                do jstate=1,NState
+                do jstate=1,NState!Energy gradient
                     write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,jstate)),char(9)
 				end do
-				do istate=1,NState
+				do istate=1,NState!Interstate coupling
         			do jstate=istate+1,NState
         				write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,istate)),char(9)
         			end do
         		end do
-        		do istate=1,NState
+        		do istate=1,NState!Nonadiabatic coupling
         			do jstate=istate+1,NState
         				write(99,'(F18.8,A1)',advance='no')norm2(pointtemp(ip).dH(:,jstate,istate))/dABS(pointtemp(ip).energy(istate)-pointtemp(ip).energy(jstate)),char(9)
         			end do
@@ -433,52 +473,6 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePointtemp.energy(1)
         if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=(HighEnergy/ArtifactPointtemp(ip).energy(1))**2
     end do
-    !If want to perform the fitting procedure gradually, we will require:
-    !    All geometries aligned
-    !    The Cartesian distances to the reference geometry
-    !    All data points sorted according to the Cartesian distance to the reference geometry in ascending order
-    if(GradualFit) then
-        allocate(GeomDifference(NPoints))
-        if(Unaligned) then
-            call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                nadgrad=ReferencePointtemp.dH)
-            do ip=1,NPoints
-                call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                    nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
-            end do
-        else
-            do ip=1,NPoints
-                GeomDifference(ip)=dot_product(pointtemp(ip).geom-ReferencePointtemp.geom,pointtemp(ip).geom-ReferencePointtemp.geom)
-            end do
-        end if
-        if(Unsorted) then
-            !Allocate work space
-                allocate(indices(NPoints))
-                forall(i=1:NPoints)
-                    indices(i)=i
-                end forall
-                allocate(pointswap(NPoints))
-                do ip=1,NPoints
-                    allocate(pointswap(ip).geom(CartesianDimension))
-                    allocate(pointswap(ip).energy(NState))
-                    allocate(pointswap(ip).dH(CartesianDimension,NState,NState))
-                end do
-            call dQuickSort(GeomDifference,1,NPoints,indices,NPoints)
-            do ip=1,NPoints
-                pointswap(ip)=pointtemp(indices(ip))
-            end do
-            pointtemp=pointswap
-            !Clean up
-                deallocate(indices)
-                deallocate(pointswap)
-        end if
-        !Write down the Cartesian distances to the reference geometry
-        open(unit=99,file='GeomDifference.CheckPoint',status='replace')
-            do ip=1,NPoints
-                write(99,*)GeomDifference(ip)
-            end do
-        close(99)
-    end if
     !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
         allocate(ReferencePoint.geom(InternalDimension))
         allocate(ReferencePoint.energy(NState))
@@ -559,8 +553,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         end do
     !Clean up
         deallocate(indices)
-        deallocate(pointtemp)
-        deallocate(pointswap)
+        deallocate(pointtemp); deallocate(pointswap)
         deallocate(ArtifactPointtemp)
     !Save the rearranged training set
     open(unit=99,file='ReferencePoint.CheckPoint',status='replace')
