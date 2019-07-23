@@ -275,13 +275,13 @@ subroutine Initialize()!Program initializer
                 end if
                 call InitializeDiabaticHamiltonian(NState,InternalDimension)
             else!Read training set then rearrange it, and check whether reference point has changed
-                call Initialize_NewTrainingSet()
-                !Check whether the reference point has been changed
+                !Read old reference point
                 allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
                 open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                     read(99,*)OldRefGeom; read(99,*)OldRefEnergy
                 close(99)
-                flag=.false.
+                call Initialize_NewTrainingSet()!Read training set then rearrange it
+                flag=.false.!Check whether the reference point has been changed
                 do i=1,InternalDimension
                     dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
                     if(dbletemp>1d-14.and.dbletemp/Abs(OldRefGeom(i))>1d-14) then

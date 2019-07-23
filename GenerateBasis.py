@@ -11,6 +11,7 @@ DegreeOfFreedom=39
     #               C-O bond (1) & C_alpha-H bond (7) & O or H involved C_alpha angle (20-23)
     # 2th-order for others
 SelectBasis=[[4,18,19,1,7,20,21,22,23],[2,2,3,4,5,6,8,9,10,11,12,13,14,15,16,17,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]]
+DiagHighest=True# If highest order is even, when true, keep only diagonal terms in matrix form of highest order
 
 ''' Import libraries '''
 import sys
@@ -43,35 +44,48 @@ def AllTerms(order,dof):
 
 ''' Do the job '''
 temp=0# Check whether all degree of freedoms are assigned correctly
-for i in range(len(SelectBasis)):
-    temp=temp+len(SelectBasis[i])-1
+for i in range(len(SelectBasis)): temp=temp+len(SelectBasis[i])-1
 if(temp!=DegreeOfFreedom):
-    print('Program abort: Degree of freedom does not consistent!')
-    sys.exit()
+    print('Program abort: Degree of freedom does not consistent!'); sys.exit()
 SelectBasis.sort(key=PickOutOrder,reverse=True)# Sort orders descendingly
 output=[]
 for i in range(len(SelectBasis)-1):
     temp=[]
-    for j in range(i+1):
-        temp=temp+SelectBasis[j][1:]
+    for j in range(i+1): temp=temp+SelectBasis[j][1:]
     temp.sort()
-    for j in range(SelectBasis[i][0],SelectBasis[i+1][0],-1):
-        output.append(AllTerms(j,temp))
+    for j in range(SelectBasis[i][0],SelectBasis[i+1][0],-1): output.append(AllTerms(j,temp))
 temp=[]
-for j in range(len(SelectBasis)):
-    temp=temp+SelectBasis[j][1:]
+for j in range(len(SelectBasis)): temp=temp+SelectBasis[j][1:]
 temp.sort()
-for j in range(SelectBasis[len(SelectBasis)-1][0],0,-1):
-    output.append(AllTerms(j,temp))
+for j in range(SelectBasis[len(SelectBasis)-1][0],0,-1): output.append(AllTerms(j,temp))
 with open('basis.in','w') as f:
     order=numpy.empty(len(output),dtype=int)
     order[0]=SelectBasis[0][0]
     for i in range(1,order.shape[0]):
         order[i]=order[i-1]-1
-    for i in range(len(output)):
-        for j in range(output[i].shape[1]):
-            print('%5d'%order[i],file=f,end='')
-            for k in range(output[i].shape[0]):
-                print('%5d'%output[i][k,j],file=f,end='')
-            print(file=f)
+    if(order[0]%2==0 and DiagHighest):
+        for j in range(output[0].shape[1]):# Keep only diagonal terms in matrix form of highest order
+            flag=True
+            for k in range(order[0]):
+                if(k%2==0):
+                    if(output[0][k,j]!=output[0][k+1,j]):
+                        flag=False; break
+            if(flag):
+                print('%5d'%order[0],file=f,end='')
+                for k in range(output[0].shape[0]):
+                    print('%5d'%output[0][k,j],file=f,end='')
+                print(file=f)
+        for i in range(1,len(output)):# Other orders are as usual
+            for j in range(output[i].shape[1]):
+                print('%5d'%order[i],file=f,end='')
+                for k in range(output[i].shape[0]):
+                    print('%5d'%output[i][k,j],file=f,end='')
+                print(file=f)
+    else:
+        for i in range(len(output)):
+            for j in range(output[i].shape[1]):
+                print('%5d'%order[i],file=f,end='')
+                for k in range(output[i].shape[0]):
+                    print('%5d'%output[i][k,j],file=f,end='')
+                print(file=f)
     print('%5d'%0,file=f,end='')
