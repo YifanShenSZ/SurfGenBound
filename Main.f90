@@ -294,8 +294,6 @@ subroutine Initialize()!Program initializer
                     i=WhichExpansionBasis(0,indice(1:0))
                     if(i>0) then!Const term shift takes care of the energy zero point shift
                         dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
-                        !forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-                        !    Hd_HdEC(istate,jstate).Array(i)=Hd_HdEC(istate,jstate).Array(i)+dbletemp
                         forall(istate=1:NState)
                             Hd_HdEC(istate,istate).Array(i)=Hd_HdEC(istate,istate).Array(i)+dbletemp
                         end forall
