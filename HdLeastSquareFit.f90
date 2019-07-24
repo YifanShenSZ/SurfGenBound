@@ -180,8 +180,7 @@ subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
     !Initialize
         L=HdLSF_Regularization*dot_product(c,c)!Regularization
         call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
-    RMSDenergy=0d0
-    RMSDdH=0d0
+    RMSDenergy=0d0; RMSDdH=0d0
     do ip=1,NPoints!Regular data points, compute RMSD
         call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
         call dFixdHPhase(HdLSF_dH,point(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
@@ -193,8 +192,7 @@ subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
     end do
     RMSDenergy=dSqrt(RMSDenergy/NState/NPoints)
     RMSDdH=dSqrt(RMSDdH/(InternalDimension*NState*NState)/NPoints)
-    RMSDDegH=0d0
-    RMSDDegdH=0d0
+    RMSDDegH=0d0; RMSDDegdH=0d0
     do ip=1,NDegeneratePoints!Almost degenerate data points, compute RMSDDeg
         call NondegenerateH_dH(DegeneratePoint(ip).geom,HdLSF_H,HdLSF_dH,AlmostDegenerate)!Nondegenerate representation
         call dFixHPhaseBydH(HdLSF_H,HdLSF_dH,DegeneratePoint(ip).dH,Ltemp,InternalDimension,NState)!Fix off-diagonals phase
@@ -1002,8 +1000,7 @@ end subroutine L_RMSD
                         HdLSF_EnergyScaleSquare*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NHdExpansionCoefficients,NState),NHdExpansionCoefficients,NState)&
                         +Trace3(sy4matdotmulsy3(HdLSF_dcdHrep,HdLSF_dH,NHdExpansionCoefficients,InternalDimension,NState),NHdExpansionCoefficients,NState))
                 end do
-                Ltemp=0d0
-                Ldtemp=0d0
+                Ltemp=0d0; Ldtemp=0d0
                 do ip=1,NArtifactPoints!Unreliable data points, energy only
                     call AdiabaticEnergy_State_f(ArtifactPoint(ip).geom,HdLSF_energy,HdLSF_phi,HdLSF_f)
                     HdLSF_dcH=sy3UnitaryTransformation(dcHd_ByKnownf(HdLSF_f),HdLSF_phi,NHdExpansionCoefficients,NState)
