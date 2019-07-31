@@ -235,15 +235,18 @@ end subroutine InitializeDiabaticHamiltonian
                         read(99,*)dbletemp
                         read(99,'(I5)',advance='no')order
                         if(order>0) then
-                            do j=1,order-1
-                                read(99,'(I5)',advance='no')indice(j)
-                            end do
-                            read(99,'(I5)')indice(order)
+                            do j=1,order-1; read(99,'(I5)',advance='no')indice(j); end do; read(99,'(I5)')indice(order)
                         else
                             read(99,*)
                         end if
                         location=WhichExpansionBasis(order,indice(1:order))
-                        if(location>0) HdEC(jstate,istate).Array(location)=dbletemp
+                        if(location>0) then
+                            HdEC(jstate,istate).Array(location)=dbletemp
+                        else
+                            write(*,*)'Warning: an old basis function does not belong to current basis space:'
+                            do j=1,order-1; write(*,'(I5)',advance='no')indice(j); end do; write(*,'(I5)')indice(order)
+                            write(*,*)'Its coefficient = ',dbletemp
+                        end if
                     end do
                 end do
             end do
@@ -269,10 +272,7 @@ end subroutine InitializeDiabaticHamiltonian
                         write(99,*)HdEC(jstate,istate).Array(i)
                         if(Hd_EBNR(i).order>0) then
                             write(99,'(I5)',advance='no')Hd_EBNR(i).order
-                            do j=1,Hd_EBNR(i).order-1
-                                write(99,'(I5)',advance='no')Hd_EBNR(i).indice(j)
-                            end do
-                            write(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
+                            do j=1,Hd_EBNR(i).order-1; write(99,'(I5)',advance='no')Hd_EBNR(i).indice(j); end do; write(99,'(I5)')Hd_EBNR(i).indice(Hd_EBNR(i).order)
                         else
                             write(99,'(I5)')Hd_EBNR(i).order
                         end if
