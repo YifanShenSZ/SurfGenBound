@@ -98,6 +98,7 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
     allocate(HdLSF_PriorCoefficient(NHdExpansionCoefficients))
     open(unit=99,file='PriorHd.CheckPoint',status='old',iostat=i); close(99)
     if(i==0) then!Found user input of prior mean
+        write(*,*)'Found PriorHd.CheckPoint, prior mean of Hd expansion coefficients are set to user specification'
         do j=1,NState!Allocate work space
             do i=j,NState
                 allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
