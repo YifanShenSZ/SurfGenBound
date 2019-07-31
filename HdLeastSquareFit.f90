@@ -684,7 +684,7 @@ end subroutine L_RMSD
                 real*8::Ltemp
                 real*8,dimension(NState,NState)::phi
                 !Initialize
-                    r(HdLSF_NData+1:M)=HdLSF_SqrtRegularization*c!Regularization
+                    r(HdLSF_NData+1:M)=HdLSF_SqrtRegularization*(c-HdLSF_PriorCoefficient)!Regularization
                     call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
                 indicerow=1!Start from 1st row
                 do ip=1,NPoints!Regular data points
