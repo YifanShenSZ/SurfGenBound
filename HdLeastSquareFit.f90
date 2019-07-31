@@ -9,8 +9,9 @@
 !    subscript ad means adiabatic representation, nd means nondegenerate representation, F means Frobenius norm
 !    superscript d means diabatz, ab means ab initio
 !    definition of point, DegeneratePoint, ArtifactPoint see module Basic
-!We may also add a regularization to Lagrangian, namely tikhonov regularization: tau * || c ||_2^2
-!where tau is the parameterized KKT multiplier (HdLSF_Regularization), c is undetermined parameter vector in Hd
+!We may also add a regularization to Lagrangian, namely tikhonov regularization: tau * || c - c_prior ||_2^2
+!where tau is the parameterized KKT multiplier (HdLSF_Regularization),
+!    c is undetermined parameter vector in Hd, c_prior is the prior mean of c (HdLSF_PriorCoefficient)
 !
 !Implementation detail:
 !c is sorted by istate -> jstate ( >= istate ) -> iorder according to module DiabaticHamiltonian
@@ -21,6 +22,7 @@ module HdLeastSquareFit
 !Parameter
     !General solver control:
         real*8::HdLSF_Regularization=0d0!Instead of solving the KKT multiplier, let it be a parameter
+        real*8,allocatable,dimension(:)::HdLSF_PriorCoefficient!Mean of the prior Gaussian probability distribution of coefficients
         !Available solvers: pseudolinear, TrustRegion, LineSearch
         !Choose the nonlinear optimization solver: a single solver or a 2-step solver
         !    pseudolinear_X combining pseudolinear and another solver X
@@ -71,7 +73,8 @@ module HdLeastSquareFit
 
 contains
 subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
-    integer::ip,istate,jstate; real*8::MaxEnergy,MaxGrad,temp
+    integer::ip,i,j; real*8::MaxEnergy,MaxGrad,temp
+    character*32::chartemp; type(d2PArray),dimension(NState,NState)::HdECtemp
     !A data point provides NState adiabatic energies, InternalDimension x NState x NState ▽H
     DataPerPoint=NState+NState*(NState+1)/2*InternalDimension!Upper triangle is redundant
     !A degenerate data point provides NState order H, InternalDimension x NState x NState ▽H
@@ -80,9 +83,9 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
     do ip=1,NPoints
         temp=maxval(Abs(point(ip).energy))
         if(temp>MaxEnergy) MaxEnergy=temp
-        do istate=1,NState
-            do jstate=istate,NState
-                temp=maxval(abs(point(ip).dH(:,jstate,istate)))
+        do i=1,NState
+            do j=i,NState
+                temp=maxval(abs(point(ip).dH(:,j,i)))
                 if(temp>MaxGrad) MaxGrad=temp
             end do
         end do
@@ -90,7 +93,28 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
     HdLSF_EnergyScale=MaxGrad/MaxEnergy
     write(*,*)'The typical work length of this system =',1d0/HdLSF_EnergyScale,' a.u.'
     HdLSF_EnergyScaleSquare=HdLSF_EnergyScale*HdLSF_EnergyScale
+    if(HdLSF_Regularization<0d0) HdLSF_Regularization=0d0!Fail safe
     HdLSF_SqrtRegularization=dSqrt(HdLSF_Regularization)
+    allocate(HdLSF_PriorCoefficient(NHdExpansionCoefficients))
+    open(unit=99,file='PriorHd.CheckPoint',status='old',iostat=i); close(99)
+    if(i==0) then!Found user input of prior mean
+        do j=1,NState!Allocate work space
+            do i=j,NState
+                allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
+                HdECtemp(i,j).Array=0d0
+            end do
+        end do
+        chartemp='PriorHd.CheckPoint'
+        call ReadHdExpansionCoefficients(HdECtemp,chartemp)
+        call HdEC2c(HdECtemp,HdLSF_PriorCoefficient,NHdExpansionCoefficients)
+        do j=1,NState!Clean up
+            do i=j,NState
+                deallocate(HdECtemp(i,j).Array)
+            end do
+        end do
+    else!Default prior mean = 0
+        HdLSF_PriorCoefficient=0d0
+    end if
 end subroutine InitializeHdLeastSquareFit
 
 subroutine FitHd()!Fit Hd with the designated solver
@@ -175,10 +199,11 @@ end subroutine FitHd
 subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
     real*8,dimension(NHdExpansionCoefficients),intent(in)::c
     real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
-    integer::ip,istate,jstate
-    real*8::Ltemp,temp
+    integer::ip,istate,jstate; real*8::Ltemp,temp
+    real*8,dimension(NHdExpansionCoefficients)::ctemp
     !Initialize
-        L=HdLSF_Regularization*dot_product(c,c)!Regularization
+        ctemp=c-HdLSF_PriorCoefficient
+        L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
         call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
     RMSDenergy=0d0; RMSDdH=0d0
     do ip=1,NPoints!Regular data points, compute RMSD
@@ -375,10 +400,11 @@ end subroutine L_RMSD
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
         call c2HdEC(cmin,Hd_HdEC,NHdExpansionCoefficients)
-        call WriteHdExpansionCoefficients()
+        call WriteHdExpansionCoefficients(Hd_HdEC)
         contains
             !The general form of weighted linear least square fit with pseudoregularization is:
-            !    A c = b, where A = M . W . M^T + tau, b = M . W . y, c & tau have been explained at header,
+            !    A c = b, where A = M . W . M^T + tau, b = M . W . y + tau * c_prior,
+            !    c & tau & c_prior have been explained at header,
             !    y is the data vector, M^T . c is the fitting prediction of y, W is the weight
             !Here we sort y by point -> DegeneratePoint -> ArtifactPoint, each data point provides
             !    H column by column, then ▽H column by column (each element from 1st direction to the last)
@@ -389,10 +415,11 @@ end subroutine L_RMSD
                 real*8,dimension(NHdExpansionCoefficients,NHdExpansionCoefficients),intent(out)::A
                 real*8,dimension(NHdExpansionCoefficients),intent(inout)::b
                 real*8,intent(out)::L
-                integer::ip,istate,jstate,indicerow
-                real*8::Ltemp
+                integer::ip,istate,jstate,indicerow; real*8::Ltemp
+                real*8,dimension(NHdExpansionCoefficients)::ctemp
                 !Initialize
-                    L=HdLSF_Regularization*dot_product(b,b)!Regularization
+                    ctemp=b-HdLSF_PriorCoefficient
+                    L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
                     call c2HdEC(b,Hd_HdEC,NHdExpansionCoefficients)
                 !Construct M^T and y, add least square fit penalty to Lagrangian
                 indicerow=1!Start from 1st row
@@ -464,7 +491,7 @@ end subroutine L_RMSD
                 forall(ip=1:NHdExpansionCoefficients)!Regularization
                     A(ip,ip)=A(ip,ip)+HdLSF_Regularization
                 end forall
-                b=matmul(HdLSF_M,HdLSF_y)
+                b=matmul(HdLSF_M,HdLSF_y)+HdLSF_Regularization*HdLSF_PriorCoefficient
             end subroutine LSFMatrices_L
             !Additional output:
             !    RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
@@ -473,10 +500,11 @@ end subroutine L_RMSD
                 real*8,dimension(NHdExpansionCoefficients,NHdExpansionCoefficients),intent(out)::A
                 real*8,dimension(NHdExpansionCoefficients),intent(inout)::b
                 real*8,intent(out)::L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH
-                integer::ip,istate,jstate,indicerow
-                real*8::Ltemp,temp
+                integer::ip,istate,jstate,indicerow; real*8::Ltemp,temp
+                real*8,dimension(NHdExpansionCoefficients)::ctemp
                 !Initialize
-                    L=HdLSF_Regularization*dot_product(b,b)!Regularization
+                    ctemp=b-HdLSF_PriorCoefficient
+                    L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
                     call c2HdEC(b,Hd_HdEC,NHdExpansionCoefficients)
                 !Construct M^T and y, add least square fit penalty to Lagrangian
                 indicerow=1!Start from 1st row
@@ -562,7 +590,7 @@ end subroutine L_RMSD
                 forall(ip=1:NHdExpansionCoefficients)!Regularization
                     A(ip,ip)=A(ip,ip)+HdLSF_Regularization
                 end forall
-                b=matmul(HdLSF_M,HdLSF_y)
+                b=matmul(HdLSF_M,HdLSF_y)+HdLSF_Regularization*HdLSF_PriorCoefficient
             end subroutine LSFMatrices_L_RMSD
     end subroutine pseudolinear
     
@@ -640,7 +668,7 @@ end subroutine L_RMSD
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
         call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
-        call WriteHdExpansionCoefficients()
+        call WriteHdExpansionCoefficients(Hd_HdEC)
         contains
             !Here we sort residue by point -> DegeneratePoint -> ArtifactPoint, each data point provides
             !    H column by column, then ▽H column by column (each element from 1st direction to the last)
@@ -825,7 +853,7 @@ end subroutine L_RMSD
         end if
         write(*,'(1x,A30)')'Save Hd expansion coefficients'
         call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
-        call WriteHdExpansionCoefficients()
+        call WriteHdExpansionCoefficients(Hd_HdEC)
         !Clean up
             deallocate(HdLSF_dHd)
             deallocate(HdLSF_dcphi)
@@ -837,10 +865,11 @@ end subroutine L_RMSD
                 real*8,intent(out)::L
                 integer,intent(in)::dim
                 real*8,dimension(dim),intent(in)::c
-                integer::ip,istate,jstate
-                real*8::Ltemp
+                integer::ip,istate,jstate; real*8::Ltemp
+                real*8,dimension(NHdExpansionCoefficients)::ctemp
                 !Initialize
-                    L=HdLSF_Regularization*dot_product(c,c)!Regularization
+                    ctemp=c-HdLSF_PriorCoefficient
+                    L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
                     call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH(point(ip).geom,HdLSF_energy,HdLSF_dH)!Adiabatic representation
@@ -868,10 +897,10 @@ end subroutine L_RMSD
                 real*8,dimension(dim),intent(out)::Ld
                 real*8,dimension(dim),intent(in)::c
                 integer::i,ip,istate,jstate
-                real*8::Ltemp
-                real*8,dimension(dim)::Ldtemp
+                real*8::Ltemp; real*8,dimension(dim)::Ldtemp
                 !Initialize
-                    Ld=HdLSF_Regularization*c!Regularization
+                    Ldtemp=c-HdLSF_PriorCoefficient
+                    Ld=HdLSF_Regularization*Ldtemp!Regularization
                     call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
@@ -939,15 +968,13 @@ end subroutine L_RMSD
             end subroutine LagrangianGradient
             integer function Lagrangian_LagrangianGradient(L,Ld,c,dim)!dim dimensional vector Ld & c, L harvests Lagrangian, Ld harvests the gradient of Lagrangian over c
                 integer,intent(in)::dim
-                real*8,intent(out)::L
-                real*8,dimension(dim),intent(out)::Ld
+                real*8,intent(out)::L; real*8,dimension(dim),intent(out)::Ld
                 real*8,dimension(dim),intent(in)::c
-                integer::i,ip,istate,jstate
-                real*8::Ltemp
-                real*8,dimension(dim)::Ldtemp
+                integer::i,ip,istate,jstate; real*8::Ltemp; real*8,dimension(dim)::Ldtemp
                 !Initialize
-                    L =HdLSF_Regularization*dot_product(c,c)!Regularization
-                    Ld=HdLSF_Regularization*c!Regularization
+                    Ldtemp=c-HdLSF_PriorCoefficient
+                    L =HdLSF_Regularization*dot_product(Ldtemp,Ldtemp)!Regularization
+                    Ld=HdLSF_Regularization*Ldtemp!Regularization
                     call c2HdEC(c,Hd_HdEC,NHdExpansionCoefficients)
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation

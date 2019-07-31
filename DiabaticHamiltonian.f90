@@ -49,7 +49,7 @@ subroutine InitializeDiabaticHamiltonian(NState,intdim,NewHd)
             Hd_HdEC(jstate,istate).Array=0d0
         end do
 	end do
-    if((.not.present(NewHd)).or.(.not.NewHd)) call ReadHdExpansionCoefficients()
+    if((.not.present(NewHd)).or.(.not.NewHd)) call ReadHdExpansionCoefficients(Hd_HdEC)
 end subroutine InitializeDiabaticHamiltonian
 
 !-------------- Hd definition ---------------
@@ -150,7 +150,7 @@ end subroutine InitializeDiabaticHamiltonian
         type(d2PArray),dimension(Hd_NState,Hd_Nstate)::HdECtemp
         do j=1,Hd_NState!Allocate work space
             do i=j,Hd_NState
-                if(.not.allocated(HdECtemp(i,j).Array)) allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
+                allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
                 HdECtemp(i,j).Array=0d0
             end do
         end do
@@ -195,30 +195,38 @@ end subroutine InitializeDiabaticHamiltonian
             end if
         end do
         Hd_HdEC=HdECtemp
-        contains
+        do j=1,Hd_NState!Clean up
+            do i=j,Hd_NState
+                deallocate(HdECtemp(i,j).Array)
+            end do
+        end do
     end subroutine OriginShift
 
-    !Load Hd expansion coefficient from Hd.CheckPoint to Hd_HdEC
-    subroutine ReadHdExpansionCoefficients()
+    !Load Hd expansion coefficient from file to HdEC
+    !Optional: FileName: (default = 'Hd.CheckPoint') name of the input file
+    subroutine ReadHdExpansionCoefficients(HdEC,FileName)
+        type(d2PArray),dimension(Hd_NState,Hd_NState),intent(inout)::HdEC
+        character*32,optional,intent(in)::FileName
         character*2::char2temp; character*28::char28temp
         integer::NState,NBasis,NOrder!The old Hd is not necessarily fitted under same condition
         integer::istate,jstate,i,j,order,location
         integer,allocatable,dimension(:)::indice
         real*8::dbletemp
-        open(unit=99,file='Hd.CheckPoint',status='old')
+        if(present(FileName)) then
+            open(unit=99,file=FileName,status='old')
+        else
+            open(unit=99,file='Hd.CheckPoint',status='old')
+        end if
             read(99,'(A28,I2)')char28temp,NState!Get old Hd fitting condition
-            read(99,*)
-            read(99,*)dbletemp
-            read(99,'(I5)')NOrder
-            allocate(indice(NOrder))
-            NBasis=2
+            read(99,*); read(99,*)dbletemp
+            read(99,'(I5)')NOrder; allocate(indice(NOrder))
+            NBasis=2!Get number of basis functions
             do
-                read(99,'(A2)')char2temp
-                if(char2temp=='Hd') exit
+                read(99,'(A2)')char2temp; if(char2temp=='Hd') exit
                 NBasis=NBasis+1
             end do
             NBasis=NBasis/2
-            rewind 99
+            rewind 99!Number of basis functions has been gotten
             read(99,*)!Read old Hd
             do istate=1,NState
                 do jstate=istate,NState
@@ -235,16 +243,17 @@ end subroutine InitializeDiabaticHamiltonian
                             read(99,*)
                         end if
                         location=WhichExpansionBasis(order,indice(1:order))
-                        if(location>0) Hd_HdEC(jstate,istate).Array(location)=dbletemp
+                        if(location>0) HdEC(jstate,istate).Array(location)=dbletemp
                     end do
                 end do
             end do
         close(99)
     end subroutine ReadHdExpansionCoefficients
 
-    !Write current Hd expansion coefficient and expansion basis specification to file
+    !Write Hd expansion coefficient and expansion basis specification to file
     !Optional: FileName: (default = 'Hd.CheckPoint') name of the output file
-    subroutine WriteHdExpansionCoefficients(FileName)
+    subroutine WriteHdExpansionCoefficients(HdEC,FileName)
+        type(d2PArray),dimension(Hd_NState,Hd_NState),intent(in)::HdEC
         character*32,optional,intent(in)::FileName
         integer::istate,jstate,i,j
         if(present(FileName)) then
@@ -257,7 +266,7 @@ end subroutine InitializeDiabaticHamiltonian
                 do jstate=istate,Hd_NState
                     write(99,'(A2,I2,I2)')'Hd',jstate,istate
                     do i=1,NHdExpansionBasis
-                        write(99,*)Hd_HdEC(jstate,istate).Array(i)
+                        write(99,*)HdEC(jstate,istate).Array(i)
                         if(Hd_EBNR(i).order>0) then
                             write(99,'(I5)',advance='no')Hd_EBNR(i).order
                             do j=1,Hd_EBNR(i).order-1

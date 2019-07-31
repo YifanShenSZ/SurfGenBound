@@ -44,7 +44,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 			call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
 			chartemp='HdNewOrigin.CheckPoint'
 			write(*,'(1x,A77)')'Hd expansion coefficient under new origin is stored in HdNewOrigin.CheckPoint'
-			call WriteHdExpansionCoefficients(chartemp)
+			call WriteHdExpansionCoefficients(Hd_HdEC,chartemp)
         case default!Throw a warning
             write(*,*)'Program abort: unsupported analyzation job type '//trim(adjustl(Analyzation_JobType))
             stop
