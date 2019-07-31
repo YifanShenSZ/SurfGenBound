@@ -94,11 +94,12 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
     write(*,*)'The typical work length of this system =',1d0/HdLSF_EnergyScale,' a.u.'
     HdLSF_EnergyScaleSquare=HdLSF_EnergyScale*HdLSF_EnergyScale
     if(HdLSF_Regularization<0d0) HdLSF_Regularization=0d0!Fail safe
+    if(HdLSF_Regularization>0d0) write(*,*)'L2 regularization enabled'
     HdLSF_SqrtRegularization=dSqrt(HdLSF_Regularization)
     allocate(HdLSF_PriorCoefficient(NHdExpansionCoefficients))
     open(unit=99,file='PriorHd.CheckPoint',status='old',iostat=i); close(99)
     if(i==0) then!Found user input of prior mean
-        write(*,*)'Found PriorHd.CheckPoint, prior mean of Hd expansion coefficients are set to user specification'
+        if(HdLSF_Regularization>0d0) write(*,*)'Prior mean of Hd expansion coefficients are set to PriorHd.CheckPoint'
         do j=1,NState!Allocate work space
             do i=j,NState
                 allocate(HdECtemp(i,j).Array(NHdExpansionBasis))
@@ -114,6 +115,7 @@ subroutine InitializeHdLeastSquareFit()!Initialize HdLeastSquareFit module
             end do
         end do
     else!Default prior mean = 0
+        if(HdLSF_Regularization>0d0) write(*,*)'Prior mean of Hd expansion coefficients are set to 0'
         HdLSF_PriorCoefficient=0d0
     end if
 end subroutine InitializeHdLeastSquareFit
