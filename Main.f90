@@ -153,7 +153,7 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
         read(99,*); read(99,*)NState
         read(99,*); read(99,*)SameTrainingSet
         read(99,*); read(99,*)NPoints
-        read(99,*); read(99,*)IndexReference
+        read(99,*); read(99,*)IndexReference; if(IndexReference>NPoints) stop 'Program abort: the index of reference point must <= number of data points'
         read(99,*); read(99,*)ArtifactGeometryDataFile
         read(99,*); read(99,*)ArtifactEnergyDataFile
         read(99,*); read(99,*)NArtifactPoints
@@ -348,16 +348,45 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
 			end if
         close(100)
         close(99)
-    !Rearrange training set: shift energy zero point to the ground state energy of the reference point
-    !                        scale fitting weight according to the ground state energy of the point
-    !The reference point
+    !Obtain the reference point
         !Allocate storage space
             allocate(ReferencePointtemp.geom(CartesianDimension))
             allocate(ReferencePointtemp.energy(NState))
             allocate(ReferencePointtemp.dH(CartesianDimension,NState,NState))
-        ReferencePointtemp=pointtemp(IndexReference)
+            allocate(ReferencePoint.geom(InternalDimension))
+            allocate(ReferencePoint.energy(NState))
+            allocate(ReferencePoint.H(NState,NState))
+            allocate(ReferencePoint.dH(InternalDimension,NState,NState))
+        if(IndexReference==0) then!Use old reference point
+            open(unit=99,file='ReferencePoint.CheckPoint',status='old')!Obain in internal coordinate
+                read(99,*)ReferencePoint.geom
+                read(99,*)ReferencePoint.energy
+                read(99,*)ReferencePoint.H
+                read(99,*)ReferencePoint.dH
+            close(99)
+            !Convert reference point from internal coordinate to Cartesian coordinate
+            call Internal2Cartesian(ReferencePoint.geom,InternalDimension,ReferencePointtemp.geom,CartesianDimension,NState,&
+                intnadgrad=ReferencePoint.dH,cartnadgrad=ReferencePointtemp.dH,mass=MoleculeDetail.mass,r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]))
+        else!Use new reference point
+            ReferencePointtemp=pointtemp(IndexReference)!Obtain in Cartesian coordinate
+            !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
+            ReferencePoint.energy=ReferencePointtemp.energy
+            call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NState,&
+                cartnadgrad=ReferencePointtemp.dH,intnadgrad=ReferencePoint.dH)
+            call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
+            if(Degenerate) then
+                call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
+                ReferencePoint.H=transpose(eigvec)
+                forall(istate=1:NState)
+                    ReferencePoint.H(:,istate)=ReferencePoint.energy(istate)*ReferencePoint.H(:,istate)
+                end forall
+                ReferencePoint.H=matmul(ReferencePoint.H,eigvec)-ReferencePoint.energy(1)*UnitMatrix(NState)
+            end if
+        end if
+    !Rearrange training set: shift energy zero point to the ground state energy of the reference point
+    !                        scale fitting weight according to the ground state energy of the point
     do ip=1,NPoints!Modify points
-        pointtemp(ip).energy=pointtemp(ip).energy-ReferencePointtemp.energy(1)
+        pointtemp(ip).energy=pointtemp(ip).energy-ReferencePoint.energy(1)
         if(pointtemp(ip).energy(1)>HighEnergy) pointtemp(ip).weight=(HighEnergy/pointtemp(ip).energy(1))**2
     end do
     !If want to perform the fitting procedure gradually, we will require:
@@ -389,7 +418,10 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
                 end do
             call dQuickSort(GeomDifference,1,NPoints,indices,NPoints)
             do ip=1,NPoints; pointswap(ip)=pointtemp(indices(ip)); end do; pointtemp=pointswap
-            deallocate(indices); deallocate(pointswap)!Clean up
+            deallocate(indices)!Clean up
+            do ip=1,NPoints
+                deallocate(pointswap(ip).geom); deallocate(pointswap(ip).energy); deallocate(pointswap(ip).dH)
+            end do; deallocate(pointswap)
         end if
         open(unit=99,file='GeomDifference.CheckPoint',status='replace')!Save the Cartesian distances
             do ip=1,NPoints; write(99,*)GeomDifference(ip); end do
@@ -470,26 +502,9 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             end do
 		close(99)
     do ip=1,NArtifactPoints!Modify artifact points
-        ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePointtemp.energy(1)
+        ArtifactPointtemp(ip).energy=ArtifactPointtemp(ip).energy-ReferencePoint.energy(1)
         if(ArtifactPointtemp(ip).energy(1)>HighEnergy) ArtifactPointtemp(ip).weight=(HighEnergy/ArtifactPointtemp(ip).energy(1))**2
     end do
-    !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
-        allocate(ReferencePoint.geom(InternalDimension))
-        allocate(ReferencePoint.energy(NState))
-            ReferencePoint.energy=ReferencePointtemp.energy
-        allocate(ReferencePoint.H(NState,NState))
-        allocate(ReferencePoint.dH(InternalDimension,NState,NState))
-        call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NState,&
-            cartnadgrad=ReferencePointtemp.dH,intnadgrad=ReferencePoint.dH)
-        call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
-        if(Degenerate) then
-            call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
-            ReferencePoint.H=transpose(eigvec)
-            forall(istate=1:NState)
-                ReferencePoint.H(:,istate)=ReferencePoint.energy(istate)*ReferencePoint.H(:,istate)
-            end forall
-            ReferencePoint.H=matmul(ReferencePoint.H,eigvec)-ReferencePoint.energy(1)*UnitMatrix(NState)
-        end if
     !Convert points from Cartesian coordinate to internal coordinate, and identify almost degenerate points
         allocate(pointswap(NPoints))
         do ip=1,NPoints
@@ -553,8 +568,16 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         end do
     !Clean up
         deallocate(indices)
-        deallocate(pointtemp); deallocate(pointswap)
-        deallocate(ArtifactPointtemp)
+        deallocate(ReferencePointtemp.geom); deallocate(ReferencePointtemp.energy); deallocate(ReferencePointtemp.dH)
+        do ip=1,NPoints
+            deallocate(pointtemp(ip).geom); deallocate(pointtemp(ip).energy); deallocate(pointtemp(ip).dH)
+        end do; deallocate(pointtemp)
+        do ip=1,NPoints
+            deallocate(pointswap(ip).geom); deallocate(pointswap(ip).energy); deallocate(pointswap(ip).dH)
+        end do; deallocate(pointswap)
+        do ip=1,NArtifactPoints
+            deallocate(ArtifactPointtemp(ip).geom); deallocate(ArtifactPointtemp(ip).energy)
+        end do; deallocate(ArtifactPointtemp)
     !Save the rearranged training set
     open(unit=99,file='ReferencePoint.CheckPoint',status='replace')
         write(99,*)ReferencePoint.geom
