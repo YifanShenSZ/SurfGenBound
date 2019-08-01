@@ -303,6 +303,7 @@ subroutine Initialize()!Program initializer
                             end forall
                         end if
                     end if
+                    deallocate(OldRefGeom); deallocate(OldRefEnergy)!Clean up
                 end if
             end if
             call InitializeHdLeastSquareFit()
