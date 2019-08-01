@@ -1,7 +1,7 @@
 !Generate nadvibs.in for NadVibS
 !The main procedure is:
 !    1, read in the precursor information:
-!           geometry through MoleculeDetail.RefConfig
+!           geometry through precursor.xyz
 !            Hessian through ReadElectronicStructureHessian
 !       then compute precursor vibration
 !    2, select a geometry as origin and define the normal mode
@@ -37,23 +37,23 @@ contains
 subroutine GenerateNadVibSInput()
     !Vibration information of precursor and successor
     real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
-    real*8,dimension(CartesianDimension)::rSuccesor
+    real*8,dimension(CartesianDimension)::rPrecursor,rSuccesor
     real*8,dimension(InternalDimension,InternalDimension)::modePrecursor,LPrecursor,HPrecursor,modeSuccessor,LSuccessor,HSuccessor
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
     !Origin shift in nadvibs.in
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
     !Work space
-    character*2::chartemp
-    integer::i,j,k
-    integer,dimension(2)::indice
-    real*8::dbletemp1,dbletemp2
-    real*8,dimension(NState)::energy
-    real*8,dimension(InternalDimension)::qtemp
+    character*2::chartemp; integer::i,j,k; integer,dimension(2)::indice
+    real*8::dbletemp1,dbletemp2; real*8,dimension(NState)::energy; real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     call ReadAnalyzeInput(); call InitializeNadVibSInterface()
     !Precursor
-    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,reshape(MoleculeDetail.RefConfig,[CartesianDimension]),InternalDimension,CartesianDimension)
+    open(unit=99,file='precursor.xyz',status='old')
+        read(99,*); read(99,*)
+        do i=1,MoleculeDetail.NAtoms; read(99,*)chartemp,rPrecursor(3*i-2:3*i); end do
+    close(99)
+    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(freqPrecursor,modePrecursor,LPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'

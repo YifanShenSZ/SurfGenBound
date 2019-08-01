@@ -275,28 +275,33 @@ subroutine Initialize()!Program initializer
                 end if
                 call InitializeDiabaticHamiltonian(NState,InternalDimension)
             else!Read training set then rearrange it, and check whether reference point has changed
-                !Read old reference point
-                allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
-                open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-                    read(99,*)OldRefGeom; read(99,*)OldRefEnergy
-                close(99)
-                call Initialize_NewTrainingSet()!Read training set then rearrange it
-                flag=.false.!Check whether the reference point has been changed
-                do i=1,InternalDimension
-                    dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
-                    if(dbletemp>1d-14.and.dbletemp/Abs(OldRefGeom(i))>1d-14) then
-                        flag=.true.; exit
-                    end if
-                end do
-                call InitializeDiabaticHamiltonian(NState,InternalDimension)
-                if(flag) then!Shift Hd expansion origin to new reference point
-                    call OriginShift(ReferencePoint.geom-OldRefGeom)
-                    i=WhichExpansionBasis(0,indice(1:0))
-                    if(i>0) then!Const term shift takes care of the energy zero point shift
-                        dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
-                        forall(istate=1:NState)
-                            Hd_HdEC(istate,istate).Array(i)=Hd_HdEC(istate,istate).Array(i)+dbletemp
-                        end forall
+                if(IndexReference==0) then!Same old reference point
+                    call Initialize_NewTrainingSet()!Read training set then rearrange it
+                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
+                else!Reference point is possibly changed
+                    !Read old reference point
+                    allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
+                    open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+                        read(99,*)OldRefGeom; read(99,*)OldRefEnergy
+                    close(99)
+                    call Initialize_NewTrainingSet()!Read training set then rearrange it
+                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
+                    flag=.false.!Check whether the reference point has been changed
+                    do i=1,InternalDimension
+                        dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
+                        if(dbletemp>1d-14.and.dbletemp/Abs(OldRefGeom(i))>1d-14) then
+                            flag=.true.; exit
+                        end if
+                    end do
+                    if(flag) then!Shift Hd expansion origin to new reference point
+                        call OriginShift(ReferencePoint.geom-OldRefGeom)
+                        i=WhichExpansionBasis(0,indice(1:0))
+                        if(i>0) then!Const term shift takes care of the energy zero point shift
+                            dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
+                            forall(istate=1:NState)
+                                Hd_HdEC(istate,istate).Array(i)=Hd_HdEC(istate,istate).Array(i)+dbletemp
+                            end forall
+                        end if
                     end if
                 end if
             end if
