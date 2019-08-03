@@ -644,9 +644,9 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
 	integer::i,j
 	open(unit=99,file='analyzation.in',status='old')!Read main input, write some job comment
 		read(99,*); read(99,*); read(99,*); read(99,*)Analyzation_JobType; write(*,*)'Analyzation job type: '//Analyzation_JobType
-		read(99,*); read(99,*)Analyzation_state
 		read(99,*); read(99,*)GeomFile
-		read(99,*); read(99,*)intgeom
+        read(99,*); read(99,*)intgeom
+        read(99,*); read(99,*)Analyzation_state
 		read(99,*); read(99,*)Analyzation_SearchDiabatic
 		read(99,*); read(99,*)RefghFile
 	close(99)
