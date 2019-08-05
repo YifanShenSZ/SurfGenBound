@@ -52,6 +52,7 @@ subroutine GenerateNadVibSInput()
     open(unit=99,file='precursor.xyz',status='old')
         read(99,*); read(99,*)
         do i=1,MoleculeDetail.NAtoms; read(99,*)chartemp,rPrecursor(3*i-2:3*i); end do
+        rPrecursor=rPrecursor*AInAU!Convert to atomic unit
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
