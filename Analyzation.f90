@@ -418,7 +418,7 @@ subroutine MexSearch()
             write(99,*)q(i)
         end do
     close(99)
-    intdH=AdiabaticdH(q); q=q+ReferencePoint.geom
+    intdH=DiabaticdH(q); q=q+ReferencePoint.geom
     if(allocated(Analyzation_cartgeom)) then
         rtemp=Analyzation_cartgeom(:,1)
     else
