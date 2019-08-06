@@ -342,10 +342,9 @@ subroutine MexSearch()
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
-    if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
-        r=Analyzation_cartgeom(:,1)
-        g=Analyzation_g/norm2(Analyzation_g)
-        h=Analyzation_h/norm2(Analyzation_h)
+    if(allocated(Analyzation_cartgeom).and.allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
+        r=Analyzation_cartgeom(:,1); call StandardizeGeometry(r,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
+        g=Analyzation_g/norm2(Analyzation_g); h=Analyzation_h/norm2(Analyzation_h)
         open(unit=99,file='gPath.geom',status='replace')
             do i=-Analyzation_NGrid,-1
                 rtemp=r+dble(i)*Analyzation_ghstep*g
@@ -374,7 +373,7 @@ subroutine MexSearch()
                 end do
             end do
         close(99)
-        write(*,'(1x,A58)')'You may want to run Columbus7 on gPath.geom and hPath.geom'
+        write(*,'(1x,A99)')'If your input geometry is ab initio mex, you may want to run Columbus7 on gPath.geom and hPath.geom'
     end if
     write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
