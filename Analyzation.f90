@@ -418,7 +418,12 @@ subroutine MexSearch()
             write(99,*)q(i)
         end do
     close(99)
-    intdH=dHd(q); q=q+ReferencePoint.geom
+    if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case Hd is diagonal when degenerate
+        intdH=dHd(q)
+    else
+        intdH=AdiabaticdH(q)
+    end if
+    q=q+ReferencePoint.geom
     if(allocated(Analyzation_cartgeom)) then
         rtemp=Analyzation_cartgeom(:,1)
     else
