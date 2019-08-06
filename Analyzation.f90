@@ -467,7 +467,6 @@ subroutine MexSearch()
         write(99,'(A66)')' Center     Atomic      Atomic             Coordinates (Angstroms)'
         write(99,'(A67)')' Number     Number       Type             X           Y           Z'
         write(99,'(A70)')' ---------------------------------------------------------------------'
-        write(99,*)
         do i=1,MoleculeDetail.NAtoms
             write(99,'(I7,I11,I12,4x,3F12.6)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),0,r(3*i-2:3*i)/AInAU
         end do
