@@ -342,46 +342,6 @@ subroutine MexSearch()
 	real*8,dimension(CartesianDimension)::r,rtemp,g,h
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
-    if(allocated(Analyzation_cartgeom).and.allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
-        r=Analyzation_cartgeom(:,1); call StandardizeGeometry(r,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
-        g=Analyzation_g/norm2(Analyzation_g); h=Analyzation_h/norm2(Analyzation_h)
-        open(unit=99,file='abgPath.in',status='replace')
-        open(unit=100,file='gPath.geom.all',status='replace')
-            do i=-Analyzation_NGrid,-1
-                rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
-                do j=1,MoleculeDetail.NAtoms
-                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-                end do
-            end do
-            write(99,*)r!There's no need to run ab initio on already calculated mex
-            do i=1,Analyzation_NGrid
-                rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
-                do j=1,MoleculeDetail.NAtoms
-                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-                end do
-            end do
-        close(99); close(100)
-        open(unit=99,file='abhPath.in',status='replace')
-        open(unit=100,file='hPath.geom.all',status='replace')
-            do i=-Analyzation_NGrid,-1
-                rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
-                do j=1,MoleculeDetail.NAtoms
-                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-                end do
-            end do
-            write(99,*)r!There's no need to run ab initio on already calculated mex
-            do i=1,Analyzation_NGrid
-                rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
-                do j=1,MoleculeDetail.NAtoms
-                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
-                end do
-            end do
-        close(99); close(100)
-        write(*,'(1x,A61)')'If your input geometry is ab initio mex, you may want to run:'
-        write(*,'(1x,A49)')'    Analyze-evaluate on abgPath.in and abhPath.in'
-        write(*,'(1x,A50)')'    Columbus7 on gPath.geom.all and hPath.geom.all'
-        write(*,'(1x,A55)')'to evaluate the fit performance along ab initio g and h'
-    end if
     write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
     if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case we can simply search for minimum of Hd diagonal subject to zero off-diagonal and degenerate diagonals
@@ -425,17 +385,11 @@ subroutine MexSearch()
             write(99,*)q(i)
         end do
     close(99)
-    if(NState==2.and.Analyzation_SearchDiabatic) then!2 state case Hd is diagonal when degenerate
-        intdH=dHd(q)
-    else
-        intdH=AdiabaticdH(q)
-    end if
+    if(NState==2.and.Analyzation_SearchDiabatic) then; intdH=dHd(q)!2 state case Hd is diagonal when degenerate
+    else; intdH=AdiabaticdH(q); end if
     q=q+ReferencePoint.geom
-    if(allocated(Analyzation_cartgeom)) then
-        rtemp=Analyzation_cartgeom(:,1)
-    else
-        rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
-    end if
+    if(allocated(Analyzation_cartgeom)) then; rtemp=Analyzation_cartgeom(:,1)
+    else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
     call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
     call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
         intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
@@ -454,12 +408,8 @@ subroutine MexSearch()
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
         close(99)
-    open(unit=99,file='Mexg.out',status='replace')
-        write(99,*)g
-    close(99)
-    open(unit=99,file='Mexh.out',status='replace')
-        write(99,*)h
-    close(99)
+    open(unit=99,file='Mexg.out',status='replace'); write(99,*)g; close(99)
+    open(unit=99,file='Mexh.out',status='replace'); write(99,*)h; close(99)
     g=g/norm2(g); h=h/norm2(h)
     open(unit=99,file='Mex.log',status='replace')
         write(99,'(A29)')'---------- Comment ----------'
@@ -495,7 +445,7 @@ subroutine MexSearch()
             write(99,'(I6,I4,2x,3F7.2,2x,3F7.2)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),g(3*i-2:3*i),h(3*i-2:3*i)
         end do
     close(99)
-    write(*,'(1x,A97)')'Mex.log can be opened by Avogadro to visualize the molecule along with normalized g and h vectors'
+    write(*,'(1x,A91)')'To visualize the molecule along with normalized g and h vectors, open Mex.log with Avogadro'
     open(unit=99,file='gPath.in',status='replace')
         do i=-Analyzation_NGrid,Analyzation_NGrid
             rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
@@ -506,7 +456,7 @@ subroutine MexSearch()
             rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
         end do
     close(99)
-    write(*,'(1x,A61)')'You may want to run Analyze-evaluate on gPath.in and hPath.in'
+    write(*,'(1x,A70)')'To evaluate diabaticity, run Analyze-evaluate on gPath.in and hPath.in'
     open(unit=99,file='DoubleCone.txt',status='replace')
         write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
         do istate=2,NState-1
@@ -526,7 +476,7 @@ subroutine MexSearch()
             end do
         end do
     close(99)
-    write(*,'(1x,A57)')'DoubleCone.txt is directly pastable to origin for 3D plot'
+    write(*,'(1x,A57)')'For double cone 3D plot, paste DoubleCone.txt into origin'
     contains!Special routine for 2 state mex search
         subroutine f(Hd11,q,intdim)
             integer,intent(in)::intdim
