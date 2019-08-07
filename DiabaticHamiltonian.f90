@@ -611,8 +611,7 @@ end subroutine InitializeDiabaticHamiltonian
 		real*8,dimension(NState,NState),intent(out)::eigvec
 		real*8,intent(in),optional::DegenerateThreshold
         logical::degenerate
-        eigvec=sy3matdotmul(dH,dH,dim,NState)
-        call My_dsyev('V',eigvec,eigval,NState)
+        eigvec=sy3matdotmul(dH,dH,dim,NState); call My_dsyev('V',eigvec,eigval,NState)
 		dH=sy3UnitaryTransformation(dH,eigvec,dim,NState)
 		if(present(DegenerateThreshold)) then
             call CheckDegeneracy(degenerate,DegenerateThreshold,eigval,NState)
@@ -628,8 +627,7 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,intent(in),optional::DegenerateThreshold
         real*8,dimension(Hd_NState)::eigval
         real*8,dimension(Hd_NState,Hd_NState)::phi
-        H=Hd(q)
-        dH=dHd(q)
+        H=Hd(q); dH=dHd(q)
         if(present(DegenerateThreshold)) then
             call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
         else
@@ -650,8 +648,7 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,intent(in),optional::DegenerateThreshold
         real*8,dimension(Hd_NState)::eigval
-        call Hd_f(H,f,q)
-        call dHd_fd(dH,fd,q)
+        call Hd_f(H,f,q); call dHd_fd(dH,fd,q)
         if(present(DegenerateThreshold)) then
             call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
         else
@@ -672,9 +669,7 @@ end subroutine InitializeDiabaticHamiltonian
         real*8,dimension(NHdExpansionBasis),intent(out)::f
         real*8,dimension(Hd_intdim,NHdExpansionBasis),intent(out)::fd
         real*8,intent(in),optional::DegenerateThreshold
-        call Hd_f(H,f,q)
-        call dHd_fd(dHd,fd,q)
-        dH=dHd
+        call Hd_f(H,f,q); call dHd_fd(dHd,fd,q); dH=dHd
         if(present(DegenerateThreshold)) then
             call NondegenerateRepresentation(dH,eigval,phi,Hd_intdim,Hd_NState,DegenerateThreshold)
         else

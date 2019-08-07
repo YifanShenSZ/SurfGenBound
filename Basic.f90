@@ -64,10 +64,8 @@ subroutine IdentifyDegeneracy(degpoint,NDegpoints,IndicesDeg,point,NPoints)
     integer,allocatable,dimension(:),intent(out)::IndicesDeg
     integer,intent(in)::NPoints
     type(Data),dimension(NPoints),intent(in)::point
-    logical::degenerate
-    integer::dim,index,ip,istate,jstate
-    real*8,dimension(NState)::eigval
-    real*8,dimension(NState,NState)::eigvec
+    logical::degenerate; integer::dim,index,ip,istate,jstate
+    real*8,dimension(NState)::eigval; real*8,dimension(NState,NState)::eigvec
     !Count how many points are almost degenerate
     NDegpoints=0
     do ip=1,NPoints

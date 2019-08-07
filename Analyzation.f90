@@ -345,35 +345,42 @@ subroutine MexSearch()
     if(allocated(Analyzation_cartgeom).and.allocated(Analyzation_g).and.allocated(Analyzation_h)) then!gh path for Columbus
         r=Analyzation_cartgeom(:,1); call StandardizeGeometry(r,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
         g=Analyzation_g/norm2(Analyzation_g); h=Analyzation_h/norm2(Analyzation_h)
-        open(unit=99,file='gPath.geom',status='replace')
+        open(unit=99,file='abgPath.in',status='replace')
+        open(unit=100,file='gPath.geom.all',status='replace')
             do i=-Analyzation_NGrid,-1
-                rtemp=r+dble(i)*Analyzation_ghstep*g
+                rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
                 do j=1,MoleculeDetail.NAtoms
-                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
                 end do
             end do
+            write(99,*)r!There's no need to run ab initio on already calculated mex
             do i=1,Analyzation_NGrid
-                rtemp=r+dble(i)*Analyzation_ghstep*g
+                rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp
                 do j=1,MoleculeDetail.NAtoms
-                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
                 end do
             end do
-        close(99)
-        open(unit=99,file='hPath.geom',status='replace')
+        close(99); close(100)
+        open(unit=99,file='abhPath.in',status='replace')
+        open(unit=100,file='hPath.geom.all',status='replace')
             do i=-Analyzation_NGrid,-1
-                rtemp=r+dble(i)*Analyzation_ghstep*h
+                rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
                 do j=1,MoleculeDetail.NAtoms
-                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
                 end do
             end do
+            write(99,*)r!There's no need to run ab initio on already calculated mex
             do i=1,Analyzation_NGrid
-                rtemp=r+dble(i)*Analyzation_ghstep*h
+                rtemp=r+dble(i)*Analyzation_ghstep*h; write(99,*)rtemp
                 do j=1,MoleculeDetail.NAtoms
-                    write(99,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
+                    write(100,'(A2,I8,3F14.8,F14.8)')MoleculeDetail.ElementSymbol(j),Symbol2Number(MoleculeDetail.ElementSymbol(j)),rtemp(3*j-2:3*j),MoleculeDetail.mass(j)/AMUInAU
                 end do
             end do
-        close(99)
-        write(*,'(1x,A99)')'If your input geometry is ab initio mex, you may want to run Columbus7 on gPath.geom and hPath.geom'
+        close(99); close(100)
+        write(*,'(1x,A61)')'If your input geometry is ab initio mex, you may want to run:'
+        write(*,'(1x,A49)')'    Analyze-evaluate on abgPath.in and abhPath.in'
+        write(*,'(1x,A50)')'    Columbus7 on gPath.geom.all and hPath.geom.all'
+        write(*,'(1x,A55)')'to evaluate the fit performance along ab initio g and h'
     end if
     write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
     q=Analyzation_intgeom(:,1)
