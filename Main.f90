@@ -289,7 +289,7 @@ subroutine Initialize()!Program initializer
                     flag=.false.!Check whether the reference point has been changed
                     do i=1,InternalDimension
                         dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
-                        if(dbletemp>1d-14.and.dbletemp/Abs(OldRefGeom(i))>1d-14) then
+                        if(dbletemp>1d-10.and.dbletemp/Abs(OldRefGeom(i))>1d-10) then
                             flag=.true.; exit
                         end if
                     end do
@@ -472,10 +472,10 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             end do
             write(99,*)
             do ip=1,NPoints
-                call CheckDegeneracy(degenerate,1d-8,pointtemp(ip).energy,NState)
+                call CheckDegeneracy(degenerate,1d-10,pointtemp(ip).energy,NState)
 			    if(degenerate) then!gh orthogonalization for conical intersection
 			    	do istate=1,NState-1!Identify the degenerate states
-			    		if(pointtemp(ip).energy(istate+1)-pointtemp(ip).energy(istate)<1d-8) exit
+			    		if(pointtemp(ip).energy(istate+1)-pointtemp(ip).energy(istate)<1d-10) exit
 			    	end do
 			    	grad1=pointtemp(ip).dH(:,istate,istate)
 			    	grad2=pointtemp(ip).dH(:,istate+1,istate+1)

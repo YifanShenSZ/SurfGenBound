@@ -307,7 +307,7 @@ end subroutine L_RMSD
             Lold=L!Prepare
             call My_dposv(A,b,NHdExpansionCoefficients)
             cchange=dot_product(b-c,b-c)
-            if(cchange<1d-30) then!Convergence standard: || c_new - c_old ||^2 < 1d-30
+            if(cchange<1d-20) then!Convergence standard: || c_new - c_old ||_2 < 1d-10
                 call L_RMSD(b,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
                 if(L<Lmin) then
                     Lmin=L
