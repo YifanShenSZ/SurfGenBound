@@ -37,6 +37,8 @@ program main
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
 		real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
+    write(*,'(1x,A59)')'SurfGenBound: surface generation package for bounded system'
+    write(*,'(1x,A15)')'Yifan Shen 2019'
     call ShowTime()
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput(); call Initialize()
