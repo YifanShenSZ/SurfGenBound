@@ -87,7 +87,7 @@ subroutine GenerateNadVibSInput()
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
     !Estimate the number of NadVibS basis
-    call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,InternalDimension)
+    call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,LSuccessor,InternalDimension)
     !Prepare nadvibs.in
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
