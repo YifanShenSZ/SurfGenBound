@@ -140,7 +140,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     integer,intent(in)::intdim
     real*8,dimension(intdim),intent(in)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor,LSuccessor
-    integer::i,j; integer*8::NTotalBasis; real*8::sign
+    integer::i,j; integer*8::NTotalBasis; integer,dimension(intdim)::NBasis; real*8::sign
     real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,bound,basis
     write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
     forall(i=1:intdim)!Prepare
@@ -159,11 +159,11 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     end do
     write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
     open(unit=99,file='NormalCoverage.txt',status='replace')
-        NTotalBasis=1; do i=1,intdim; NTotalBasis=NTotalBasis*max(1,ceiling(basis(i))); end do
+        NTotalBasis=1; do i=1,intdim; NBasis(i)=max(1,ceiling(basis(i))); NTotalBasis=NTotalBasis*NBasis(i); end do
         write(99,'(A23)',advance='no')'Total number of basis ='; write(99,*)NTotalBasis
-        write(99,'(A4,A1,A11,A1,A11,A1,A5)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis'
+        write(99,'(A4,A1,A11,A1,A11,A1,A5)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis',char(9),'raw basis'
         do i=1,intdim
-            write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.1)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
+            write(99,'(I4,A1,F11.5,A1,F11.5,A1,I5,A1,F9.5)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),NBasis(i),char(9),basis(i)
         end do
     close(99)
     open(unit=99,file='InternalCoverage.txt',status='replace')
