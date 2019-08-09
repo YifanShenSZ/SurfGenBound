@@ -145,11 +145,11 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
         sign=1d0!Lower bound
         q=0d0
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,f_fd=f_fd,fdd=fdd,cdd=cdd)
-        LowerBound(i)=q(i)
+        call f(LowerBound(i),q,intdim)
         sign=-1d0!Upper bound
         q=0d0
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,f_fd=f_fd,fdd=fdd,cdd=cdd)
-        UpperBound(i)=q(i)
+        call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
         sign=max(dAbs(LowerBound(i)),UpperBound(i))/sigmaSuccessor(i); sign=sign*sign
         basis(i)=(sign-1d0)/2d0
     end do
