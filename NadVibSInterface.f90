@@ -48,7 +48,7 @@ subroutine GenerateNadVibSInput()
     real*8::dbletemp1,dbletemp2; real*8,dimension(NState)::energy; real*8,dimension(InternalDimension)::qtemp
     real*8,dimension(InternalDimension,InternalDimension,NState,NState)::Htemp
     call ReadAnalyzeInput(); call InitializeNadVibSInterface()
-    !Precursor
+    !Precursor vibration
     open(unit=99,file='precursor.xyz',status='old')
         read(99,*); read(99,*)
         do i=1,MoleculeDetail.NAtoms; read(99,*)chartemp,rPrecursor(3*i-2:3*i); end do
@@ -58,29 +58,22 @@ subroutine GenerateNadVibSInput()
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(freqPrecursor,modePrecursor,LPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
-    !Successor
+    !Successor vibration
     if(Analyzation_JobType=='min') then!Use the obtained minimum and corresponding normal mode
         open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
         	read(99,*); read(99,*)
-            do i=1,MoleculeDetail.NAtoms
-                read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
-            end do
+            do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
             rSuccesor=rSuccesor*AInAU!Convert to atomic unit
         close(99)
         call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
         qtemp=qSuccessor-ReferencePoint.geom
-        if(Analyzation_SearchDiabatic) then!Diabatic surface
-            Htemp=ddHd(qtemp)
-        else!Adiabatic surface
-            Htemp=AdiabaticddH(qtemp)
-        end if
+        if(Analyzation_SearchDiabatic) then; Htemp=ddHd(qtemp)!Diabatic surface
+        else; Htemp=AdiabaticddH(qtemp); end if!Adiabatic surface
         HSuccessor=Htemp(:,:,Analyzation_state,Analyzation_state)
     else!Use the obtained mex and the normal mode of mean field
         open(unit=99,file='MexCartesianGeometry.xyz',status='old')
         	read(99,*); read(99,*)
-            do i=1,MoleculeDetail.NAtoms
-                read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i)
-            end do
+            do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
             rSuccesor=rSuccesor*AInAU!Convert to atomic unit
         close(99)
         call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
@@ -90,33 +83,12 @@ subroutine GenerateNadVibSInput()
     end if
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A64)')'Suggestion on number of basis by distance and energy estimation:'
-    !largest standard deviation > precursor-successor distance
-    !2nd highest energy < precursor-successor ground state energy difference < highest
-    dshift=dAbs(matmul(modeSuccessor,qPrecursor-qSuccessor))
-    energy=AdiabaticEnergy(qPrecursor-ReferencePoint.geom)-AdiabaticEnergy(qSuccessor-ReferencePoint.geom)
-    dbletemp1=1d0; dbletemp2=1d0
-    do i=1,InternalDimension
-        dshift(i)=dshift(i)*dSqrt(freqSuccessor(i))
-        do j=1,9!Consider (j-1)-th excited state standard deviation
-            if(dSqrt(dFactorial2(2*j-1)/2d0**j)>dshift(i)) exit
-        end do
-        k=max(j,ceiling(energy(1)/freqSuccessor(i)-0.5d0)+1)
-        write(*,'(5x,A4,I3,A19,I2,A3,I2)')'Mode',i,', Basis number from',j,' to',k
-        dbletemp1=dbletemp1*dble(j); dbletemp2=dbletemp2*dble(k)
-    end do
-    write(*,*)'The total number of smallest basis is',dbletemp1
-    if(dbletemp1>2d0**31d0-1d0) write(*,*)'Warning: this is',dbletemp1/(2d0**31d0-1d0),'times larger than 2^31'
-    write(*,*)'The total number of  largest basis is',dbletemp2
-    if(dbletemp2>2d0**31d0-1d0) then
-        write(*,*)'Warning: this is',dbletemp2/(2d0**31d0-1d0),'times larger than 2^31'
-        write(*,'(1x,A74)')'Please note that 2^31 basis is the largest NadVibS can handle within 3days'
-    end if
+    call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,InternalDimension)
+    !Prepare nadvibs.in
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
     do i=1,InternalDimension!Subtract the harmonic oscillator potential term
-        indice=i
-        j=NVS_WhichExpansionBasis(2,indice)
+        indice=i; j=NVS_WhichExpansionBasis(2,indice)
         forall(k=1:NState)
             NVS_HdEC(k,k).Order(2).Array(j)=NVS_HdEC(k,k).Order(2).Array(j)-0.5d0*freqSuccessor(i)*freqSuccessor(i)
         end forall
@@ -143,6 +115,110 @@ subroutine GenerateNadVibSInput()
         write(99,*)Tshift
     close(99)
 end subroutine GenerateNadVibSInput
+
+!A photoelectron spectrum usually has the brightest line near the vertical excitation,
+!    which emphasizes the overlap between the basis and precursor vibrational state
+!Our goal is to find the minimum basis producing a satisfying overlap (empirically > 90%),
+!    and this is an integer nonlinear optimization subject to inequality constraint
+!A rigorous evaluation solution will be too expensive, so we make 2 approximations:
+!    1. In most cases the precursor is at vibrational ground state, which is a gaussian
+!       with covariance matrix diagonal in precursor normal coordinate. Since 2 sigma covers 95%,
+!       we approximate the overlap constraint by 'the basis covers the 2 sigma eclipse'
+!    2. Define the coverage of a 1 dimensional basis function as its standard deviation, then
+!       the total coverage is a cuboid with each edge equals to the widest basis along this direction
+!Certainly, the smallest cuboid must be tangential to the eclipse, so we only have to solve
+!    the lower and upper bound of the eclipse along each successor normal coordinate
+!Now the problem can be solved by a common real nonlinear optimization subject to equality constraint:
+!    Minimize and maximize the component along each successor normal coordinate,
+!    subject to staying on the 2 sigma eclipse
+subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,intdim)
+    integer,intent(in)::intdim
+    real*8,dimension(intdim),intent(in)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
+    real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor
+    integer::i,j; real*8::sign,dbletemp
+    real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,basis
+    forall(i=1:intdim)!Prepare
+        sigmaPrecursor(i)=invSqrt2/dSqrt(freqPrecursor(i))
+        sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))
+    end forall
+    do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
+        sign=1d0!Lower bound
+        q=0d0
+        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,f_fd=f_fd,fdd=fdd,cdd=cdd)
+        LowerBound(i)=q(i)
+        sign=-1d0!Upper bound
+        q=0d0
+        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,f_fd=f_fd,fdd=fdd,cdd=cdd)
+        UpperBound(i)=q(i)
+        sign=max(dAbs(LowerBound(i)),UpperBound(i))/sigmaSuccessor(i); sign=sign*sign
+        basis(i)=(sign-1d0)/2d0
+    end do
+    j=1; do i=1,intdim; j=j*max(1,ceiling(basis(i))); end do
+    write(*,*)'Total number of basis =',j
+    write(*,'(1x,A83)')'Please refer to NadVibSBasisSuggestion.txt for detailed suggestion on NadVibS basis'
+    open(unit=99,file='NadVibSBasisSuggestion.txt',status='replace')
+        write(99,'(A4,A1,A11,A1,A11,A1,A5)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis'
+        do i=1,intdim
+            write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.0)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
+        end do
+    close(99)
+    contains
+        subroutine f(fq,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,intent(out)::fq
+            fq=sign*dot_product(modeSuccessor(i,:),q-qSuccessor)
+        end subroutine f
+        subroutine fd(fdq,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim),intent(out)::fdq
+            fdq=sign*modeSuccessor(i,:)
+        end subroutine fd
+        integer function f_fd(fq,fdq,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,intent(out)::fq
+            real*8,dimension(intdim),intent(out)::fdq
+            fq=sign*dot_product(modeSuccessor(i,:),q-qSuccessor)
+            fdq=sign*modeSuccessor(i,:)
+            f_fd=0!Return 0
+        end function f_fd
+        integer function fdd(fddq,q,intdim)
+            integer,intent(in)::intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,intdim),intent(out)::fddq
+            fddq=0d0
+            fdd=0!Return 0
+        end function fdd
+        subroutine c(cq,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(M),intent(out)::cq
+            real*8,dimension(intdim)::temp
+            temp=matmul(modePrecursor,q-qPrecursor)
+            cq(1)=dot_product(temp/sigmaPrecursor,temp)-1d0
+        end subroutine c
+        subroutine cd(cdq,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,M),intent(out)::cdq
+            integer::i; real*8,dimension(intdim,intdim)::temp
+            temp=transpose(modePrecursor)
+            forall(i=1:intdim); temp(:,i)=temp(:,i)/sigmaPrecursor(i); end forall
+            cdq(:,1)=2d0*matmul(matmul(temp,modePrecursor),q-qPrecursor)
+        end subroutine cd
+        integer function cdd(cddq,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,intdim,M),intent(out)::cddq
+            integer::i; real*8,dimension(intdim,intdim)::temp
+            temp=transpose(modePrecursor)
+            forall(i=1:intdim); temp(:,i)=temp(:,i)/sigmaPrecursor(i); end forall
+            cddq(:,:,1)=2d0*matmul(temp,modePrecursor)
+            cdd=0!Return 0
+        end function cdd
+end subroutine BasisEstimation
 
 subroutine InitializeNadVibSInterface()
     integer::i,j,iorder

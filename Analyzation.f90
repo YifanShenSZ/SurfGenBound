@@ -319,7 +319,7 @@ subroutine MinimumSearch()
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-    open(unit=99,file='NormalMode.txt',status='replace')
+    open(unit=99,file='InternalNormalMode.txt',status='replace')
         write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
         do i=1,InternalDimension-1
             write(99,'(I6,A1)',advance='no')i,char(9)
@@ -503,32 +503,32 @@ subroutine MexSearch()
             ddHd11=ddH(:,:,1,1)
             fdd=0!return 0
         end function fdd
-        subroutine c(cx,q,M,intdim)
+        subroutine c(cq,q,M,intdim)
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
-            real*8,dimension(2),intent(out)::cx
+            real*8,dimension(2),intent(out)::cq
             real*8,dimension(NState,NState)::H
             H=Hd(q)
-            cx(1)=H(2,2)-H(1,1)
-            cx(2)=H(2,1)
+            cq(1)=H(2,2)-H(1,1)
+            cq(2)=H(2,1)
         end subroutine c
-        subroutine cd(cdx,q,M,intdim)
+        subroutine cd(cdq,q,M,intdim)
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
-            real*8,dimension(intdim,2),intent(out)::cdx
+            real*8,dimension(intdim,2),intent(out)::cdq
             real*8,dimension(intdim,NState,NState)::dH
             dH=dHd(q)
-            cdx(:,1)=dH(:,2,2)-dH(:,1,1)
-            cdx(:,2)=dH(:,2,1)
+            cdq(:,1)=dH(:,2,2)-dH(:,1,1)
+            cdq(:,2)=dH(:,2,1)
         end subroutine cd
-        integer function cdd(cddx,q,M,intdim)
+        integer function cdd(cddq,q,M,intdim)
             integer,intent(in)::M,intdim
             real*8,dimension(intdim),intent(in)::q
-            real*8,dimension(intdim,intdim,2),intent(out)::cddx
+            real*8,dimension(intdim,intdim,2),intent(out)::cddq
             real*8,dimension(intdim,intdim,NState,NState)::ddH
             ddH=ddHd(q)
-            cddx(:,:,1)=ddH(:,:,2,2)-ddH(:,:,1,1)
-            cddx(:,:,2)=ddH(:,:,2,1)
+            cddq(:,:,1)=ddH(:,:,2,2)-ddH(:,:,1,1)
+            cddq(:,:,2)=ddH(:,:,2,1)
             cdd=0!return 0
         end function cdd
 end subroutine MexSearch
