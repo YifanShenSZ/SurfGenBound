@@ -162,7 +162,10 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
             write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.0)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
         end do
     close(99)
-    contains
+    contains!The merit function and constraint
+        !i and sign controls the behavior of f routines:
+        !    i-th successor normal coordinate will be searched
+        !    sign > 0, search for lower bound; sign < 0, search for upper bound
         subroutine f(fq,q,intdim)
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
