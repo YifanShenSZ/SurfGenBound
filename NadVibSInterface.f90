@@ -15,6 +15,9 @@ module NadVibSInterface
     use ElectronicStructure; use Analyzation
     implicit none
 
+!Parameter
+    real*8::NVS_contour=2d0!Controls 
+
 !Derived type
     !Example: type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
     !         NVS_HdEC(jstate,istate).Order(iorder).Array(i) is the i-th expansion coefficient
@@ -122,8 +125,9 @@ end subroutine GenerateNadVibSInput
 !    and this is an integer nonlinear optimization subject to inequality constraint
 !A rigorous evaluation solution will be too expensive, so we make 2 approximations:
 !    1. In most cases the precursor is at vibrational ground state, which is a gaussian
-!       with covariance matrix diagonal in precursor normal coordinate. Since 2 sigma covers 95%,
-!       we approximate the overlap constraint by 'the basis covers the 2 sigma eclipse'
+!       with covariance matrix diagonal in precursor normal coordinate.
+!       We approximate the overlap constraint by 'the basis covers some sigma eclipse',
+!       by analogy to '2 sigma covers 95%' in single variate case
 !    2. Define the coverage of a 1 dimensional basis function as its standard deviation, then
 !       the total coverage is a cuboid with each edge equals to the widest basis along this direction
 !Certainly, the smallest cuboid must be tangential to the eclipse, so we only have to solve
@@ -138,7 +142,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     integer::i,j; real*8::sign,dbletemp
     real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,basis
     forall(i=1:intdim)!Prepare
-        sigmaPrecursor(i)=Sqrt2/dSqrt(freqPrecursor(i))!Twice of mass weighted coordinate standard deviation of precursor ground state
+        sigmaPrecursor(i)=NVS_contour*invSqrt2/dSqrt(freqPrecursor(i))!NVS_contour times of mass weighted coordinate standard deviation of precursor ground state
         sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))!Mass weighted coordinate standard deviation of succesor ground state
     end forall
     do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
