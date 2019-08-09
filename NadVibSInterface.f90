@@ -138,8 +138,8 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     integer::i,j; real*8::sign,dbletemp
     real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,basis
     forall(i=1:intdim)!Prepare
-        sigmaPrecursor(i)=invSqrt2/dSqrt(freqPrecursor(i))
-        sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))
+        sigmaPrecursor(i)=Sqrt2/dSqrt(freqPrecursor(i))!Twice of mass weighted coordinate standard deviation of precursor ground state
+        sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))!Mass weighted coordinate standard deviation of succesor ground state
     end forall
     do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
         sign=1d0!Lower bound
@@ -150,7 +150,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
         q=0d0
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
-        sign=max(dAbs(LowerBound(i)),UpperBound(i))/sigmaSuccessor(i); sign=sign*sign
+        sign=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))/sigmaSuccessor(i); sign=sign*sign
         basis(i)=(sign-1d0)/2d0
     end do
     j=1; do i=1,intdim; j=j*max(1,ceiling(basis(i))); end do
