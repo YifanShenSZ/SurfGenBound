@@ -159,7 +159,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     open(unit=99,file='NadVibSBasisSuggestion.txt',status='replace')
         write(99,'(A4,A1,A11,A1,A11,A1,A5)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis'
         do i=1,intdim
-            write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.0)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
+            write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.1)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
         end do
     close(99)
     contains!The merit function and constraint
