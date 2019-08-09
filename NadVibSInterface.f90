@@ -16,7 +16,7 @@ module NadVibSInterface
     implicit none
 
 !Parameter
-    real*8::NVS_contour=2d0!Controls 
+    real*8::NVS_contour=2d0!Controls how large the eclipse to cover, see BasisEstimation for details
 
 !Derived type
     !Example: type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
@@ -148,11 +148,11 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
         sign=1d0!Lower bound
         q=0d0
-        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-8,f_fd=f_fd,fdd=fdd,cdd=cdd)
+        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(LowerBound(i),q,intdim)
         sign=-1d0!Upper bound
         q=0d0
-        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-8,f_fd=f_fd,fdd=fdd,cdd=cdd)
+        call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
         sign=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))/sigmaSuccessor(i); sign=sign*sign
         basis(i)=(sign-1d0)/2d0

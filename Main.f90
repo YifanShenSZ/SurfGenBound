@@ -192,6 +192,8 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
                 !Analyzation
                     Analyzation_NGrid,Analyzation_ghstep,Analyzation_miu0,&
                     Analyzation_Searcher,Analyzation_UseStrongWolfe,Analyzation_ConjugateGradientSolver,&
+                !NadVibSInterface
+                    NVS_contour,&
                 !Main
                     GradualFit,AutoGradualFit,ManualNPoints,Unaligned,Unsorted
             read(99,nml=AdvancedInput)
