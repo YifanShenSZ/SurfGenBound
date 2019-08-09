@@ -86,6 +86,7 @@ subroutine GenerateNadVibSInput()
     end if
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
+    write(*,'(1x,A53)')'Generate an estimation on the number of NadVibS basis'
     call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,InternalDimension)
     !Prepare nadvibs.in
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
@@ -141,6 +142,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor
     integer::i,j; real*8::sign,dbletemp
     real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,basis
+    write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
     forall(i=1:intdim)!Prepare
         sigmaPrecursor(i)=NVS_contour*invSqrt2/dSqrt(freqPrecursor(i))!NVS_contour times of mass weighted coordinate standard deviation of precursor ground state
         sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))!Mass weighted coordinate standard deviation of succesor ground state
