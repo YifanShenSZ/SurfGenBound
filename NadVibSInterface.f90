@@ -86,7 +86,7 @@ subroutine GenerateNadVibSInput()
     end if
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    write(*,'(1x,A53)')'Generate an estimation on the number of NadVibS basis'
+    !Estimate the number of NadVibS basis
     call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,InternalDimension)
     !Prepare nadvibs.in
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
@@ -136,36 +136,43 @@ end subroutine GenerateNadVibSInput
 !Now the problem can be solved by a common real nonlinear optimization subject to equality constraint:
 !    Minimize and maximize the component along each successor normal coordinate,
 !    subject to staying on the 2 sigma eclipse
-subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,intdim)
+subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,LSuccessor,intdim)
     integer,intent(in)::intdim
     real*8,dimension(intdim),intent(in)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
-    real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor
-    integer::i,j; real*8::sign,dbletemp
-    real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,basis
+    real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor,LSuccessor
+    integer::i,j; integer*8::NTotalBasis; real*8::sign
+    real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,bound,basis
     write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
     forall(i=1:intdim)!Prepare
         sigmaPrecursor(i)=NVS_contour*invSqrt2/dSqrt(freqPrecursor(i))!NVS_contour times of mass weighted coordinate standard deviation of precursor ground state
         sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))!Mass weighted coordinate standard deviation of succesor ground state
     end forall
     do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
-        sign=1d0!Lower bound
-        q=0d0
+        q=0d0; sign=1d0!Lower bound
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(LowerBound(i),q,intdim)
-        sign=-1d0!Upper bound
-        q=0d0
+        q=0d0; sign=-1d0!Upper bound
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
-        sign=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))/sigmaSuccessor(i); sign=sign*sign
-        basis(i)=(sign-1d0)/2d0
+        bound(i)=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))
+        sign=bound(i)/sigmaSuccessor(i); sign=sign*sign; basis(i)=(sign-1d0)/2d0
     end do
-    j=1; do i=1,intdim; j=j*max(1,ceiling(basis(i))); end do
-    write(*,*)'Total number of basis =',j
-    write(*,'(1x,A83)')'Please refer to NadVibSBasisSuggestion.txt for detailed suggestion on NadVibS basis'
-    open(unit=99,file='NadVibSBasisSuggestion.txt',status='replace')
+    write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
+    open(unit=99,file='NormalCoverage.txt',status='replace')
+        NTotalBasis=1; do i=1,intdim; NTotalBasis=NTotalBasis*max(1,ceiling(basis(i))); end do
+        write(99,'(A23)',advance='no')'Total number of basis ='; write(99,*)NTotalBasis
         write(99,'(A4,A1,A11,A1,A11,A1,A5)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis'
         do i=1,intdim
             write(99,'(I4,A1,F11.5,A1,F11.5,A1,F5.1)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),basis(i)
+        end do
+    close(99)
+    open(unit=99,file='InternalCoverage.txt',status='replace')
+        write(99,'(A55)')'This is a report on the coverage in internal coordinate'
+        write(99,'(A98)')'Please check your internal coordinate definition to make sure angles are within well-defined range'
+        write(99,'(A4,A1,A8)')'   q',char(9),'coverage'
+        do i=1,intdim!Check the coverage in internal coordinate, since angles should not exceed some pi
+            sign=0d0; do j=1,intdim; sign=sign+dAbs(LSuccessor(i,j)*bound(j)); end do
+            write(99,'(I4,A1,F8.4)')i,char(9),sign
         end do
     close(99)
     contains!The merit function and constraint
