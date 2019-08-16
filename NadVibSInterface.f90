@@ -16,7 +16,7 @@ module NadVibSInterface
     implicit none
 
 !Parameter
-    real*8::NVS_contour=2d0!Controls how large the eclipse to cover, see BasisEstimation for details
+    real*8::NVS_contour=10d0!Controls how large the eclipse to cover, see BasisEstimation for details
 
 !Derived type
     !Example: type(NVS_HdExpansionCoefficient),allocatable,dimension(:,:)::NVS_HdEC
