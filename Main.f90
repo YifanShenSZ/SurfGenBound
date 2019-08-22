@@ -135,7 +135,7 @@ program main
         case('NadVibS')
             call GenerateNadVibSInput()
         case default!Throw a warning
-            write(*,*)'Program abort: unsupported job type '//trim(adjustl(JobType))
+            write(*,*)'Program abort: unsupported job type '//JobType
             stop
     end select
 !------------- End --------------
