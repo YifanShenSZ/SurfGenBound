@@ -8,10 +8,6 @@ x64/
 *.u2d
 *.vfproj
 .vscode/
-Library/
-Back up/
-example/
-input
 *.in
 *.all
 *.data
@@ -24,5 +20,3 @@ Fmat*
 *.geom
 g80
 h80
-test*
-*.com
