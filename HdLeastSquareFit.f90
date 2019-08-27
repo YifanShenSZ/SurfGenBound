@@ -177,9 +177,7 @@ subroutine FitHd()!Fit Hd with the designated solver
                 call pseudolinear(c)
                 call LineSearchInterface(c)
             end do
-        case default!Throw a warning
-            write(*,*)'Program abort: unsupported least square fit solver '//trim(adjustl(HdLSF_Solver))
-            stop
+        case default; write(*,*)'Program abort: unsupported least square fit solver '//HdLSF_Solver; stop
     end select
     !Clean up
         deallocate(c)
@@ -838,9 +836,7 @@ end subroutine L_RMSD
                 write(*,'(1x,A53)')'Search for local minimum by conjugate gradient method'
                 call ConjugateGradient(Lagrangian,LagrangianGradient,c,NHdExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
                     Method=HdLSF_ConjugateGradientSolver,Strong=HdLSF_UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
-            case default!Throw a warning
-                write(*,*)'Program abort: unsupported line searcher '//trim(adjustl(HdLSF_LineSearcher))
-                stop
+            case default; write(*,*)'Program abort: unsupported line searcher '//HdLSF_LineSearcher; stop
         end select
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)

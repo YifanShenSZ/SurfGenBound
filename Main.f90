@@ -130,18 +130,14 @@ program main
                 write(*,*)'Fitting Hd...'
                 call FitHd()
             end if
-        case('Analyze')
-            call Analyze()
-        case('NadVibS')
-            call GenerateNadVibSInput()
-        case default!Throw a warning
-            write(*,*)'Program abort: unsupported job type '//JobType
-            stop
+        case('Analyze'); call Analyze()
+        case('NadVibS'); call GenerateNadVibSInput()
+        case default; write(*,*)'Program abort: unsupported job type '//JobType; stop
     end select
 !------------- End --------------
 
 !---------- Clean up ------------
-    call ShowTime(); write(*,*)'Mission complete'
+    call ShowTime(); write(*,'(1x,A16)')'Mission complete'
 !------------- End --------------
 
 contains
@@ -179,7 +175,7 @@ subroutine ReadInput()!Read main input files: SurfGenBound.in, eg.xyz, advance.i
         MoleculeDetail.mass=MoleculeDetail.mass*AMUInAU!Convert to atomic unit
     close(99)
     if(advance) then!If requested, read advanced input
-        write(*,*)'Advanced input requested, parameters are set to user specification'
+        write(*,'(1x,A66)')'Advanced input requested, parameters are set to user specification'
         open(unit=99,file='advance.in',status='old')
             namelist /AdvancedInput/ &
                 !Basic
