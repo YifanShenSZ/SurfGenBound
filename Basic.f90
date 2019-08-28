@@ -8,7 +8,7 @@ module Basic
 
 !Parameter
     !Points with ground state energy difference to the reference geometry higher than this threshold will have lower weight:
-    !    weight = HighEnergy / ground state energy difference to the reference geometry
+    !    weight = ( HighEnergy / ground state energy difference to the reference geometry )^2
     real*8::HighEnergy=1d0
     !States with energy difference below AlmostDegenerate will be considered degenerate
     real*8::AlmostDegenerate=1d-4
