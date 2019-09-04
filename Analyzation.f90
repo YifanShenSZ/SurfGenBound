@@ -358,15 +358,13 @@ subroutine MexSearch()
     energy=AdiabaticEnergy(q)
     write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
     open(unit=99,file='MexInternalGeometry.out',status='replace')
-        do i=1,InternalDimension
-            write(99,*)q(i)
-        end do
+        do i=1,InternalDimension; write(99,*)q(i); end do
     close(99)
     if(NState==2.and.Analyzation_SearchDiabatic) then; intdH=dHd(q)!2 state case Hd is diagonal when degenerate
-    else; intdH=AdiabaticdH(q); end if
+        else; intdH=AdiabaticdH(q); end if
     q=q+ReferencePoint.geom
     if(allocated(Analyzation_cartgeom)) then; rtemp=Analyzation_cartgeom(:,1)
-    else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
+        else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
     call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
     call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
         intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
@@ -436,20 +434,16 @@ subroutine MexSearch()
     write(*,'(1x,A70)')'To evaluate diabaticity, run Analyze-evaluate on gPath.in and hPath.in'
     open(unit=99,file='DoubleCone.txt',status='replace')
         write(99,'(A19,A1,A19,A1,A14)',advance='no')'Displacement_g/Bohr',char(9),'Displacement_h/Bohr',char(9),'Energy 1/cm^-1'
-        do istate=2,NState-1
-            write(99,'(A1,A6,I2,A6)',advance='no')char(9),'Energy',istate,'/cm^-1'
-        end do
+        do istate=2,NState-1; write(99,'(A1,A6,I2,A6)',advance='no')char(9),'Energy',istate,'/cm^-1'; end do
         write(99,'(A1,A6,I2,A6)')char(9),'Energy',NState,'/cm^-1'
         do i=-Analyzation_NGrid,Analyzation_NGrid
             do j=-Analyzation_NGrid,Analyzation_NGrid
                 q=InternalCoordinateq(r+dble(i)*Analyzation_ghstep*g+dble(j)*Analyzation_ghstep*h,InternalDimension,CartesianDimension)&
                     -ReferencePoint.geom!This program requires only internal coordinate difference
                 energy=AdiabaticEnergy(q)/cm_1InAU
-                write(99,'(F6.2,A1,F6.2,A1,F18.8)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
-                do istate=2,NState-1
-                    write(99,'(A1,F18.8)',advance='no')char(9),energy(istate)
-                end do
-                write(99,'(A1,F18.8)')char(9),energy(NState)
+                write(99,'(F19.6,A1,F19.6,A1,F14.6)',advance='no')dble(i)*Analyzation_ghstep,char(9),dble(j)*Analyzation_ghstep,char(9),energy(1)
+                do istate=2,NState-1; write(99,'(A1,F14.6)',advance='no')char(9),energy(istate); end do
+                write(99,'(A1,F14.6)')char(9),energy(NState)
             end do
         end do
     close(99)
