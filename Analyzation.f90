@@ -497,7 +497,7 @@ subroutine MexSearch()
         end function cdd
 end subroutine MexSearch
 
-subroutine SaddleSearch()
+subroutine SaddleSearch()!This is only a naive search for saddle point, not necessarily transition state
     real*8,dimension(InternalDimension)::q
     !Work space for: saddle point energy, vibration
     integer::i,j
@@ -506,7 +506,7 @@ subroutine SaddleSearch()
 	real*8,dimension(CartesianDimension)::r,rtemp
 	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
 	real*8,dimension(InternalDimension,CartesianDimension)::B
-    write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
+    write(*,'(1x,A51,1x,I2)')'Search for saddle point on potential energy surface',Analyzation_state
     q=Analyzation_intgeom(:,1)
     call TrustRegion(AdiabaticGradientInterface,q,InternalDimension,InternalDimension,Jacobian=Jacobian)
     energy=AdiabaticEnergy(q)
