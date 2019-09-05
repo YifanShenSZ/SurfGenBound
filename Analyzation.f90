@@ -37,6 +37,7 @@ subroutine Analyze()!Top level standard interface for other modules to call
 	    case('evaluate'); call evaluate()
         case('min'); call MinimumSearch()
         case('mex'); call MexSearch()
+        case('saddle'); call SaddleSearch()
 		case('OriginShift')
 			call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
 			chartemp='HdNewOrigin.CheckPoint'
@@ -267,28 +268,20 @@ subroutine MinimumSearch()
         energy=AdiabaticEnergy(q)
         i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
     end if
-    write(*,*)'Energy of the minimum is:',energy/cm_1InAU
+    write(*,*)'Energy of the minimum is:',energy/cm_1InAU,' cm^-1'
     open(unit=99,file='MinimumInternalGeometry.out',status='replace')
-        do i=1,InternalDimension
-            write(99,*)q(i)
-        end do
+        do i=1,InternalDimension; write(99,*)q(i); end do
     close(99)
-    if(allocated(Analyzation_cartgeom)) then
-        rtemp=Analyzation_cartgeom(:,1)
-    else
-        rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension])
-    end if
+    if(allocated(Analyzation_cartgeom)) then; rtemp=Analyzation_cartgeom(:,1)
+        else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
     call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
     q=q+ReferencePoint.geom
     r=CartesianCoordinater(q,CartesianDimension,InternalDimension,mass=MoleculeDetail.mass,r0=rtemp)
     open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
         write(99,*)MoleculeDetail.NAtoms
         write(99,'(A11)',advance='no')'Minimum on '
-        if(Analyzation_SearchDiabatic) then
-            write(99,'(A16)',advance='no')'diabatic surface'
-        else
-            write(99,'(A17)',advance='no')'adiabatic surface'
-        end if
+        if(Analyzation_SearchDiabatic) then; write(99,'(A16)',advance='no')'diabatic surface'
+            else; write(99,'(A17)',advance='no')'adiabatic surface'; end if
         write(99,*)Analyzation_state
         do i=1,MoleculeDetail.NAtoms
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
@@ -356,7 +349,7 @@ subroutine MexSearch()
         if(energy(Analyzation_state+1)-energy(Analyzation_state)<dbletemp) q=qtail!Accept if degeneracy improved
     end if
     energy=AdiabaticEnergy(q)
-    write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU
+    write(*,*)'Energy of the minimum energy crossing point is:',energy/cm_1InAU,' cm^-1'
     open(unit=99,file='MexInternalGeometry.out',status='replace')
         do i=1,InternalDimension; write(99,*)q(i); end do
     close(99)
@@ -503,6 +496,81 @@ subroutine MexSearch()
             cdd=0!return 0
         end function cdd
 end subroutine MexSearch
+
+subroutine SaddleSearch()
+    real*8,dimension(InternalDimension)::q
+    !Work space for: saddle point energy, vibration
+    integer::i,j
+	real*8,dimension(NState)::energy; real*8,dimension(NState,NState)::H
+	real*8,dimension(InternalDimension)::freq
+	real*8,dimension(CartesianDimension)::r,rtemp
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
+	real*8,dimension(InternalDimension,CartesianDimension)::B
+    write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
+    q=Analyzation_intgeom(:,1)
+    call TrustRegion(AdiabaticGradientInterface,q,InternalDimension,InternalDimension,Jacobian=Jacobian)
+    energy=AdiabaticEnergy(q)
+    i=AdiabaticHessianInterface(Hessian,q,InternalDimension)
+    write(*,*)'Energy of the saddle point is:',energy/cm_1InAU,' cm^-1'
+    open(unit=99,file='SaddleInternalGeometry.out',status='replace')
+        do i=1,InternalDimension; write(99,*)q(i); end do
+    close(99)
+    if(allocated(Analyzation_cartgeom)) then; rtemp=Analyzation_cartgeom(:,1)
+        else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
+    call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
+    q=q+ReferencePoint.geom
+    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,mass=MoleculeDetail.mass,r0=rtemp)
+    open(unit=99,file='SaddleCartesianGeometry.xyz',status='replace')
+        write(99,*)MoleculeDetail.NAtoms
+        write(99,'(A16)',advance='no')'Saddle point on '
+        if(Analyzation_SearchDiabatic) then; write(99,'(A16)',advance='no')'diabatic surface'
+            else; write(99,'(A17)',advance='no')'adiabatic surface'; end if
+        write(99,*)Analyzation_state
+        do i=1,MoleculeDetail.NAtoms
+            write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
+        end do
+    close(99)
+    call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
+    call WilsonGFMethod(freq,mode,L,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    open(unit=99,file='VibrationalFrequency.txt',status='replace')
+        write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
+        do i=1,InternalDimension
+            write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
+        end do
+    close(99)
+    open(unit=99,file='InternalNormalMode.txt',status='replace')
+        write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
+        do i=1,InternalDimension-1
+            write(99,'(I6,A1)',advance='no')i,char(9)
+        end do
+        write(99,'(I6)')InternalDimension
+        do i=1,InternalDimension
+            write(99,'(I8,A1)',advance='no')i,char(9)
+            do j=1,InternalDimension-1
+                write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
+            end do
+            write(99,'(F18.8)')mode(InternalDimension,i)
+        end do
+    close(99)
+    contains
+        subroutine Residue(dV,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim),intent(out)::dV
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,NState,NState)::dH
+            dH=AdiabaticdH(q)
+            dV=dH(:,Analyzation_state,Analyzation_state)
+        end subroutine Residue
+        integer function Jacobian(J,q,M,intdim)
+            integer,intent(in)::M,intdim
+            real*8,dimension(intdim,intdim),intent(out)::J
+            real*8,dimension(intdim),intent(in)::q
+            real*8,dimension(intdim,intdim,NState,NState)::ddH
+            ddH=AdiabaticddH(q)
+            J=ddH(:,:,Analyzation_state,Analyzation_state)
+            Jacobian=0!return 0
+	    end function Jacobian
+end subroutine SaddleSearch
 
 !---------- Auxiliary routine ----------
     !Reformat routine for calling nonlinear optimizers
