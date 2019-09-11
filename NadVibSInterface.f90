@@ -86,8 +86,7 @@ subroutine GenerateNadVibSInput()
     end if
     call WilsonGFMethod(freqSuccessor,modeSuccessor,LSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    !Estimate the number of NadVibS basis
-    call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,LSuccessor,InternalDimension)
+    call BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,freqSuccessor,modeSuccessor,LSuccessor,InternalDimension)!Estimate the number of NadVibS basis
     !Prepare nadvibs.in
     call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
     call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
@@ -140,13 +139,11 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     integer,intent(in)::intdim
     real*8,dimension(intdim),intent(in)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
     real*8,dimension(intdim,intdim),intent(in)::modePrecursor,modeSuccessor,LSuccessor
-    integer::i,j; integer*8::NTotalBasis; integer,dimension(intdim)::NBasis; real*8::sign
-    real*8,dimension(intdim)::sigmaPrecursor,sigmaSuccessor,q,LowerBound,UpperBound,bound,basis
+    integer::i,j; integer*8::NTotalBasis; integer,dimension(intdim)::NBasis; real*8::sign,contoursq
+    real*8,dimension(intdim)::DPrecursor,q,LowerBound,UpperBound,bound,basis
     write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
-    forall(i=1:intdim)!Prepare
-        sigmaPrecursor(i)=NVS_contour*invSqrt2/dSqrt(freqPrecursor(i))!NVS_contour times of mass weighted coordinate standard deviation of precursor ground state
-        sigmaSuccessor(i)=invSqrt2/dSqrt(freqSuccessor(i))!Mass weighted coordinate standard deviation of succesor ground state
-    end forall
+    contoursq=NVS_contour*NVS_contour!Since the ellipsoid function has squared times at right hand side
+    DPrecursor=0.5d0/freqPrecursor!Variance of mass weighted coordinate standard deviation of precursor ground state
     do i=1,intdim!Calculate each lower and upper bound, then decide how much basis is required
         q=0d0; sign=1d0!Lower bound
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
@@ -155,7 +152,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
         bound(i)=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))
-        sign=bound(i)/sigmaSuccessor(i); sign=sign*sign; basis(i)=(sign-1d0)/2d0
+        basis(i)=freqSuccessor(i)*bound(i)*bound(i)-0.5d0
     end do
     write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
     open(unit=99,file='NormalCoverage.txt',status='replace')
@@ -213,7 +210,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
             real*8,dimension(M),intent(out)::cq
             real*8,dimension(intdim)::temp
             temp=matmul(modePrecursor,q-qPrecursor)
-            cq(1)=dot_product(temp/sigmaPrecursor,temp)-1d0
+            cq(1)=dot_product(temp/DPrecursor,temp)-contoursq
         end subroutine c
         subroutine cd(cdq,q,M,intdim)
             integer,intent(in)::M,intdim
@@ -221,7 +218,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
             real*8,dimension(intdim,M),intent(out)::cdq
             integer::i; real*8,dimension(intdim,intdim)::temp
             temp=transpose(modePrecursor)
-            forall(i=1:intdim); temp(:,i)=temp(:,i)/sigmaPrecursor(i); end forall
+            forall(i=1:intdim); temp(:,i)=temp(:,i)/DPrecursor(i); end forall
             cdq(:,1)=2d0*matmul(matmul(temp,modePrecursor),q-qPrecursor)
         end subroutine cd
         integer function cdd(cddq,q,M,intdim)
@@ -230,7 +227,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
             real*8,dimension(intdim,intdim,M),intent(out)::cddq
             integer::i; real*8,dimension(intdim,intdim)::temp
             temp=transpose(modePrecursor)
-            forall(i=1:intdim); temp(:,i)=temp(:,i)/sigmaPrecursor(i); end forall
+            forall(i=1:intdim); temp(:,i)=temp(:,i)/DPrecursor(i); end forall
             cddq(:,:,1)=2d0*matmul(temp,modePrecursor)
             cdd=0!Return 0
         end function cdd
