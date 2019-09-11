@@ -156,7 +156,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,modePrecursor,qSuccessor,fre
     end do
     write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
     open(unit=99,file='NormalCoverage.txt',status='replace')
-        NTotalBasis=1; do i=1,intdim; NBasis(i)=max(1,ceiling(basis(i))); NTotalBasis=NTotalBasis*NBasis(i); end do
+        NTotalBasis=1; do i=1,intdim; NBasis(i)=ceiling(basis(i))+1; NTotalBasis=NTotalBasis*NBasis(i); end do
         write(99,'(A23)',advance='no')'Total number of basis ='; write(99,*)NTotalBasis
         write(99,'(A4,A1,A11,A1,A11,A1,A5,A1,A9)')'mode',char(9),'lower bound',char(9),'upper bound',char(9),'basis',char(9),'raw basis'
         do i=1,intdim
