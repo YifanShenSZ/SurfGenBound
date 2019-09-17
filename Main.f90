@@ -372,13 +372,13 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             close(99)
             !Convert reference point from internal coordinate to Cartesian coordinate
             call Internal2Cartesian(ReferencePoint.geom,InternalDimension,ReferencePointtemp.geom,CartesianDimension,NState,&
-                intnadgrad=ReferencePoint.dH,cartnadgrad=ReferencePointtemp.dH,mass=MoleculeDetail.mass,r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]))
+                intgrad=ReferencePoint.dH,cartgrad=ReferencePointtemp.dH,mass=MoleculeDetail.mass,r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]))
         else!Use new reference point
             ReferencePointtemp=pointtemp(IndexReference)!Obtain in Cartesian coordinate
             !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
             ReferencePoint.energy=ReferencePointtemp.energy
             call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NState,&
-                cartnadgrad=ReferencePointtemp.dH,intnadgrad=ReferencePoint.dH)
+                cartgrad=ReferencePointtemp.dH,intgrad=ReferencePoint.dH)
             call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
             if(Degenerate) then
                 call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
@@ -403,10 +403,10 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         allocate(GeomDifference(NPoints))
         if(Unaligned) then!Align all geometries and calculate Cartesian distances to the reference geometry
             call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                nadgrad=ReferencePointtemp.dH)
+                grad=ReferencePointtemp.dH)
             do ip=1,NPoints
                 call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                    nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
+                    grad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
             end do
         else!Directly calculate the Cartesian distances
             do ip=1,NPoints
@@ -434,10 +434,10 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
         close(99)
     else if(Unaligned) then!Also align all geometries for future Cartesian coordinate analysis
         call StandardizeGeometry(ReferencePointtemp.geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-            nadgrad=ReferencePointtemp.dH)
+            grad=ReferencePointtemp.dH)
         do ip=1,NPoints
             call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                nadgrad=pointtemp(ip).dH,reference=ReferencePointtemp.geom)
+                grad=pointtemp(ip).dH,reference=ReferencePointtemp.geom)
         end do
     end if
 	!Provide a human readable version of training set
@@ -520,7 +520,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
                 pointswap(ip).energy=pointtemp(ip).energy
             allocate(pointswap(ip).dH(InternalDimension,NState,NState))
             call Cartesian2Internal(pointtemp(ip).geom,CartesianDimension,pointswap(ip).geom,InternalDimension,NState,&
-                cartnadgrad=pointtemp(ip).dH,intnadgrad=pointswap(ip).dH)
+                cartgrad=pointtemp(ip).dH,intgrad=pointswap(ip).dH)
             pointswap(ip).geom=pointswap(ip).geom-ReferencePoint.geom!This program requires only internal coordinate difference
         end do
         call IdentifyDegeneracy(DegeneratePoint,NDegeneratePoints,indices,pointswap,NPoints)

@@ -360,7 +360,7 @@ subroutine MexSearch()
         else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
     call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
     call Internal2Cartesian(q,InternalDimension,r,CartesianDimension,NState,&
-        intnadgrad=intdH,cartnadgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
+        intgrad=intdH,cartgrad=cartdH,mass=MoleculeDetail.mass,r0=rtemp)
     if(allocated(Analyzation_g).and.allocated(Analyzation_h)) then
         call ghOrthogonalization(cartdH(:,Analyzation_state,Analyzation_state),cartdH(:,Analyzation_state+1,Analyzation_state+1),cartdH(:,Analyzation_state+1,Analyzation_state),CartesianDimension,&
             gref=Analyzation_g,href=Analyzation_h)
