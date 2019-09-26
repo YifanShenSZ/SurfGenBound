@@ -381,7 +381,7 @@ subroutine MexSearch()
     open(unit=99,file='Mexh.out',status='replace'); write(99,*)h; close(99)
     g=g/norm2(g); h=h/norm2(h)
     freqtemp(1)=1000d0; freqtemp(2)=1000d0; gh(:,1)=g; gh(:,2)=h; chartemp='mex.log'
-    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r,2,freqtemp,gh,FileName=chartemp)
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,2,freqtemp,gh,FileName=chartemp)
     !open(unit=99,file='Mex.log',status='replace')
         !write(99,'(A29)')'---------- Comment ----------'
         !write(99,'(A76)')'    Drag this file into Avogadro to visualize the molecule and the vector(s)'
