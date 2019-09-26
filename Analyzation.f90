@@ -313,9 +313,10 @@ end subroutine MinimumSearch
 
 subroutine MexSearch()
     real*8,dimension(InternalDimension)::q,qtail
-    integer::i,j,istate; real*8::dbletemp
+    character*32::chartemp; integer::i,j,istate; real*8::dbletemp
 	real*8,dimension(NState)::energy
-	real*8,dimension(CartesianDimension)::r,rtemp,g,h
+    real*8,dimension(CartesianDimension)::r,rtemp,g,h
+    real*8,dimension(2)::freqtemp; real*8,dimension(CartesianDimension,2)::gh
 	real*8,dimension(InternalDimension,NState,NState)::intdH
 	real*8,dimension(CartesianDimension,NState,NState)::cartdH
     write(*,'(1x,A48,1x,I2,1x,A3,1x,I2)')'Search for mex between potential energy surfaces',Analyzation_state,'and',Analyzation_state+1
@@ -379,41 +380,44 @@ subroutine MexSearch()
     open(unit=99,file='Mexg.out',status='replace'); write(99,*)g; close(99)
     open(unit=99,file='Mexh.out',status='replace'); write(99,*)h; close(99)
     g=g/norm2(g); h=h/norm2(h)
-    open(unit=99,file='Mex.log',status='replace')
-        write(99,'(A29)')'---------- Comment ----------'
-        write(99,'(A76)')'    Drag this file into Avogadro to visualize the molecule and the vector(s)'
-        write(99,'(A65)')'    Only the standard orientation and normal modes are meaningful'
-        write(99,'(A83)')'    Other lines are meant to cheat Avogadro to consider this file as a Gaussian log'
-        write(99,'(A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
-        write(99,'(A29)')'------------ End ------------'
-        write(99,*)
-        write(99,'(A36)')'Gaussian, Inc.  All Rights Reserved.'
-        write(99,'(A16)')' # freq hf/3-21g'
-        write(99,'(A29)')' Charge =  0 Multiplicity = 1'
-        write(99,*)
-        write(99,'(A71)')'                         Standard orientation:                         '
-        write(99,'(A70)')' ---------------------------------------------------------------------'
-        write(99,'(A66)')' Center     Atomic      Atomic             Coordinates (Angstroms)'
-        write(99,'(A67)')' Number     Number       Type             X           Y           Z'
-        write(99,'(A70)')' ---------------------------------------------------------------------'
-        do i=1,MoleculeDetail.NAtoms
-            write(99,'(I7,I11,I12,4x,3F12.6)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),0,r(3*i-2:3*i)/AInAU
-        end do
-        write(99,'(A70)')' ---------------------------------------------------------------------'
-        write(99,'(2I23)')1,2
-        write(99,'(A15,F12.4,F23.4)')' Frequencies --',1d3,2d3
-        write(99,'(A15,F12.4,F23.4)')' Red. masses --',0d0,0d0
-        write(99,'(A15,F12.4,F23.4)')' Frc consts  --',0d0,0d0
-        write(99,'(A15,F12.4,F23.4)')' IR Inten    --',0d0,0d0
-        write(99,'(A15,F12.4,F23.4)')' Raman Activ --',0d0,0d0
-        write(99,'(A15,F12.4,F23.4)')' Depolar (P) --',0d0,0d0
-        write(99,'(A15,F12.4,F23.4)')' Depolar (U) --',0d0,0d0
-        write(99,'(A54)')'  Atom  AN      X      Y      Z        X      Y      Z'
-        do i=1,MoleculeDetail.NAtoms
-            write(99,'(I6,I4,2x,3F7.2,2x,3F7.2)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),g(3*i-2:3*i),h(3*i-2:3*i)
-        end do
-    close(99)
-    write(*,'(1x,A91)')'To visualize the molecule along with normalized g and h vectors, open Mex.log with Avogadro'
+    freqtemp(1)=1000d0; freqtemp(2)=1000d0; gh(:,1)=g; gh(:,2)=h; chartemp='mex.log'
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r,2,freqtemp,gh,FileName=chartemp)
+    !open(unit=99,file='Mex.log',status='replace')
+        !write(99,'(A29)')'---------- Comment ----------'
+        !write(99,'(A76)')'    Drag this file into Avogadro to visualize the molecule and the vector(s)'
+        !write(99,'(A65)')'    Only the standard orientation and normal modes are meaningful'
+        !write(99,'(A83)')'    Other lines are meant to cheat Avogadro to consider this file as a Gaussian log'
+        !write(99,'(A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
+        !write(99,'(A29)')'------------ End ------------'
+        !write(99,*)
+        !write(99,'(A36)')'Gaussian, Inc.  All Rights Reserved.'
+        !write(99,'(A16)')' # freq hf/3-21g'
+        !write(99,'(A29)')' Charge =  0 Multiplicity = 1'
+        !write(99,*)
+        !write(99,'(A71)')'                         Standard orientation:                         '
+        !write(99,'(A70)')' ---------------------------------------------------------------------'
+        !write(99,'(A66)')' Center     Atomic      Atomic             Coordinates (Angstroms)'
+        !write(99,'(A67)')' Number     Number       Type             X           Y           Z'
+        !write(99,'(A70)')' ---------------------------------------------------------------------'
+        !do i=1,MoleculeDetail.NAtoms
+        !    write(99,'(I7,I11,I12,4x,3F12.6)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),0,r(3*i-2:3*i)/AInAU
+        !end do
+        !write(99,'(A70)')' ---------------------------------------------------------------------'
+        !write(99,'(2I23)')1,2
+        !write(99,'(A15,F12.4,F23.4)')' Frequencies --',1d3,2d3
+        !write(99,'(A15,F12.4,F23.4)')' Red. masses --',0d0,0d0
+        !write(99,'(A15,F12.4,F23.4)')' Frc consts  --',0d0,0d0
+        !write(99,'(A15,F12.4,F23.4)')' IR Inten    --',0d0,0d0
+        !write(99,'(A15,F12.4,F23.4)')' Raman Activ --',0d0,0d0
+        !write(99,'(A15,F12.4,F23.4)')' Depolar (P) --',0d0,0d0
+        !write(99,'(A15,F12.4,F23.4)')' Depolar (U) --',0d0,0d0
+        !write(99,'(A54)')'  Atom  AN      X      Y      Z        X      Y      Z'
+        !do i=1,MoleculeDetail.NAtoms
+        !    write(99,'(I6,I4,2x,3F7.2,2x,3F7.2)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),g(3*i-2:3*i),h(3*i-2:3*i)
+        !end do
+    !close(99)
+    write(*,'(1x,A96)')'To visualize the mex structure along with normalized g and h vectors, open Mex.log with Avogadro'
+    write(*,'(1x,A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
     open(unit=99,file='gPath.in',status='replace')
         do i=-Analyzation_NGrid,Analyzation_NGrid
             rtemp=r+dble(i)*Analyzation_ghstep*g; write(99,*)rtemp

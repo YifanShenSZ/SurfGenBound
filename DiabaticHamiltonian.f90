@@ -212,11 +212,8 @@ end subroutine InitializeDiabaticHamiltonian
         integer::istate,jstate,i,j,order,location
         integer,allocatable,dimension(:)::indice
         real*8::dbletemp
-        if(present(FileName)) then
-            open(unit=99,file=FileName,status='old')
-        else
-            open(unit=99,file='Hd.CheckPoint',status='old')
-        end if
+        if(present(FileName)) then; open(unit=99,file=FileName,status='old')
+        else; open(unit=99,file='Hd.CheckPoint',status='old'); end if
             read(99,'(A28,I2)')char28temp,NState!Get old Hd fitting condition
             read(99,*); read(99,*)dbletemp
             read(99,'(I5)')NOrder; allocate(indice(NOrder))
@@ -259,11 +256,8 @@ end subroutine InitializeDiabaticHamiltonian
         type(d2PArray),dimension(Hd_NState,Hd_NState),intent(in)::HdEC
         character*32,optional,intent(in)::FileName
         integer::istate,jstate,i,j
-        if(present(FileName)) then
-            open(unit=99,file=FileName,status='replace')
-        else
-            open(unit=99,file='Hd.CheckPoint',status='replace')
-        end if
+        if(present(FileName)) then; open(unit=99,file=FileName,status='replace')
+        else; open(unit=99,file='Hd.CheckPoint',status='replace'); end if
     		write(99,'(A28,I2)')'Number of electronic states:',Hd_NState
             do istate=1,Hd_NState
                 do jstate=istate,Hd_NState
