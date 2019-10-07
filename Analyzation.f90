@@ -290,13 +290,11 @@ subroutine MinimumSearch()
     call WilsonGFMethod(freq,L,Linv,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
-        do i=1,InternalDimension
-            write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
-        end do
+        do i=1,InternalDimension; write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu; end do
     close(99)
     call InternalMode2CartesianMode(freq,L,InternalDimension,B,cartmode,CartesianDimension)
     chartemp='min.log'
-    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq,cartmode,FileName=chartemp)
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq/cm_1InAu,cartmode,FileName=chartemp)
     write(*,'(1x,A74)')'To visualize the minimum structure and vibration, open min.log in Avogadro'
 end subroutine MinimumSearch
 
@@ -497,7 +495,7 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
         end do
     close(99)
     chartemp='sad.log'
-    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq,cartmode,FileName=chartemp)
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq/cm_1InAu,cartmode,FileName=chartemp)
     write(*,'(1x,A79)')'To visualize the saddle point structure and vibration, open sad.log in Avogadro'
     contains
         subroutine Residue(dV,q,M,intdim)
