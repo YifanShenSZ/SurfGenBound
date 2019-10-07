@@ -228,14 +228,13 @@ subroutine evaluate()
 end subroutine evaluate
 
 subroutine MinimumSearch()
-    real*8,dimension(InternalDimension)::q
-    !Work space for: minimum energy, vibration
-    integer::i,j
+    character*32::chartemp; integer::i,j
 	real*8,dimension(NState)::energy; real*8,dimension(NState,NState)::H
-	real*8,dimension(InternalDimension)::freq
-	real*8,dimension(CartesianDimension)::r,rtemp
-	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
-	real*8,dimension(InternalDimension,CartesianDimension)::B
+	real*8,dimension(InternalDimension)::q,freq
+	real*8,dimension(CartesianDimension)::r,rtemp,r0
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian,L,Linv
+    real*8,dimension(InternalDimension,CartesianDimension)::B
+    real*8,dimension(CartesianDimension,InternalDimension)::cartmode
     write(*,'(1x,A46,1x,I2)')'Search for minimum on potential energy surface',Analyzation_state
     q=Analyzation_intgeom(:,1)
     if(Analyzation_SearchDiabatic) then
@@ -272,11 +271,11 @@ subroutine MinimumSearch()
     open(unit=99,file='MinimumInternalGeometry.out',status='replace')
         do i=1,InternalDimension; write(99,*)q(i); end do
     close(99)
-    if(allocated(Analyzation_cartgeom)) then; rtemp=Analyzation_cartgeom(:,1)
-        else; rtemp=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
-    call StandardizeGeometry(rtemp,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
+    if(allocated(Analyzation_cartgeom)) then; r0=Analyzation_cartgeom(:,1)
+        else; r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]); end if
+    call StandardizeGeometry(r0,MoleculeDetail.mass,MoleculeDetail.NAtoms,1)
     q=q+ReferencePoint.geom
-    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,mass=MoleculeDetail.mass,r0=rtemp)
+    r=CartesianCoordinater(q,CartesianDimension,InternalDimension,mass=MoleculeDetail.mass,r0=r0)
     open(unit=99,file='MinimumCartesianGeometry.xyz',status='replace')
         write(99,*)MoleculeDetail.NAtoms
         write(99,'(A11)',advance='no')'Minimum on '
@@ -288,27 +287,17 @@ subroutine MinimumSearch()
         end do
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
-    call WilsonGFMethod(freq,mode,L,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freq,L,Linv,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
         do i=1,InternalDimension
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-    open(unit=99,file='InternalNormalMode.txt',status='replace')
-        write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
-        do i=1,InternalDimension-1
-            write(99,'(I6,A1)',advance='no')i,char(9)
-        end do
-        write(99,'(I6)')InternalDimension
-        do i=1,InternalDimension
-            write(99,'(I8,A1)',advance='no')i,char(9)
-            do j=1,InternalDimension-1
-                write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
-            end do
-            write(99,'(F18.8)')mode(InternalDimension,i)
-        end do
-    close(99)
+    call InternalMode2CartesianMode(freq,L,InternalDimension,B,cartmode,CartesianDimension)
+    chartemp='min.log'
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq,cartmode,FileName=chartemp)
+    write(*,'(1x,A74)')'To visualize the minimum structure and vibration, open min.log in Avogadro'
 end subroutine MinimumSearch
 
 subroutine MexSearch()
@@ -377,46 +366,12 @@ subroutine MexSearch()
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
         close(99)
-    open(unit=99,file='Mexg.out',status='replace'); write(99,*)g; close(99)
-    open(unit=99,file='Mexh.out',status='replace'); write(99,*)h; close(99)
+    open(unit=99,file='mexg.out',status='replace'); write(99,*)g; close(99)
+    open(unit=99,file='mexh.out',status='replace'); write(99,*)h; close(99)
     g=g/norm2(g); h=h/norm2(h)
     freqtemp(1)=1000d0; freqtemp(2)=1000d0; gh(:,1)=g; gh(:,2)=h; chartemp='mex.log'
     call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,2,freqtemp,gh,FileName=chartemp)
-    !open(unit=99,file='Mex.log',status='replace')
-        !write(99,'(A29)')'---------- Comment ----------'
-        !write(99,'(A76)')'    Drag this file into Avogadro to visualize the molecule and the vector(s)'
-        !write(99,'(A65)')'    Only the standard orientation and normal modes are meaningful'
-        !write(99,'(A83)')'    Other lines are meant to cheat Avogadro to consider this file as a Gaussian log'
-        !write(99,'(A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
-        !write(99,'(A29)')'------------ End ------------'
-        !write(99,*)
-        !write(99,'(A36)')'Gaussian, Inc.  All Rights Reserved.'
-        !write(99,'(A16)')' # freq hf/3-21g'
-        !write(99,'(A29)')' Charge =  0 Multiplicity = 1'
-        !write(99,*)
-        !write(99,'(A71)')'                         Standard orientation:                         '
-        !write(99,'(A70)')' ---------------------------------------------------------------------'
-        !write(99,'(A66)')' Center     Atomic      Atomic             Coordinates (Angstroms)'
-        !write(99,'(A67)')' Number     Number       Type             X           Y           Z'
-        !write(99,'(A70)')' ---------------------------------------------------------------------'
-        !do i=1,MoleculeDetail.NAtoms
-        !    write(99,'(I7,I11,I12,4x,3F12.6)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),0,r(3*i-2:3*i)/AInAU
-        !end do
-        !write(99,'(A70)')' ---------------------------------------------------------------------'
-        !write(99,'(2I23)')1,2
-        !write(99,'(A15,F12.4,F23.4)')' Frequencies --',1d3,2d3
-        !write(99,'(A15,F12.4,F23.4)')' Red. masses --',0d0,0d0
-        !write(99,'(A15,F12.4,F23.4)')' Frc consts  --',0d0,0d0
-        !write(99,'(A15,F12.4,F23.4)')' IR Inten    --',0d0,0d0
-        !write(99,'(A15,F12.4,F23.4)')' Raman Activ --',0d0,0d0
-        !write(99,'(A15,F12.4,F23.4)')' Depolar (P) --',0d0,0d0
-        !write(99,'(A15,F12.4,F23.4)')' Depolar (U) --',0d0,0d0
-        !write(99,'(A54)')'  Atom  AN      X      Y      Z        X      Y      Z'
-        !do i=1,MoleculeDetail.NAtoms
-        !    write(99,'(I6,I4,2x,3F7.2,2x,3F7.2)')i,Symbol2Number(MoleculeDetail.ElementSymbol(i)),g(3*i-2:3*i),h(3*i-2:3*i)
-        !end do
-    !close(99)
-    write(*,'(1x,A96)')'To visualize the mex structure along with normalized g and h vectors, open Mex.log with Avogadro'
+    write(*,'(1x,A83)')'To visualize the mex structure and normalized g h vectors, open mex.log in Avogadro'
     write(*,'(1x,A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
     open(unit=99,file='gPath.in',status='replace')
         do i=-Analyzation_NGrid,Analyzation_NGrid
@@ -502,14 +457,13 @@ subroutine MexSearch()
 end subroutine MexSearch
 
 subroutine SaddleSearch()!This is only a naive search for saddle point, not necessarily transition state
-    real*8,dimension(InternalDimension)::q
-    !Work space for: saddle point energy, vibration
-    integer::i,j
+    character*32::chartemp; integer::i,j
 	real*8,dimension(NState)::energy; real*8,dimension(NState,NState)::H
-	real*8,dimension(InternalDimension)::freq
+	real*8,dimension(InternalDimension)::q,freq
 	real*8,dimension(CartesianDimension)::r,rtemp
-	real*8,dimension(InternalDimension,InternalDimension)::Hessian,mode,L
-	real*8,dimension(InternalDimension,CartesianDimension)::B
+	real*8,dimension(InternalDimension,InternalDimension)::Hessian,L,Linv
+    real*8,dimension(InternalDimension,CartesianDimension)::B
+    real*8,dimension(CartesianDimension,InternalDimension)::cartmode
     write(*,'(1x,A51,1x,I2)')'Search for saddle point on potential energy surface',Analyzation_state
     q=Analyzation_intgeom(:,1)
     call TrustRegion(AdiabaticGradientInterface,q,InternalDimension,InternalDimension,Jacobian=Jacobian)
@@ -535,27 +489,16 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
         end do
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
-    call WilsonGFMethod(freq,mode,L,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(freq,L,Linv,Hessian,InternalDimension,B,MoleculeDetail.mass,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
         do i=1,InternalDimension
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
-    open(unit=99,file='InternalNormalMode.txt',status='replace')
-        write(99,'(A6,A1)',advance='no')'q\Mode',char(9)
-        do i=1,InternalDimension-1
-            write(99,'(I6,A1)',advance='no')i,char(9)
-        end do
-        write(99,'(I6)')InternalDimension
-        do i=1,InternalDimension
-            write(99,'(I8,A1)',advance='no')i,char(9)
-            do j=1,InternalDimension-1
-                write(99,'(F18.8,A1)',advance='no')mode(j,i),char(9)
-            end do
-            write(99,'(F18.8)')mode(InternalDimension,i)
-        end do
-    close(99)
+    chartemp='sad.log'
+    call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq,cartmode,FileName=chartemp)
+    write(*,'(1x,A79)')'To visualize the saddle point structure and vibration, open sad.log in Avogadro'
     contains
         subroutine Residue(dV,q,M,intdim)
             integer,intent(in)::M,intdim
