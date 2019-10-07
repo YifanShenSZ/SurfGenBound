@@ -494,6 +494,7 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
             write(99,'(I4,A1,F14.8)')i,char(9),freq(i)/cm_1InAu
         end do
     close(99)
+    call InternalMode2CartesianMode(freq,L,InternalDimension,B,cartmode,CartesianDimension)
     chartemp='sad.log'
     call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq/cm_1InAu,cartmode,FileName=chartemp)
     write(*,'(1x,A79)')'To visualize the saddle point structure and vibration, open sad.log in Avogadro'
