@@ -1,6 +1,7 @@
 SurfGenBound.exe
+debug
 *.mod
-*.obj
+*.o
 avx/*.f90
 accurate/*.f90
 My Advisor Results - SurfGenBound/

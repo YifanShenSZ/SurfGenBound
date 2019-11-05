@@ -16,4 +16,4 @@ Utilities:
 * Shift origin
 3. Generate input file for NadVibS, a nonadiabatic vibrational spectrum simulation package
 
-Dependency: my Fortran-Library, as written in MyLib of makefile
+Dependency: my Fortran-Library, see MyLib and MyInc in makefile
