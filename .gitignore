@@ -8,6 +8,7 @@ My Advisor Results - SurfGenBound/
 x64/
 *.u2d
 *.vfproj
+*.obj
 .vscode/
 *.in
 *.all

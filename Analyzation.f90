@@ -295,7 +295,7 @@ subroutine MinimumSearch()
     call InternalMode2CartesianMode(freq,L,InternalDimension,B,cartmode,CartesianDimension)
     chartemp='min.log'
     call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq/cm_1InAu,cartmode,FileName=chartemp)
-    write(*,'(1x,A74)')'To visualize the minimum structure and vibration, open min.log in Avogadro'
+    write(*,'(1x,A76)')'To visualize the minimum structure and vibration, open min.log with Avogadro'
 end subroutine MinimumSearch
 
 subroutine MexSearch()
@@ -369,7 +369,7 @@ subroutine MexSearch()
     g=g/norm2(g); h=h/norm2(h)
     freqtemp(1)=1000d0; freqtemp(2)=1000d0; gh(:,1)=g; gh(:,2)=h; chartemp='mex.log'
     call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,2,freqtemp,gh,FileName=chartemp)
-    write(*,'(1x,A83)')'To visualize the mex structure and normalized g h vectors, open mex.log in Avogadro'
+    write(*,'(1x,A85)')'To visualize the mex structure and normalized g h vectors, open mex.log with Avogadro'
     write(*,'(1x,A86)')'    "Normal mode 1" is actually normalized g, "Normal mode 2" is actually normalized h'
     open(unit=99,file='gPath.in',status='replace')
         do i=-Analyzation_NGrid,Analyzation_NGrid
@@ -497,7 +497,7 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
     call InternalMode2CartesianMode(freq,L,InternalDimension,B,cartmode,CartesianDimension)
     chartemp='sad.log'
     call Avogadro_Vibration(MoleculeDetail.NAtoms,MoleculeDetail.ElementSymbol,r/AInAU,InternalDimension,freq/cm_1InAu,cartmode,FileName=chartemp)
-    write(*,'(1x,A79)')'To visualize the saddle point structure and vibration, open sad.log in Avogadro'
+    write(*,'(1x,A81)')'To visualize the saddle point structure and vibration, open sad.log with Avogadro'
     contains
         subroutine Residue(dV,q,M,intdim)
             integer,intent(in)::M,intdim
