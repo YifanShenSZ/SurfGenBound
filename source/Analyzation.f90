@@ -286,7 +286,7 @@ subroutine MinimumSearch()
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
     close(99)
-    call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(B,q,r,InternalDimension,CartesianDimension)
     call WilsonGFMethod(Hessian,B,MoleculeDetail.mass,freq,intmode,Linv,cartmode,InternalDimension,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
@@ -484,7 +484,7 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
     close(99)
-    call WilsonBMatrixAndInternalCoordinateq(B,q,r,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(B,q,r,InternalDimension,CartesianDimension)
     call WilsonGFMethod(Hessian,B,MoleculeDetail.mass,freq,intmode,Linv,cartmode,InternalDimension,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
@@ -651,7 +651,7 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
 			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
 			allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
 			do i=1,Analyzation_NGeoms
-				call WilsonBMatrixAndInternalCoordinateq(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
+				call WilsonBMatrixAndInternalCoordinate(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
 				Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
 			end do
 			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use

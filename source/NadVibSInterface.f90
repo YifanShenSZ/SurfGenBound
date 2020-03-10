@@ -58,7 +58,7 @@ subroutine GenerateNadVibSInput()
         do i=1,MoleculeDetail.NAtoms; read(99,*)chartemp,rPrecursor(3*i-2:3*i); end do
         rPrecursor=rPrecursor*AInAU!Convert to atomic unit
     close(99)
-    call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(HPrecursor,BPrecursor,MoleculeDetail.mass,freqPrecursor,intmodePrecursor,LinvPrecursor,cartmodePrecursor,InternalDimension,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
@@ -70,7 +70,7 @@ subroutine GenerateNadVibSInput()
                 do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
                 rSuccesor=rSuccesor*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinateq(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            call WilsonBMatrixAndInternalCoordinate(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
             qtemp=qResidual-ReferencePoint.geom
             if(Analyzation_SearchDiabatic) then; Htemp=ddHd(qtemp)!Diabatic surface
             else; Htemp=AdiabaticddH(qtemp); end if!Adiabatic surface
@@ -81,7 +81,7 @@ subroutine GenerateNadVibSInput()
                 do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
                 rSuccesor=rSuccesor*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinateq(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            call WilsonBMatrixAndInternalCoordinate(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
             qtemp=qResidual-ReferencePoint.geom
             Htemp=ddHd(qtemp)
             HResidual=(Htemp(:,:,Analyzation_state,Analyzation_state)+Htemp(:,:,Analyzation_state+1,Analyzation_state+1))/2d0
