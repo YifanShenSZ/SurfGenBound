@@ -1,7 +1,7 @@
 !Various solvers to least square fit the diabatic Hamiltonian (Hd)
 !
 !Nomenclature:
-!The Lagrangian is defined as:
+!The Loss is defined as:
 !    L = sum( rho^2 || H_ad^d - H_ad^ab ||_F^2 + || ▽H_ad^d - ▽H_ad^ab ||_F^2, over point)
 !      + sum( rho^2 || H_nd^d - H_nd^ab ||_F^2 + || ▽H_nd^d - ▽H_nd^ab ||_F^2, over DegeneratePoint)
 !      + sum( rho^2 || H_ad^d - H_ad^ab ||_F^2, over ArtifactPoint)
@@ -9,8 +9,8 @@
 !    subscript ad means adiabatic representation, nd means nondegenerate representation, F means Frobenius norm
 !    superscript d means diabatz, ab means ab initio
 !    definition of point, DegeneratePoint, ArtifactPoint see module Basic
-!We may also add a regularization to Lagrangian, namely tikhonov regularization: tau * || c - c_prior ||_2^2
-!where tau is the parameterized KKT multiplier (HdLSF_Regularization),
+!We may also add a regularization to Loss: miu * || c - c_prior ||_2^2
+!where miu is the regularization hyperparameter (HdLSF_Regularization),
 !    c is undetermined parameter vector in Hd, c_prior is the prior mean of c (HdLSF_PriorCoefficient)
 !
 !Implementation detail:
@@ -21,7 +21,7 @@ module HdLeastSquareFit
 
 !Parameter
     !General solver control:
-        real*8::HdLSF_Regularization=0d0!Instead of solving the KKT multiplier, let it be a parameter
+        real*8::HdLSF_Regularization=0d0!The regularization hyperparameter
         real*8,allocatable,dimension(:)::HdLSF_PriorCoefficient!Mean of the prior Gaussian probability distribution of coefficients
         !Available solvers: pseudolinear, TrustRegion, LineSearch
         !Choose the nonlinear optimization solver: a single solver or a 2-step solver
@@ -46,7 +46,7 @@ module HdLeastSquareFit
 
 !HdLeastSquareFit module only variable
     integer::HdLSF_NData!Number of fitting data
-    real*8::HdLSF_EnergyScale!Scale energy residue in Lagrangian for its unit difference from gradient
+    real*8::HdLSF_EnergyScale!Scale energy residue in Loss for its unit difference from gradient
     real*8::HdLSF_SqrtRegularization,HdLSF_EnergyScaleSquare
     !Work space
         real*8,allocatable,dimension(:)::HdLSF_energy
@@ -147,8 +147,8 @@ subroutine FitHd()!Fit Hd with the designated solver
             if(allocated(HdLSF_fd)) deallocate(HdLSF_fd)
             allocate(HdLSF_fd(InternalDimension,NHdExpansionBasis))
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
-        write(*,'(1x,A25)')'Quality of initial guess:'
-        write(*,*)'Lagrangian =',L
+        write(*,*)'Quality of initial guess:'
+        write(*,*)'Loss =',L
         write(*,*)'RMSD over regular data points:'
         write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
         write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -192,9 +192,9 @@ subroutine FitHd()!Fit Hd with the designated solver
             deallocate(HdLSF_fd)
 end subroutine FitHd
 
-!Lagrangian and root mean square deviations are the evaluation standards for the fit
+!Loss and root mean square deviations are the evaluation standards for the fit
 !Input:  current c
-!Output: L harvests Lagrangian,
+!Output: L harvests Loss,
 !        RMSDenergy/dH harvests root mean square deviation of adiabatic energy/dH over point,
 !        RMSDDegH/dH harvests root mean square deviation of nondegenerate H/dH over DegeneratePoint
 subroutine L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
@@ -289,7 +289,7 @@ end subroutine L_RMSD
                 allocate(HdLSF_M(NHdExpansionCoefficients,HdLSF_NData))
                 if(allocated(HdLSF_MT)) deallocate(HdLSF_MT)
                 allocate(HdLSF_MT(HdLSF_NData,NHdExpansionCoefficients))
-            !Initialize linear least square fit and Lagrangian minimum
+            !Initialize linear least square fit and Loss minimum
                 allocate(c(NHdExpansionCoefficients))
                 c=cmin
                 allocate(b(NHdExpansionCoefficients))
@@ -313,8 +313,8 @@ end subroutine L_RMSD
                 end if
                 write(*,*)
                 write(*,*)'Hd expansion coefficients have converged at iteration',i
-                write(*,*)'Lagrangian =',L
-                write(*,*)'Lowest Lagrangian encountered =',Lmin
+                write(*,*)'Loss =',L
+                write(*,*)'Lowest Loss encountered =',Lmin
                 write(*,*)'RMSD over regular data points:'
                 write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
                 write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -344,8 +344,8 @@ end subroutine L_RMSD
                 call ShowTime()
                 write(*,*)'Iteration',i
                 write(*,*)'Change of Hd expansion coefficients =',cchange
-                write(*,*)'Lagrangian =',L
-                write(*,*)'Lowest Lagrangian encountered =',Lmin
+                write(*,*)'Loss =',L
+                write(*,*)'Lowest Loss encountered =',Lmin
                 write(*,*)'RMSD over regular data points:'
                 write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
                 write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -390,7 +390,7 @@ end subroutine L_RMSD
         end if
         call L_RMSD(cmin,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
         write(*,'(1x,A40)')'Best estimation of pseudolinear hopping:'
-        write(*,*)'Lagrangian =',L
+        write(*,*)'Loss =',L
         write(*,*)'RMSD over regular data points:'
         write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
         write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -403,15 +403,15 @@ end subroutine L_RMSD
         call c2HdEC(cmin,Hd_HdEC,NHdExpansionCoefficients)
         call WriteHdExpansionCoefficients(Hd_HdEC)
         contains
-            !The general form of weighted linear least square fit with pseudoregularization is:
-            !    A c = b, where A = M . W . M^T + tau, b = M . W . y + tau * c_prior,
-            !    c & tau & c_prior have been explained at header,
+            !The general form of weighted linear least square fit with regularization is:
+            !    A c = b, where A = M . W . M^T + miu, b = M . W . y + miu * c_prior,
+            !    c & miu & c_prior have been explained at header,
             !    y is the data vector, M^T . c is the fitting prediction of y, W is the weight
             !Here we sort y by point -> DegeneratePoint -> ArtifactPoint, each data point provides
             !    H column by column, then ▽H column by column (each element from 1st direction to the last)
             !To save memory, off-diagonals are treated as twice weighed
             !Input:  b = current c
-            !Output: A harvests A, b harvests b, L harvests Lagrangian
+            !Output: A harvests A, b harvests b, L harvests Loss
             subroutine LSFMatrices_L(A,b,L)
                 real*8,dimension(NHdExpansionCoefficients,NHdExpansionCoefficients),intent(out)::A
                 real*8,dimension(NHdExpansionCoefficients),intent(inout)::b
@@ -422,7 +422,7 @@ end subroutine L_RMSD
                     ctemp=b-HdLSF_PriorCoefficient
                     L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
                     call c2HdEC(b,Hd_HdEC,NHdExpansionCoefficients)
-                !Construct M^T and y, add least square fit penalty to Lagrangian
+                !Construct M^T and y, add least square fit penalty to Loss
                 indicerow=1!Start from 1st row
                 do ip=1,NPoints!Regular data points
                     call AdiabaticEnergy_dH_State_f_fd(point(ip).geom,HdLSF_energy,HdLSF_dH,HdLSF_phi,HdLSF_f,HdLSF_fd)!Adiabatic representation
@@ -507,7 +507,7 @@ end subroutine L_RMSD
                     ctemp=b-HdLSF_PriorCoefficient
                     L=HdLSF_Regularization*dot_product(ctemp,ctemp)!Regularization
                     call c2HdEC(b,Hd_HdEC,NHdExpansionCoefficients)
-                !Construct M^T and y, add least square fit penalty to Lagrangian
+                !Construct M^T and y, add least square fit penalty to Loss
                 indicerow=1!Start from 1st row
                 RMSDenergy=0d0
                 RMSDdH=0d0
@@ -658,7 +658,7 @@ end subroutine L_RMSD
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
         write(*,'(1x,A23)')'Result of trust region:'
-        write(*,*)'Lagrangian =',L
+        write(*,*)'Loss =',L
         write(*,*)'RMSD over regular data points:'
         write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
         write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -830,18 +830,18 @@ end subroutine L_RMSD
         select case(HdLSF_LineSearcher)
             case('LBFGS')
                 write(*,'(1x,A67)')'Search for local minimum by limited memory BFGS quasi-Newton method'
-                call LBFGS(Lagrangian,LagrangianGradient,c,NHdExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
+                call LBFGS(Loss,LossGradient,c,NHdExpansionCoefficients,f_fd=Loss_LossGradient,&
                     Memory=HdLSF_LBFGSMemory,Strong=HdLSF_UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
             case('ConjugateGradient')
                 write(*,'(1x,A53)')'Search for local minimum by conjugate gradient method'
-                call ConjugateGradient(Lagrangian,LagrangianGradient,c,NHdExpansionCoefficients,f_fd=Lagrangian_LagrangianGradient,&
+                call ConjugateGradient(Loss,LossGradient,c,NHdExpansionCoefficients,f_fd=Loss_LossGradient,&
                     Method=HdLSF_ConjugateGradientSolver,Strong=HdLSF_UseStrongWolfe,MaxIteration=HdLSF_MaxLocalMinimizerIteration)
             case default; write(*,*)'Program abort: unsupported line searcher '//HdLSF_LineSearcher; stop
         end select
         !Output
         call L_RMSD(c,L,RMSDenergy,RMSDdH,RMSDDegH,RMSDDegdH)
         write(*,'(1x,A22)')'Result of line search:'
-        write(*,*)'Lagrangian =',L
+        write(*,*)'Loss =',L
         write(*,*)'RMSD over regular data points:'
         write(*,*)'     E =',RMSDenergy/cm_1InAu,'cm-1'
         write(*,*)'    dH =',RMSDdH,'a.u.'
@@ -859,8 +859,8 @@ end subroutine L_RMSD
             deallocate(HdLSF_dcHrep)
             deallocate(HdLSF_dcdHrep)
         contains
-            !To save CPU time, Lagrangian -> Lagrangian / 2
-            subroutine Lagrangian(L,c,dim)!dim dimensional vector c, L harvests Lagrangian
+            !To save CPU time, Loss -> Loss / 2
+            subroutine Loss(L,c,dim)!dim dimensional vector c, L harvests Loss
                 real*8,intent(out)::L
                 integer,intent(in)::dim
                 real*8,dimension(dim),intent(in)::c
@@ -890,8 +890,8 @@ end subroutine L_RMSD
                     Ltemp=Ltemp+ArtifactPoint(ip).weight*dot_product(HdLSF_energy,HdLSF_energy)
                 end do
                 L=(L+HdLSF_EnergyScaleSquare*Ltemp)/2d0
-            end subroutine Lagrangian
-            subroutine LagrangianGradient(Ld,c,dim)!dim dimensional vector Ld & c, Ld harvests the gradient of Lagrangian over c
+            end subroutine Loss
+            subroutine LossGradient(Ld,c,dim)!dim dimensional vector Ld & c, Ld harvests the gradient of Loss over c
                 integer,intent(in)::dim
                 real*8,dimension(dim),intent(out)::Ld
                 real*8,dimension(dim),intent(in)::c
@@ -964,8 +964,8 @@ end subroutine L_RMSD
                     Ldtemp=Ldtemp+ArtifactPoint(ip).weight*Trace3(sy3matmulsy(HdLSF_dcHrep,HdLSF_H,NHdExpansionCoefficients,NState),NHdExpansionCoefficients,NState)
                 end do
                 Ld=Ld+HdLSF_EnergyScaleSquare*Ldtemp
-            end subroutine LagrangianGradient
-            integer function Lagrangian_LagrangianGradient(L,Ld,c,dim)!dim dimensional vector Ld & c, L harvests Lagrangian, Ld harvests the gradient of Lagrangian over c
+            end subroutine LossGradient
+            integer function Loss_LossGradient(L,Ld,c,dim)!dim dimensional vector Ld & c, L harvests Loss, Ld harvests the gradient of Loss over c
                 integer,intent(in)::dim
                 real*8,intent(out)::L; real*8,dimension(dim),intent(out)::Ld
                 real*8,dimension(dim),intent(in)::c
@@ -1042,8 +1042,8 @@ end subroutine L_RMSD
                 end do
                 L =(L+HdLSF_EnergyScaleSquare* Ltemp)/2d0
                 Ld=Ld+HdLSF_EnergyScaleSquare*Ldtemp
-                Lagrangian_LagrangianGradient=0!return 0
-            end function Lagrangian_LagrangianGradient
+                Loss_LossGradient=0!return 0
+            end function Loss_LossGradient
     end subroutine LineSearchInterface
 !----------------- End -----------------
 

@@ -38,11 +38,12 @@ module NadVibSInterface
 
 contains
 subroutine GenerateNadVibSInput()
-    !Vibration information of precursor and successor
-    real*8,dimension(InternalDimension)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
+    !Vibration information of precursor and residual
+    real*8,dimension(InternalDimension)::qPrecursor,qResidual,freqPrecursor,freqResidual
     real*8,dimension(CartesianDimension)::rPrecursor,rSuccesor
-    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,LPrecursor,LinvPrecursor,HSuccessor,LSuccessor,LinvSuccessor
-    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BSuccessor
+    real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,intmodePrecursor,LinvPrecursor,HResidual,intmodeResidual,LinvResidual
+    real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BResidual
+    real*8,dimension(CartesianDimension,InternalDimension)::cartmodePrecursor,cartmodeResidual
     !Origin shift in nadvibs.in
     real*8,dimension(InternalDimension)::dshift
     real*8,dimension(InternalDimension,InternalDimension)::Tshift
@@ -59,9 +60,9 @@ subroutine GenerateNadVibSInput()
     close(99)
     call WilsonBMatrixAndInternalCoordinateq(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
-    call WilsonGFMethod(freqPrecursor,LPrecursor,LinvPrecursor,HPrecursor,InternalDimension,BPrecursor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
+    call WilsonGFMethod(HPrecursor,BPrecursor,MoleculeDetail.mass,freqPrecursor,intmodePrecursor,LinvPrecursor,cartmodePrecursor,InternalDimension,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
-    !Successor vibration
+    !Residual vibration
     select case(Analyzation_JobType)
         case('min')!Use the obtained minimum and corresponding normal mode
             open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
@@ -69,41 +70,41 @@ subroutine GenerateNadVibSInput()
                 do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
                 rSuccesor=rSuccesor*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
-            qtemp=qSuccessor-ReferencePoint.geom
+            call WilsonBMatrixAndInternalCoordinateq(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            qtemp=qResidual-ReferencePoint.geom
             if(Analyzation_SearchDiabatic) then; Htemp=ddHd(qtemp)!Diabatic surface
             else; Htemp=AdiabaticddH(qtemp); end if!Adiabatic surface
-            HSuccessor=Htemp(:,:,Analyzation_state,Analyzation_state)
+            HResidual=Htemp(:,:,Analyzation_state,Analyzation_state)
         case('mex')!Use the obtained mex and the normal mode of diabatic mean field
             open(unit=99,file='MexCartesianGeometry.xyz',status='old')
             	read(99,*); read(99,*)
                 do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
                 rSuccesor=rSuccesor*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinateq(BSuccessor,qSuccessor,rSuccesor,InternalDimension,CartesianDimension)
-            qtemp=qSuccessor-ReferencePoint.geom
+            call WilsonBMatrixAndInternalCoordinateq(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            qtemp=qResidual-ReferencePoint.geom
             Htemp=ddHd(qtemp)
-            HSuccessor=(Htemp(:,:,Analyzation_state,Analyzation_state)+Htemp(:,:,Analyzation_state+1,Analyzation_state+1))/2d0
+            HResidual=(Htemp(:,:,Analyzation_state,Analyzation_state)+Htemp(:,:,Analyzation_state+1,Analyzation_state+1))/2d0
         case default; write(*,*)'Program abort: unsupported analyzation job type to generate NadVibS input '//Analyzation_JobType; stop
     end select
-    call WilsonGFMethod(freqSuccessor,LSuccessor,LinvSuccessor,HSuccessor,InternalDimension,BSuccessor,MoleculeDetail.mass,MoleculeDetail.NAtoms)
-    if(minval(freqSuccessor)<0d0) stop 'Program abort: imaginary frequency found for successor'
-    call BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qSuccessor,freqSuccessor,LinvSuccessor,LSuccessor,InternalDimension)!Estimate the number of NadVibS basis
+    call WilsonGFMethod(HResidual,BResidual,MoleculeDetail.mass,freqResidual,intmodeResidual,LinvResidual,cartmodeResidual,InternalDimension,MoleculeDetail.NAtoms)
+    if(minval(freqResidual)<0d0) stop 'Program abort: imaginary frequency found for residual'
+    call BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,intmodeResidual,InternalDimension)
     !Prepare nadvibs.in
-    call OriginShift(qSuccessor-ReferencePoint.geom)!Shift origin to ground state minimum
-    call HdEC_Hd2NVS(LSuccessor)!Reformat Hd expansion coefficient into NadVibS format
+    call OriginShift(qResidual-ReferencePoint.geom)!Shift origin to ground state minimum
+    call HdEC_Hd2NVS(intmodeResidual)!Reformat Hd expansion coefficient into NadVibS format
     do i=1,InternalDimension!Subtract the harmonic oscillator potential term
         indice=i; j=NVS_WhichExpansionBasis(2,indice)
         forall(k=1:NState)
-            NVS_HdEC(k,k).Order(2).Array(j)=NVS_HdEC(k,k).Order(2).Array(j)-0.5d0*freqSuccessor(i)*freqSuccessor(i)
+            NVS_HdEC(k,k).Order(2).Array(j)=NVS_HdEC(k,k).Order(2).Array(j)-0.5d0*freqResidual(i)*freqResidual(i)
         end forall
     end do
     !Definition of dshift and Tshift see Schuurman & Yarkony 2008 JCP 128 eq. (12)
-    dshift=matmul(LinvPrecursor,qSuccessor-qPrecursor)
-    Tshift=matmul(LinvPrecursor,LSuccessor)
+    dshift=matmul(LinvPrecursor,qResidual-qPrecursor)
+    Tshift=matmul(LinvPrecursor,intmodeResidual)
     open(unit=99,file='nadvibs.in',status='replace')
         write(99,'(A54)')'Angular frequency of each vibrational basis: (In a.u.)'
-        write(99,*)freqSuccessor
+        write(99,*)freqResidual
         do i=1,NState
             do j=i,NState
                 do k=0,NVS_NOrder
@@ -133,14 +134,14 @@ end subroutine GenerateNadVibSInput
 !    2. Define the coverage of a 1 dimensional basis function as its standard deviation, then
 !       the total coverage is a cuboid with each edge equals to the widest basis along this direction
 !Certainly, the smallest cuboid must be tangential to the eclipse, so we only have to solve
-!    the lower and upper bound of the eclipse along each successor normal coordinate
+!    the lower and upper bound of the eclipse along each residual normal coordinate
 !Now the problem can be solved by a common real nonlinear optimization subject to equality constraint:
-!    Minimize and maximize the component along each successor normal coordinate,
+!    Minimize and maximize the component along each residual normal coordinate,
 !    subject to staying on the 2 sigma eclipse
-subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qSuccessor,freqSuccessor,LinvSuccessor,LSuccessor,intdim)
+subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,LResidual,intdim)
     integer,intent(in)::intdim
-    real*8,dimension(intdim),intent(in)::qPrecursor,qSuccessor,freqPrecursor,freqSuccessor
-    real*8,dimension(intdim,intdim),intent(in)::LinvPrecursor,LinvSuccessor,LSuccessor
+    real*8,dimension(intdim),intent(in)::qPrecursor,qResidual,freqPrecursor,freqResidual
+    real*8,dimension(intdim,intdim),intent(in)::LinvPrecursor,LinvResidual,LResidual
     integer::i,j; integer*8::NTotalBasis; integer,dimension(intdim)::NBasis; real*8::sign,contoursq
     real*8,dimension(intdim)::DPrecursor,q,LowerBound,UpperBound,bound,basis
     write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
@@ -154,7 +155,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qSuccessor,fre
         call AugmentedLagrangian(f,fd,c,cd,q,intdim,1,Precision=1d-6/dble(intdim),f_fd=f_fd,fdd=fdd,cdd=cdd)
         call f(UpperBound(i),q,intdim); UpperBound(i)=-UpperBound(i)
         bound(i)=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))
-        basis(i)=freqSuccessor(i)*bound(i)*bound(i)+0.5d0
+        basis(i)=freqResidual(i)*bound(i)*bound(i)+0.5d0
     end do
     write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
     open(unit=99,file='NormalCoverage.txt',status='replace')
@@ -170,33 +171,33 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qSuccessor,fre
         write(99,'(A98)')'Please check your internal coordinate definition to make sure angles are within well-defined range'
         write(99,'(A4,A1,A8)')'   q',char(9),'coverage'
         do i=1,intdim!Check the coverage in internal coordinate, since angles should not exceed some pi
-            sign=0d0; do j=1,intdim; sign=sign+dAbs(LSuccessor(i,j)*bound(j)); end do
+            sign=0d0; do j=1,intdim; sign=sign+dAbs(LResidual(i,j)*bound(j)); end do
             write(99,'(I4,A1,F8.4)')i,char(9),sign
         end do
     close(99)
     contains!The merit function and constraint
         !i and sign controls the behavior of f routines:
-        !    i-th successor normal coordinate will be searched
+        !    i-th residual normal coordinate will be searched
         !    sign > 0, search for lower bound; sign < 0, search for upper bound
         subroutine f(fq,q,intdim)
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,intent(out)::fq
-            fq=sign*dot_product(LinvSuccessor(i,:),q-qSuccessor)
+            fq=sign*dot_product(LinvResidual(i,:),q-qResidual)
         end subroutine f
         subroutine fd(fdq,q,intdim)
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,dimension(intdim),intent(out)::fdq
-            fdq=sign*LinvSuccessor(i,:)
+            fdq=sign*LinvResidual(i,:)
         end subroutine fd
         integer function f_fd(fq,fdq,q,intdim)
             integer,intent(in)::intdim
             real*8,dimension(intdim),intent(in)::q
             real*8,intent(out)::fq
             real*8,dimension(intdim),intent(out)::fdq
-            fq=sign*dot_product(LinvSuccessor(i,:),q-qSuccessor)
-            fdq=sign*LinvSuccessor(i,:)
+            fq=sign*dot_product(LinvResidual(i,:),q-qResidual)
+            fdq=sign*LinvResidual(i,:)
             f_fd=0!Return 0
         end function f_fd
         integer function fdd(fddq,q,intdim)

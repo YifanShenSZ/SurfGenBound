@@ -582,7 +582,7 @@ end subroutine InitializeDiabaticHamiltonian
 !------------------- End --------------------
 
 !---------- Nondegenerate quantity ----------
-    !When Hamiltonian is almost degenerate, adiabatic basis experiences numerical difficulty
+    !When Hamiltonian is almost degenerate, adiabatic basis suffers from singularity
     !This causes no trouble to H, but operators other than H suffer a lot (e.g. ▽H)
     !Diabatz is always good, but it cannot be determined without knowledge of neighbourhood,
     !sometimes we ask for a nondegenerate representation based only on single point information

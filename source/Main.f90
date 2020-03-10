@@ -205,7 +205,7 @@ subroutine Initialize()!Program initializer
         call BetterRandomSeed()
         call InitializeBasic()
         CartesianDimension=3*MoleculeDetail.NAtoms
-        call DefineInternalCoordinate(ElectronicStructureSoftware,InternalDimension)
+        InternalDimension=DefineInternalCoordinate(ElectronicStructureSoftware)
     select case(JobType)!Job specific initialize
         case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
             call Initialize_NewTrainingSet()
@@ -371,14 +371,12 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
                 read(99,*)ReferencePoint.dH
             close(99)
             !Convert reference point from internal coordinate to Cartesian coordinate
-            call Internal2Cartesian(ReferencePoint.geom,InternalDimension,ReferencePointtemp.geom,CartesianDimension,NState,&
-                intgrad=ReferencePoint.dH,cartgrad=ReferencePointtemp.dH,mass=MoleculeDetail.mass,r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]))
+            call Internal2Cartesian(ReferencePoint.geom,ReferencePoint.dH,ReferencePointtemp.geom,ReferencePointtemp.dH,InternalDimension,CartesianDimension,NState,r0=reshape(MoleculeDetail.RefConfig,[CartesianDimension]))
         else!Use new reference point
             ReferencePointtemp=pointtemp(IndexReference)!Obtain in Cartesian coordinate
             !Convert reference point from Cartesian coordinate to internal coordinate, and transform if degenerate
             ReferencePoint.energy=ReferencePointtemp.energy
-            call Cartesian2Internal(ReferencePointtemp.geom,CartesianDimension,ReferencePoint.geom,InternalDimension,NState,&
-                cartgrad=ReferencePointtemp.dH,intgrad=ReferencePoint.dH)
+            call Cartesian2Internal(ReferencePointtemp.geom,ReferencePointtemp.dH,ReferencePoint.geom,ReferencePoint.dH,CartesianDimension,InternalDimension,NState)
             call CheckDegeneracy(degenerate,AlmostDegenerate,ReferencePoint.energy,NState)
             if(Degenerate) then
                 call NondegenerateRepresentation(ReferencePoint.dH,eigval,eigvec,InternalDimension,NState,DegenerateThreshold=AlmostDegenerate)
@@ -406,7 +404,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
                 grad=ReferencePointtemp.dH)
             do ip=1,NPoints
                 call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                    grad=pointtemp(ip).dH,reference=ReferencePointtemp.geom,difference=GeomDifference(ip))
+                ref=ReferencePointtemp.geom,diff=GeomDifference(ip),grad=pointtemp(ip).dH)
             end do
         else!Directly calculate the Cartesian distances
             do ip=1,NPoints
@@ -437,7 +435,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             grad=ReferencePointtemp.dH)
         do ip=1,NPoints
             call StandardizeGeometry(pointtemp(ip).geom,MoleculeDetail.mass,MoleculeDetail.NAtoms,NState,&
-                grad=pointtemp(ip).dH,reference=ReferencePointtemp.geom)
+            ref=ReferencePointtemp.geom,grad=pointtemp(ip).dH)
         end do
     end if
 	!Provide a human readable version of training set
@@ -519,8 +517,7 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             allocate(pointswap(ip).energy(NState))
                 pointswap(ip).energy=pointtemp(ip).energy
             allocate(pointswap(ip).dH(InternalDimension,NState,NState))
-            call Cartesian2Internal(pointtemp(ip).geom,CartesianDimension,pointswap(ip).geom,InternalDimension,NState,&
-                cartgrad=pointtemp(ip).dH,intgrad=pointswap(ip).dH)
+            call Cartesian2Internal(pointtemp(ip).geom,pointtemp(ip).dH,pointswap(ip).geom,pointswap(ip).dH,CartesianDimension,InternalDimension,NState)
             pointswap(ip).geom=pointswap(ip).geom-ReferencePoint.geom!This program requires only internal coordinate difference
         end do
         call IdentifyDegeneracy(DegeneratePoint,NDegeneratePoints,indices,pointswap,NPoints)
@@ -569,8 +566,8 @@ subroutine Initialize_NewTrainingSet()!Support Initialize
             allocate(ArtifactPoint(ip).energy(NState))
                 ArtifactPoint(ip).energy=ArtifactPointtemp(ip).energy
             !Artifact points do not have energy gradient and interstate coupling
-			ArtifactPoint(ip).geom=InternalCoordinateq(ArtifactPointtemp(ip).geom,InternalDimension,CartesianDimension)&
-			    -ReferencePoint.geom!This program requires only internal coordinate difference
+            call InternalCoordinate(ArtifactPointtemp(ip).geom,ArtifactPoint(ip).geom,CartesianDimension,InternalDimension)
+            ArtifactPoint(ip).geom=ArtifactPoint(ip).geom-ReferencePoint.geom!This program requires only internal coordinate difference
         end do
     !Clean up
         deallocate(indices)
