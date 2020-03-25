@@ -1,7 +1,15 @@
 # SurfGenBound
 H^d construction of cyclopentoxy
 
-The fit is carried out by:
+## Content
+The contents are divided into 4 parts in corresponding directories:
+1. Training set: MRCISD data
+2. input: collection of all kinds of input files
+3. fit: how this H^d is constructed, with all raw input and output
+4. analyze: some analyzation of H^d, with all raw input and output
+
+## Technical details
+This fit is carried out by:
 1. Get a quadric expansion:
 * Start fitting on min
 * Continue on Fewest-Anion
@@ -13,6 +21,6 @@ At each step, trust region is applied first, then continue with other line searc
 
 In practise, Dai-Yun conjugate gradient under Wolfe condition yields the lowest loss
 
-Compiler dependence:
-* This work is done with ifort 2018.3.222
-* ifort 2017.7.259 and ifort 2019.4 would yield different result
+Compiler and platform:
+* The compiler adopted in this work is ifort 2018.3.222
+* The operating systems used in this work are Ubuntu 18.04 and CentOS 7

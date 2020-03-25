@@ -19,14 +19,16 @@ Analyze the fitted surface:
 Generate input file for NadVibS, a nonadiabatic vibrational spectrum simulation package
 
 ## Installation
-`make`
+1. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to Fortran-Library_v1.0.0 (for gnu compiler, additionally modify DJACOBI in mkl_rci.f90 to specify the dimension of x, fjac, f explicitly: x(n), fjac(m,n), f(m))
+2. `make`
 
 ## Source
 To see what this package is capable of in detail, you may open certain source file then fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 
 Source code level from bottom to top:
-1. DiabaticHamiltonian
-2. Basic
-3. HdLeastSquareFit, Analyzation, ElectronicStructure
-4. NadVibSInterface
-5. Main
+1. Fortran-Library_v1.0.0 (see https://github.com/YifanShenSZ/Fortran-Library for more details)
+2. DiabaticHamiltonian
+3. Basic
+4. HdLeastSquareFit, Analyzation, ElectronicStructure
+5. NadVibSInterface
+6. Main
