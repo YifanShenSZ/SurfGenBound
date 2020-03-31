@@ -19,33 +19,37 @@ Main.f90)
 MyInc = ~/Library/Fortran-Library/include
 MyLib = ~/Library/Fortran-Library/lib
 # Keep old object files
-obj = DiabaticHamiltonian.o Basic.o ElectronicStructure.o HdLeastSquareFit.o Analyzation.o NadVibSInterface.o Main.o
+obj = DiabaticHamiltonian.o \
+Basic.o \
+HdLeastSquareFit.o Analyzation.o ElectronicStructure.o \
+NadVibSInterface.o \
+Main.o
 
 SurfGenBound.exe: $(MyLibSrc) $(src)
-	$(compiler) $(flag) -ipo $^ -o SurfGenBound.exe
+	$(compiler) -ipo $(flag) $^ -o $@
 
-debug: $(obj)
-	$(compiler) $(flag) -I$(MyInc) -L$(MyLib) -lFL $^ -o debug
+debug.exe: $(obj)
+	$(compiler) $(flag) -I$(MyInc) -L$(MyLib) -lFL $^ -o $@
 
-DiabaticHamiltonian.o: DiabaticHamiltonian.f90
+DiabaticHamiltonian.o: source/DiabaticHamiltonian.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-Basic.o: Basic.f90
+Basic.o: source/Basic.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-ElectronicStructure.o: ElectronicStructure.f90
+ElectronicStructure.o: source/ElectronicStructure.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-HdLeastSquareFit.o: HdLeastSquareFit.f90
+HdLeastSquareFit.o: source/HdLeastSquareFit.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-Analyzation.o: Analyzation.f90
+Analyzation.o: source/Analyzation.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-NadVibSInterface.o: NadVibSInterface.f90
+NadVibSInterface.o: source/NadVibSInterface.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
-Main.o: Main.f90
+Main.o: source/Main.f90
 	$(compiler) $(flag) -I$(MyInc) -c $^
 
 .PHONY: clean
