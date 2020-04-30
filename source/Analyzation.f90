@@ -34,16 +34,16 @@ subroutine Analyze()!Top level standard interface for other modules to call
 	character*32::chartemp
 	call ReadAnalyzeInput()
 	select case(Analyzation_JobType)
-	    case('evaluate'); call evaluate()
-        case('min'); call MinimumSearch()
-        case('mex'); call MexSearch()
-        case('saddle'); call SaddleSearch()
-		case('OriginShift')
-			call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
-			chartemp='HdNewOrigin.CheckPoint'
-			write(*,'(1x,A77)')'Hd expansion coefficient under new origin is stored in HdNewOrigin.CheckPoint'
-			call WriteHdExpansionCoefficients(Hd_HdEC,chartemp)
-        case default; write(*,*)'Program abort: unsupported analyzation job type '//Analyzation_JobType; stop
+	case('evaluate'); call evaluate()
+    case('min'); call MinimumSearch()
+    case('mex'); call MexSearch()
+    case('saddle'); call SaddleSearch()
+	case('OriginShift')
+		call OriginShift(Analyzation_intgeom(:,1)-ReferencePoint.geom)
+		chartemp='HdNewOrigin.CheckPoint'
+		write(*,'(1x,A77)')'Hd expansion coefficient under new origin is stored in HdNewOrigin.CheckPoint'
+		call WriteHdExpansionCoefficients(Hd_HdEC,chartemp)
+    case default; write(*,*)'Program abort: unsupported analyzation job type '//Analyzation_JobType; stop
     end select
 end subroutine Analyze
 
@@ -651,8 +651,11 @@ subroutine ReadAnalyzeInput()!Read the input file for Analyze: analyzation.in
 			allocate(Analyzation_intgeom(InternalDimension,Analyzation_NGeoms))!Cart2int
 			allocate(Analyzation_B(InternalDimension,CartesianDimension,Analyzation_NGeoms))
 			do i=1,Analyzation_NGeoms
-				call WilsonBMatrixAndInternalCoordinate(Analyzation_B(:,:,i),Analyzation_intgeom(:,i),Analyzation_cartgeom(:,i),InternalDimension,CartesianDimension)
-				Analyzation_intgeom(:,i)=Analyzation_intgeom(:,i)-ReferencePoint.geom!This program requires only internal coordinate difference
+                call WilsonBMatrixAndInternalCoordinate(Analyzation_cartgeom(:,i), &
+                Analyzation_B(:,:,i), Analyzation_intgeom(:,i), &
+                CartesianDimension, InternalDimension)
+                !This program requires only internal coordinate difference
+				Analyzation_intgeom(:,i) = Analyzation_intgeom(:,i) - ReferencePoint.geom
 			end do
 			open(unit=100,file='int'//trim(GeomFile)//'.out',status='replace')!Output an internal coordinate version for future use
 				do i=1,Analyzation_NGeoms

@@ -37,102 +37,104 @@ program main
         integer::NPointsInput,NDegeneratePointsInput,NArtifactPointsInput!Store the input value (before change it)
 		real*8::HdLSF_RegularizationOld!Store the original parameter value (before change it)
 !---------- Initialize ----------
-    write(*,'(1x,A59)')'SurfGenBound: surface generation package for bounded system'
-    write(*,'(1x,A15)')'Yifan Shen 2019'
+    write(*,'(A61)')'SurfGenBound: a surface generation package for bounded system'
+    write(*,'(A15)')'Yifan Shen 2019'
+    write(*,*)
     call ShowTime()
+    write(*,*)
     write(*,*)'Electronic structure software in use = '//ElectronicStructureSoftware
     call ReadInput(); call Initialize()
 !------------- End --------------
 
 !----------- Run job ------------
     select case(JobType)
-		case('FitNewDiabaticHamiltonian')
-            if(GradualFit) then
-                write(*,'(1x,A39)')'Perform the fitting procedure gradually'
-                !Store the original values then change them
-                    NPointsInput=NPoints
-                    NDegeneratePointsInput=NDegeneratePoints
-                        NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
-                    NArtifactPointsInput=NArtifactPoints
-                        NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
-                    HdLSF_RegularizationOld=HdLSF_Regularization
-                        HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
-                !At least this number of data points are required to have more equations than variables
-                NPoints=ceiling(dble(NHdExpansionCoefficients)/dble(DataPerPoint))
-                if(AutoGradualFit) then
-                    write(*,'(1x,A54)')'Generating initial guess with fewest nearest points...'
+	case('FitNewDiabaticHamiltonian')
+        if(GradualFit) then
+            write(*,'(1x,A39)')'Perform the fitting procedure gradually'
+            !Store the original values then change them
+                NPointsInput=NPoints
+                NDegeneratePointsInput=NDegeneratePoints
+                    NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
+                NArtifactPointsInput=NArtifactPoints
+                    NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
+                HdLSF_RegularizationOld=HdLSF_Regularization
+                    HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
+            !At least this number of data points are required to have more equations than variables
+            NPoints=ceiling(dble(NHdExpansionCoefficients)/dble(DataPerPoint))
+            if(AutoGradualFit) then
+                write(*,'(1x,A54)')'Generating initial guess with fewest nearest points...'
+            else
+                if(ManualNPoints<NPoints) then
+                    write(*,'(1x,A67)')'Warning: Too few data points, equations must be more than variables'
                 else
-                    if(ManualNPoints<NPoints) then
-                        write(*,'(1x,A67)')'Warning: Too few data points, equations must be more than variables'
-                    else
-                        NPoints=ManualNPoints
-                    end if
-                    write(*,'(1x,A72)')'Generating initial guess with user specified number of nearest points...'
+                    NPoints=ManualNPoints
                 end if
-                do while(NPoints<NPointsInput)
-                    write(*,*)
-                    write(*,'(1x,A33,1x,I6)')'Number of data points now in use:',NPoints
-                    call InitializeHdLeastSquareFit()
-                    call FitHd()
-                    write(*,'(1x,A25)')'Save guadual fit progress'
-                    open(unit=99,file='GradualFit.CheckPoint',status='replace')
-                        write(99,'(A48)')'Number of data points to be least square fitted:'
-                        write(99,*)NPoints
-                    close(99)
-                    NPoints=NPoints+1
-                end do
+                write(*,'(1x,A72)')'Generating initial guess with user specified number of nearest points...'
+            end if
+            do while(NPoints<NPointsInput)
                 write(*,*)
-                write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
-                    NDegeneratePoints=NDegeneratePointsInput
-                    NArtifactPoints=NArtifactPointsInput
-                    HdLSF_Regularization=HdLSF_RegularizationOld
+                write(*,'(1x,A33,1x,I6)')'Number of data points now in use:',NPoints
                 call InitializeHdLeastSquareFit()
                 call FitHd()
-            else
-                write(*,*)'Fitting Hd...'
-                call FitHd()
-            end if
-        case('ContinueFitting')
-            if(GradualFit) then
-                !Store the original values then change them
-                    NPointsInput=NPoints
-                    NDegeneratePointsInput=NDegeneratePoints
-                        NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
-                    NArtifactPointsInput=NArtifactPoints
-                        NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
-                    HdLSF_RegularizationOld=HdLSF_Regularization
-                        HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
-                write(*,'(1x,A33)')'Continue guadual fit procedure...'
-                open(unit=99,file='GradualFit.CheckPoint',status='old')
-                    read(99,*)
-                    read(99,*)NPoints
+                write(*,'(1x,A25)')'Save guadual fit progress'
+                open(unit=99,file='GradualFit.CheckPoint',status='replace')
+                    write(99,'(A48)')'Number of data points to be least square fitted:'
+                    write(99,*)NPoints
                 close(99)
-                do while(NPoints<NPointsInput)
-                    write(*,*)
-                    write(*,'(1x,A33,1x,I6)')'Number of data points now in use:',NPoints
-                    call InitializeHdLeastSquareFit()
-                    call FitHd()
-                    write(*,'(1x,A25)')'Save guadual fit progress'
-                    open(unit=99,file='GradualFit.CheckPoint',status='replace')
-                        write(99,'(A48)')'Number of data points to be least square fitted:'
-                        write(99,*)NPoints
-                    close(99)
-                    NPoints=NPoints+1
-                end do
+                NPoints=NPoints+1
+            end do
+            write(*,*)
+            write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
+                NDegeneratePoints=NDegeneratePointsInput
+                NArtifactPoints=NArtifactPointsInput
+                HdLSF_Regularization=HdLSF_RegularizationOld
+            call InitializeHdLeastSquareFit()
+            call FitHd()
+        else
+            write(*,*)'Fitting Hd...'
+            call FitHd()
+        end if
+    case('ContinueFitting')
+        if(GradualFit) then
+            !Store the original values then change them
+                NPointsInput=NPoints
+                NDegeneratePointsInput=NDegeneratePoints
+                    NDegeneratePoints=0d0!Almost degenerate points are omitted during the gradual fit procedure
+                NArtifactPointsInput=NArtifactPoints
+                    NArtifactPoints=0!Unreliable points are omitted during the gradual fit procedure
+                HdLSF_RegularizationOld=HdLSF_Regularization
+                    HdLSF_Regularization=0d0!Regularization is disabled during the gradual fit procedure
+            write(*,'(1x,A33)')'Continue guadual fit procedure...'
+            open(unit=99,file='GradualFit.CheckPoint',status='old')
+                read(99,*)
+                read(99,*)NPoints
+            close(99)
+            do while(NPoints<NPointsInput)
                 write(*,*)
-                write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
-                    NDegeneratePoints=NDegeneratePointsInput
-                    NArtifactPoints=NArtifactPointsInput
-                    HdLSF_Regularization=HdLSF_RegularizationOld
+                write(*,'(1x,A33,1x,I6)')'Number of data points now in use:',NPoints
                 call InitializeHdLeastSquareFit()
                 call FitHd()
-            else
-                write(*,*)'Fitting Hd...'
-                call FitHd()
-            end if
-        case('Analyze'); call Analyze()
-        case('NadVibS'); call GenerateNadVibSInput()
-        case default; write(*,*)'Program abort: unsupported job type '//JobType; stop
+                write(*,'(1x,A25)')'Save guadual fit progress'
+                open(unit=99,file='GradualFit.CheckPoint',status='replace')
+                    write(99,'(A48)')'Number of data points to be least square fitted:'
+                    write(99,*)NPoints
+                close(99)
+                NPoints=NPoints+1
+            end do
+            write(*,*)
+            write(*,'(1x,A52)')'All data points added in, fitting Hd in usual way...'
+                NDegeneratePoints=NDegeneratePointsInput
+                NArtifactPoints=NArtifactPointsInput
+                HdLSF_Regularization=HdLSF_RegularizationOld
+            call InitializeHdLeastSquareFit()
+            call FitHd()
+        else
+            write(*,*)'Fitting Hd...'
+            call FitHd()
+        end if
+    case('Analyze'); call Analyze()
+    case('NadVibS'); call GenerateNadVibSInput()
+    case default; write(*,*)'Program abort: unsupported job type '//JobType; stop
     end select
 !------------- End --------------
 
@@ -207,108 +209,36 @@ subroutine Initialize()!Program initializer
         CartesianDimension=3*MoleculeDetail.NAtoms
         InternalDimension=DefineInternalCoordinate(ElectronicStructureSoftware)
     select case(JobType)!Job specific initialize
-        case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
-            call Initialize_NewTrainingSet()
-			call InitializeDiabaticHamiltonian(NState,InternalDimension,NewHd=.true.)
-			!Provide an initial guess of Hd
-                call CheckDegeneracy(flag,AlmostDegenerate,ReferencePoint.energy,NState)
-                i=WhichExpansionBasis(0,indice(1:0))
-                if(i>0) then
-                    if(flag) then
-                        forall(istate=1:NState,jstate=1:NState,istate>=jstate)
-                            Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.H(istate,jstate)
-                        end forall
-                    else
-                        forall(istate=2:NState)
-                            Hd_HdEC(istate,istate).Array(i)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
-                        end forall
-                    end if
-                end if
-                do jstate=1,NState
-                    do istate=jstate,NState
-                        do j=1,InternalDimension
-                            indice(1)=j
-                            i=WhichExpansionBasis(1,indice)
-                            if(i>0) Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.dH(j,istate,jstate)
-                        end do
-                    end do
-                end do
-            call InitializeHdLeastSquareFit()
-        case('ContinueFitting')
-            if(SameTrainingSet) then!Read the rearranged training set
-                open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-                    allocate(ReferencePoint.geom(InternalDimension))
-                    allocate(ReferencePoint.energy(NState))
-                    allocate(ReferencePoint.H(NState,NState))
-                    allocate(ReferencePoint.dH(InternalDimension,NState,NState))
-                    read(99,*)ReferencePoint.geom
-                    read(99,*)ReferencePoint.energy
-                    read(99,*)ReferencePoint.H
-                    read(99,*)ReferencePoint.dH
-                close(99)
-                CharTemp128='DegeneratePoint.CheckPoint'
-                call ReadDegenerateData(CharTemp128,DegeneratePoint,NDegeneratePoints,InternalDimension)
-                NPoints=NPoints-NDegeneratePoints
-                CharTemp128='point.CheckPoint'
-                    allocate(point(NPoints))
-                    do i=1,NPoints
-                        allocate(point(i).geom(InternalDimension))
-                        allocate(point(i).energy(NState))
-                        allocate(point(i).dH(InternalDimension,NState,NState))
-                    end do
-                call ReadData(CharTemp128,point,NPoints)
-                CharTemp128='ArtifactPoint.CheckPoint'
-                    allocate(ArtifactPoint(NArtifactPoints))
-                    do i=1,NArtifactPoints
-                        allocate(ArtifactPoint(i).geom(InternalDimension))
-                        allocate(ArtifactPoint(i).energy(NState))
-                    end do
-                call ReadArtifactData(CharTemp128,ArtifactPoint,NArtifactPoints)
-                if(GradualFit) then
-                    !Read the Cartesian distances to the reference geometry
-                    allocate(GeomDifference(NPoints))
-                    open(unit=99,file='GeomDifference.CheckPoint',status='old')
-                        do i=1,NPoints
-                            read(99,*)GeomDifference(i)
-                        end do
-                    close(99)
-                end if
-                call InitializeDiabaticHamiltonian(NState,InternalDimension)
-            else!Read training set then rearrange it, and check whether reference point has changed
-                if(IndexReference==0) then!Same old reference point
-                    call Initialize_NewTrainingSet()!Read training set then rearrange it
-                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
-                else!Reference point is possibly changed
-                    !Read old reference point
-                    allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
-                    open(unit=99,file='ReferencePoint.CheckPoint',status='old')
-                        read(99,*)OldRefGeom; read(99,*)OldRefEnergy
-                    close(99)
-                    call Initialize_NewTrainingSet()!Read training set then rearrange it
-                    call InitializeDiabaticHamiltonian(NState,InternalDimension)
-                    flag=.false.!Check whether the reference point has been changed
-                    do i=1,InternalDimension
-                        dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
-                        if(dbletemp>1d-10.and.dbletemp/Abs(OldRefGeom(i))>1d-10) then
-                            flag=.true.; exit
-                        end if
-                    end do
-                    if(flag) then!Shift Hd expansion origin to new reference point
-                        call OriginShift(ReferencePoint.geom-OldRefGeom)
-                        i=WhichExpansionBasis(0,indice(1:0))
-                        if(i>0) then!Const term shift takes care of the energy zero point shift
-                            dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
-                            forall(istate=1:NState)
-                                Hd_HdEC(istate,istate).Array(i)=Hd_HdEC(istate,istate).Array(i)+dbletemp
-                            end forall
-                        end if
-                    end if
-                    deallocate(OldRefGeom); deallocate(OldRefEnergy)!Clean up
+    case('FitNewDiabaticHamiltonian')!To fit Hd from scratch, read training set then rearrange it
+        call Initialize_NewTrainingSet()
+		call InitializeDiabaticHamiltonian(NState,InternalDimension,NewHd=.true.)
+		!Provide an initial guess of Hd
+            call CheckDegeneracy(flag,AlmostDegenerate,ReferencePoint.energy,NState)
+            i=WhichExpansionBasis(0,indice(1:0))
+            if(i>0) then
+                if(flag) then
+                    forall(istate=1:NState,jstate=1:NState,istate>=jstate)
+                        Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.H(istate,jstate)
+                    end forall
+                else
+                    forall(istate=2:NState)
+                        Hd_HdEC(istate,istate).Array(i)=ReferencePoint.energy(istate)-ReferencePoint.energy(1)
+                    end forall
                 end if
             end if
-            call InitializeHdLeastSquareFit()
-		case default
-			open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+            do jstate=1,NState
+                do istate=jstate,NState
+                    do j=1,InternalDimension
+                        indice(1)=j
+                        i=WhichExpansionBasis(1,indice)
+                        if(i>0) Hd_HdEC(istate,jstate).Array(i)=ReferencePoint.dH(j,istate,jstate)
+                    end do
+                end do
+            end do
+        call InitializeHdLeastSquareFit()
+    case('ContinueFitting')
+        if(SameTrainingSet) then!Read the rearranged training set
+            open(unit=99,file='ReferencePoint.CheckPoint',status='old')
                 allocate(ReferencePoint.geom(InternalDimension))
                 allocate(ReferencePoint.energy(NState))
                 allocate(ReferencePoint.H(NState,NState))
@@ -318,7 +248,79 @@ subroutine Initialize()!Program initializer
                 read(99,*)ReferencePoint.H
                 read(99,*)ReferencePoint.dH
             close(99)
+            CharTemp128='DegeneratePoint.CheckPoint'
+            call ReadDegenerateData(CharTemp128,DegeneratePoint,NDegeneratePoints,InternalDimension)
+            NPoints=NPoints-NDegeneratePoints
+            CharTemp128='point.CheckPoint'
+                allocate(point(NPoints))
+                do i=1,NPoints
+                    allocate(point(i).geom(InternalDimension))
+                    allocate(point(i).energy(NState))
+                    allocate(point(i).dH(InternalDimension,NState,NState))
+                end do
+            call ReadData(CharTemp128,point,NPoints)
+            CharTemp128='ArtifactPoint.CheckPoint'
+                allocate(ArtifactPoint(NArtifactPoints))
+                do i=1,NArtifactPoints
+                    allocate(ArtifactPoint(i).geom(InternalDimension))
+                    allocate(ArtifactPoint(i).energy(NState))
+                end do
+            call ReadArtifactData(CharTemp128,ArtifactPoint,NArtifactPoints)
+            if(GradualFit) then
+                !Read the Cartesian distances to the reference geometry
+                allocate(GeomDifference(NPoints))
+                open(unit=99,file='GeomDifference.CheckPoint',status='old')
+                    do i=1,NPoints
+                        read(99,*)GeomDifference(i)
+                    end do
+                close(99)
+            end if
             call InitializeDiabaticHamiltonian(NState,InternalDimension)
+        else!Read training set then rearrange it, and check whether reference point has changed
+            if(IndexReference==0) then!Same old reference point
+                call Initialize_NewTrainingSet()!Read training set then rearrange it
+                call InitializeDiabaticHamiltonian(NState,InternalDimension)
+            else!Reference point is possibly changed
+                !Read old reference point
+                allocate(OldRefGeom(InternalDimension)); allocate(OldRefEnergy(NState))
+                open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+                    read(99,*)OldRefGeom; read(99,*)OldRefEnergy
+                close(99)
+                call Initialize_NewTrainingSet()!Read training set then rearrange it
+                call InitializeDiabaticHamiltonian(NState,InternalDimension)
+                flag=.false.!Check whether the reference point has been changed
+                do i=1,InternalDimension
+                    dbletemp=Abs(ReferencePoint.geom(i)-OldRefGeom(i))
+                    if(dbletemp>1d-10.and.dbletemp/Abs(OldRefGeom(i))>1d-10) then
+                        flag=.true.; exit
+                    end if
+                end do
+                if(flag) then!Shift Hd expansion origin to new reference point
+                    call OriginShift(ReferencePoint.geom-OldRefGeom)
+                    i=WhichExpansionBasis(0,indice(1:0))
+                    if(i>0) then!Const term shift takes care of the energy zero point shift
+                        dbletemp=OldRefEnergy(1)-ReferencePoint.energy(1)
+                        forall(istate=1:NState)
+                            Hd_HdEC(istate,istate).Array(i)=Hd_HdEC(istate,istate).Array(i)+dbletemp
+                        end forall
+                    end if
+                end if
+                deallocate(OldRefGeom); deallocate(OldRefEnergy)!Clean up
+            end if
+        end if
+        call InitializeHdLeastSquareFit()
+	case default
+		open(unit=99,file='ReferencePoint.CheckPoint',status='old')
+            allocate(ReferencePoint.geom(InternalDimension))
+            allocate(ReferencePoint.energy(NState))
+            allocate(ReferencePoint.H(NState,NState))
+            allocate(ReferencePoint.dH(InternalDimension,NState,NState))
+            read(99,*)ReferencePoint.geom
+            read(99,*)ReferencePoint.energy
+            read(99,*)ReferencePoint.H
+            read(99,*)ReferencePoint.dH
+        close(99)
+        call InitializeDiabaticHamiltonian(NState,InternalDimension)
     end select
 end subroutine Initialize
 subroutine Initialize_NewTrainingSet()!Support Initialize
