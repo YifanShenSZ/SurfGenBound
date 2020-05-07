@@ -40,7 +40,7 @@ contains
 subroutine GenerateNadVibSInput()
     !Vibration information of precursor and residual
     real*8,dimension(InternalDimension)::qPrecursor,qResidual,freqPrecursor,freqResidual
-    real*8,dimension(CartesianDimension)::rPrecursor,rSuccesor
+    real*8,dimension(CartesianDimension)::rPrecursor,rResidual
     real*8,dimension(InternalDimension,InternalDimension)::HPrecursor,intmodePrecursor,LinvPrecursor,HResidual,intmodeResidual,LinvResidual
     real*8,dimension(InternalDimension,CartesianDimension)::BPrecursor,BResidual
     real*8,dimension(CartesianDimension,InternalDimension)::cartmodePrecursor,cartmodeResidual
@@ -58,7 +58,7 @@ subroutine GenerateNadVibSInput()
         do i=1,MoleculeDetail.NAtoms; read(99,*)chartemp,rPrecursor(3*i-2:3*i); end do
         rPrecursor=rPrecursor*AInAU!Convert to atomic unit
     close(99)
-    call WilsonBMatrixAndInternalCoordinate(BPrecursor,qPrecursor,rPrecursor,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(rPrecursor,BPrecursor,qPrecursor,CartesianDimension,InternalDimension)
     call ReadElectronicStructureHessian(HPrecursor,InternalDimension)
     call WilsonGFMethod(HPrecursor,BPrecursor,MoleculeDetail.mass,freqPrecursor,intmodePrecursor,LinvPrecursor,cartmodePrecursor,InternalDimension,MoleculeDetail.NAtoms)
     if(minval(freqPrecursor)<0d0) stop 'Program abort: imaginary frequency found for precursor'
@@ -67,10 +67,10 @@ subroutine GenerateNadVibSInput()
         case('min')!Use the obtained minimum and corresponding normal mode
             open(unit=99,file='MinimumCartesianGeometry.xyz',status='old')
             	read(99,*); read(99,*)
-                do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
-                rSuccesor=rSuccesor*AInAU!Convert to atomic unit
+                do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rResidual(3*i-2:3*i); end do
+                rResidual=rResidual*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinate(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            call WilsonBMatrixAndInternalCoordinate(rResidual,BResidual,qResidual,CartesianDimension,InternalDimension)
             qtemp=qResidual-ReferencePoint.geom
             if(Analyzation_SearchDiabatic) then; Htemp=ddHd(qtemp)!Diabatic surface
             else; Htemp=AdiabaticddH(qtemp); end if!Adiabatic surface
@@ -78,10 +78,10 @@ subroutine GenerateNadVibSInput()
         case('mex')!Use the obtained mex and the normal mode of diabatic mean field
             open(unit=99,file='MexCartesianGeometry.xyz',status='old')
             	read(99,*); read(99,*)
-                do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rSuccesor(3*i-2:3*i); end do
-                rSuccesor=rSuccesor*AInAU!Convert to atomic unit
+                do i=1,MoleculeDetail.NAtoms; read(99,'(A2,3F20.15)')chartemp,rResidual(3*i-2:3*i); end do
+                rResidual=rResidual*AInAU!Convert to atomic unit
             close(99)
-            call WilsonBMatrixAndInternalCoordinate(BResidual,qResidual,rSuccesor,InternalDimension,CartesianDimension)
+            call WilsonBMatrixAndInternalCoordinate(rResidual,BResidual,qResidual,CartesianDimension,InternalDimension)
             qtemp=qResidual-ReferencePoint.geom
             Htemp=ddHd(qtemp)
             HResidual=(Htemp(:,:,Analyzation_state,Analyzation_state)+Htemp(:,:,Analyzation_state+1,Analyzation_state+1))/2d0
