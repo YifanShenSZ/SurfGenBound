@@ -89,9 +89,22 @@ subroutine GenerateNadVibSInput()
     end select
     call WilsonGFMethod(HResidual,BResidual,MoleculeDetail.mass,freqResidual,intmodeResidual,LinvResidual,cartmodeResidual,InternalDimension,MoleculeDetail.NAtoms)
     if(minval(freqResidual)<0d0) stop 'Program abort: imaginary frequency found for residual'
+
+!write(*,*)freqPrecursor
+!write(*,*)
+!write(*,*)freqResidual
+!write(*,*)
+!write(*,*)intmodePrecursor
+!write(*,*)
+!write(*,*)intmodeResidual
+
+write(*,*)LinvPrecursor
+write(*,*)
+write(*,*)LinvResidual
+
     call BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,intmodeResidual,InternalDimension)
     !Prepare nadvibs.in
-    call OriginShift(qResidual-ReferencePoint.geom)!Shift origin to ground state minimum
+    call OriginShift(qResidual-ReferencePoint.geom)!Shift Hd origin to normal coordinate origin
     call HdEC_Hd2NVS(intmodeResidual)!Reformat Hd expansion coefficient into NadVibS format
     do i=1,InternalDimension!Subtract the harmonic oscillator potential term
         indice=i; j=NVS_WhichExpansionBasis(2,indice)
@@ -138,10 +151,10 @@ end subroutine GenerateNadVibSInput
 !Now the problem can be solved by a common real nonlinear optimization subject to equality constraint:
 !    Minimize and maximize the component along each residual normal coordinate,
 !    subject to staying on the 2 sigma eclipse
-subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,LResidual,intdim)
+subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,intmodeResidual,intdim)
     integer,intent(in)::intdim
     real*8,dimension(intdim),intent(in)::qPrecursor,qResidual,freqPrecursor,freqResidual
-    real*8,dimension(intdim,intdim),intent(in)::LinvPrecursor,LinvResidual,LResidual
+    real*8,dimension(intdim,intdim),intent(in)::LinvPrecursor,LinvResidual,intmodeResidual
     integer::i,j; integer*8::NTotalBasis; integer,dimension(intdim)::NBasis; real*8::sign,contoursq
     real*8,dimension(intdim)::DPrecursor,q,LowerBound,UpperBound,bound,basis
     write(*,*)'The basis will cover',NVS_contour,' times of sigma eclipse'
@@ -171,7 +184,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freq
         write(99,'(A98)')'Please check your internal coordinate definition to make sure angles are within well-defined range'
         write(99,'(A4,A1,A8)')'   q',char(9),'coverage'
         do i=1,intdim!Check the coverage in internal coordinate, since angles should not exceed some pi
-            sign=0d0; do j=1,intdim; sign=sign+dAbs(LResidual(i,j)*bound(j)); end do
+            sign=0d0; do j=1,intdim; sign=sign+dAbs(intmodeResidual(i,j)*bound(j)); end do
             write(99,'(I4,A1,F8.4)')i,char(9),sign
         end do
     close(99)

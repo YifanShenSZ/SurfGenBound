@@ -28,7 +28,7 @@ Main.o
 SurfGenBound.exe: $(MyLibSrc) $(src)
 	$(compiler) -ipo $(flag) $^ -o $@
 
-debug.exe: $(obj)
+debug: $(obj)
 	$(compiler) $(flag) -I$(MyInc) -L$(MyLib) -lFL $^ -o $@
 
 DiabaticHamiltonian.o: source/DiabaticHamiltonian.f90
@@ -54,4 +54,4 @@ Main.o: source/Main.f90
 
 .PHONY: clean
 clean:
-	rm -f *.mod *.o
+	rm *.mod *.o
