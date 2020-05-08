@@ -89,19 +89,6 @@ subroutine GenerateNadVibSInput()
     end select
     call WilsonGFMethod(HResidual,BResidual,MoleculeDetail.mass,freqResidual,intmodeResidual,LinvResidual,cartmodeResidual,InternalDimension,MoleculeDetail.NAtoms)
     if(minval(freqResidual)<0d0) stop 'Program abort: imaginary frequency found for residual'
-
-!write(*,*)freqPrecursor
-!write(*,*)
-!write(*,*)freqResidual
-!write(*,*)
-!write(*,*)intmodePrecursor
-!write(*,*)
-!write(*,*)intmodeResidual
-
-write(*,*)LinvPrecursor
-write(*,*)
-write(*,*)LinvResidual
-
     call BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freqResidual,LinvResidual,intmodeResidual,InternalDimension)
     !Prepare nadvibs.in
     call OriginShift(qResidual-ReferencePoint.geom)!Shift Hd origin to normal coordinate origin
