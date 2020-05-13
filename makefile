@@ -5,7 +5,7 @@
 ###########################################
 
 compiler = ifort
-flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
+flag = -mkl -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -ipo
 MyLibSrc = $(addprefix Fortran-Library_v1.0.0/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 Chemistry.f90 \
 GeometryTransformation.f90)
