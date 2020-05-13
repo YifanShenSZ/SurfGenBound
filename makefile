@@ -6,7 +6,7 @@
 
 # Flags for user to tune
 compiler = ifort
-flag = -mkl -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -ipo
+flag = -mkl -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3
 
 # User does not have to take care of following variables
 libSrc = $(addprefix Fortran-Library_v1.0.0/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
@@ -28,7 +28,7 @@ Main.o
 
 # release
 SurfGenBound.exe: $(libSrc) $(src)
-	$(compiler) -ipo $(flag) $^ -o $@
+	$(compiler) $(flag) -ipo $^ -o $@
 
 # debug
 debug.exe: $(obj)

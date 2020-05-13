@@ -157,7 +157,7 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freq
         bound(i)=max(dAbs(LowerBound(i)),dAbs(UpperBound(i)))
         basis(i)=freqResidual(i)*bound(i)*bound(i)+0.5d0
     end do
-    write(*,'(1x,A91)')'Please refer to NormalCoverage.txt and InternalCoverage.txt for suggestion on NadVibS basis'
+    write(*,*)'Please refer to NormalCoverage.txt and basis.txt for suggestion on NadVibS basis'
     open(unit=99,file='NormalCoverage.txt',status='replace')
         NTotalBasis=1; do i=1,intdim; NBasis(i)=ceiling(basis(i)); NTotalBasis=NTotalBasis*NBasis(i); end do
         write(99,'(A23)',advance='no')'Total number of basis ='; write(99,*)NTotalBasis
@@ -166,6 +166,12 @@ subroutine BasisEstimation(qPrecursor,freqPrecursor,LinvPrecursor,qResidual,freq
             write(99,'(I4,A1,F11.5,A1,F11.5,A1,I5,A1,F9.5)')i,char(9),LowerBound(i),char(9),UpperBound(i),char(9),NBasis(i),char(9),basis(i)
         end do
     close(99)
+    open(unit=99,file='basis.txt',status='replace')
+        do i=1,intdim
+            write(99,'(I5,A1)',advance='no')NBasis(i),','
+        end do
+    close(99)
+    write(*,*)'Please refer to InternalCoverage.txt to validate the basis'
     open(unit=99,file='InternalCoverage.txt',status='replace')
         write(99,'(A55)')'This is a report on the coverage in internal coordinate'
         write(99,'(A98)')'Please check your internal coordinate definition to make sure angles are within well-defined range'
