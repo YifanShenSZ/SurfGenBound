@@ -4,9 +4,12 @@
 #                                         #
 ###########################################
 
+# Flags for user to tune
 compiler = ifort
 flag = -mkl -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -ipo
-MyLibSrc = $(addprefix Fortran-Library_v1.0.0/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
+
+# User does not have to take care of following variables
+libSrc = $(addprefix Fortran-Library_v1.0.0/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 Chemistry.f90 \
 GeometryTransformation.f90)
 src = $(addprefix source/, DiabaticHamiltonian.f90 \
@@ -15,42 +18,42 @@ HdLeastSquareFit.f90 Analyzation.f90 ElectronicStructure.f90 \
 NadVibSInterface.f90 \
 Main.f90)
 # Faster compilation for debugging
-# Link to dynamic library version of Fortran-Library for fast debugging
-MyInc = ~/Library/Fortran-Library/include
-MyLib = ~/Library/Fortran-Library/lib
-# Keep old object files
+inc = ~/Library/Fortran-Library/include
+lib = ~/Library/Fortran-Library/lib
 obj = DiabaticHamiltonian.o \
 Basic.o \
 HdLeastSquareFit.o Analyzation.o ElectronicStructure.o \
 NadVibSInterface.o \
 Main.o
 
-SurfGenBound.exe: $(MyLibSrc) $(src)
+# release
+SurfGenBound.exe: $(libSrc) $(src)
 	$(compiler) -ipo $(flag) $^ -o $@
 
-debug: $(obj)
-	$(compiler) $(flag) -I$(MyInc) -L$(MyLib) -lFL $^ -o $@
+# debug
+debug.exe: $(obj)
+	$(compiler) $(flag) -I$(inc) -L$(lib) -lFL $^ -o $@
 
 DiabaticHamiltonian.o: source/DiabaticHamiltonian.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 Basic.o: source/Basic.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 ElectronicStructure.o: source/ElectronicStructure.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 HdLeastSquareFit.o: source/HdLeastSquareFit.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 Analyzation.o: source/Analyzation.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 NadVibSInterface.o: source/NadVibSInterface.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 Main.o: source/Main.f90
-	$(compiler) $(flag) -I$(MyInc) -c $^
+	$(compiler) $(flag) -I$(inc) -c $^
 
 .PHONY: clean
 clean:
