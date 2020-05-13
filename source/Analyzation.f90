@@ -286,7 +286,7 @@ subroutine MinimumSearch()
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
     close(99)
-    call WilsonBMatrixAndInternalCoordinate(B,q,r,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(r,B,q,CartesianDimension,InternalDimension)
     call WilsonGFMethod(Hessian,B,MoleculeDetail.mass,freq,intmode,Linv,cartmode,InternalDimension,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
@@ -484,7 +484,7 @@ subroutine SaddleSearch()!This is only a naive search for saddle point, not nece
             write(99,'(A2,3F20.15)')MoleculeDetail.ElementSymbol(i),r(3*i-2:3*i)/AInAU
         end do
     close(99)
-    call WilsonBMatrixAndInternalCoordinate(B,q,r,InternalDimension,CartesianDimension)
+    call WilsonBMatrixAndInternalCoordinate(r,B,q,CartesianDimension,InternalDimension)
     call WilsonGFMethod(Hessian,B,MoleculeDetail.mass,freq,intmode,Linv,cartmode,InternalDimension,MoleculeDetail.NAtoms)
     open(unit=99,file='VibrationalFrequency.txt',status='replace')
         write(99,'(A4,A1,A15)')'Mode',char(9),'Frequency/cm^-1'
