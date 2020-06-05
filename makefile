@@ -17,43 +17,17 @@ Basic.f90 \
 HdLeastSquareFit.f90 Analyzation.f90 ElectronicStructure.f90 \
 NadVibSInterface.f90 \
 Main.f90)
-# Faster compilation for debugging
-inc = ~/Library/Fortran-Library/include
-lib = ~/Library/Fortran-Library/lib
-obj = DiabaticHamiltonian.o \
-Basic.o \
-HdLeastSquareFit.o Analyzation.o ElectronicStructure.o \
-NadVibSInterface.o \
-Main.o
 
 # release
 SurfGenBound.exe: $(libSrc) $(src)
 	$(compiler) $(flag) -ipo $^ -o $@
 
 # debug
-debug.exe: $(obj)
-	$(compiler) $(flag) -I$(inc) -L$(lib) -lFL $^ -o $@
+debug.exe: DiabaticHamiltonian.o Basic.o HdLeastSquareFit.o Analyzation.o ElectronicStructure.o NadVibSInterface.o Main.o
+	$(compiler) $(flag) -lFL $^ -o $@
 
-DiabaticHamiltonian.o: source/DiabaticHamiltonian.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-Basic.o: source/Basic.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-ElectronicStructure.o: source/ElectronicStructure.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-HdLeastSquareFit.o: source/HdLeastSquareFit.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-Analyzation.o: source/Analyzation.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-NadVibSInterface.o: source/NadVibSInterface.f90
-	$(compiler) $(flag) -I$(inc) -c $^
-
-Main.o: source/Main.f90
-	$(compiler) $(flag) -I$(inc) -c $^
+%.o: source/%.f90
+	$(compiler) $(flag) -I~/Library/Fortran-Library/include -c $<
 
 .PHONY: clean
 clean:
