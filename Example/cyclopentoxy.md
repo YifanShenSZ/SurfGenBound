@@ -24,3 +24,6 @@ In practise, Dai-Yun conjugate gradient under Wolfe condition yields the lowest 
 Compiler and platform:
 * The compiler adopted in this work is ifort 2018.3.222
 * The operating systems used in this work are Ubuntu 18.04 and CentOS 7
+
+## Cite this work
+> Y. Shen and D. R. Yarkony, J. Phys. Chem. A acs.jpca.0c02763 (2020) https://doi.org/10.1021/acs.jpca.0c02763

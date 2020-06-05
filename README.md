@@ -32,3 +32,6 @@ Source code level from bottom to top:
 4. HdLeastSquareFit, Analyzation, ElectronicStructure
 5. NadVibSInterface
 6. Main
+
+## Cite this work
+> Y. Shen and D. R. Yarkony, J. Phys. Chem. A acs.jpca.0c02763 (2020) https://doi.org/10.1021/acs.jpca.0c02763
